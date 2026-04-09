@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Student Identity</span>
+      <h1 style="margin-top:16px;">My Student Profile</h1>
+      <p class="muted">View your academic identity, linked guardians, disciplinary history, and school-issued QR code.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary compact-btn">Back</button></a>
+      <button onclick="logout()" class="compact-btn">Logout</button>
+    </div>
+  </div>
+
+  <div class="card student-profile-shell">
+    <div id="studentInfo">Loading...</div>
+  </div>
+
+  <div class="card">
+    <h2>Parents / Guardians</h2>
+    <div id="parentsInfo">Loading...</div>
+  </div>
+
+  <div class="card">
+    <h2>Case History</h2>
+    <div id="casesInfo">Loading...</div>
+  </div>
+
+  <div class="card">
+    <h2>Hearings</h2>
+    <div id="hearingsInfo">Loading...</div>
+  </div>
+
+  <div class="card">
+    <h2>Sanctions</h2>
+    <div id="sanctionsInfo">Loading...</div>
+  </div>
+
+  <div class="card">
+    <h2>Appeals</h2>
+    <div id="appealsInfo">Loading...</div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "student") {
+  alert("Access denied");
+  logout();
+}
+
+let currentStudentQr = null;
+let currentStudentNumber = null;
+
+function getStudentInitials(student) {
+  return `${student.first_name?.[0] || "S"}${student.last_name?.[0] || ""}`.toUpperCase();
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function badge(value) {
+  return `<span class="badge ${String(value || "").toLowerCase().replaceAll(" ", "_")}">${String(value || "-").replaceAll("_", " ")}</span>`;
+}
+
+function renderTimelineCards(items, emptyMessage, mapFn) {
+  if (!items.length) {
+    return `<div class="empty-state">${emptyMessage}</div>`;
+  }
+  return `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
+}
+
+async function loadProfile() {
+  const studentInfo = document.getElementById("studentInfo");
+  const parentsInfo = document.getElementById("parentsInfo");
+  const casesInfo = document.getElementById("casesInfo");
+  const hearingsInfo = document.getElementById("hearingsInfo");
+  const sanctionsInfo = document.getElementById("sanctionsInfo");
+  const appealsInfo = document.getElementById("appealsInfo");
+
+  try {
+    const res = await apiRequest("/students/me", "GET", null, true);
+
+    if (!res.success) {
+      studentInfo.textContent = res.message;
+      parentsInfo.textContent = "";
+      casesInfo.textContent = "";
+      hearingsInfo.textContent = "";
+      sanctionsInfo.textContent = "";
+      appealsInfo.textContent = "";
+      return;
+    }
+
+    const student = res.student;
+    currentStudentQr = student.qr_code_data_url || null;
+    currentStudentNumber = student.student_number || null;
+
+    const avatarMarkup = student.avatar_url
+      ? `<span class="profile-settings-avatar student-profile-avatar has-image"><img src="${student.avatar_url}" alt="${student.first_name} ${student.last_name} avatar"></span>`
+      : `<span class="profile-settings-avatar student-profile-avatar">${getStudentInitials(student)}</span>`;
+
+    studentInfo.innerHTML = `
+      <div class="student-profile-hero">
+        <div class="student-profile-identity">
+          ${avatarMarkup}
+          <div class="student-profile-copy">
+            <span class="eyebrow">Active Student Record</span>
+            <h2>${student.first_name} ${student.last_name}</h2>
+            <p>${student.program || "Program not set"} | ${student.year_level || "-"} year | Section ${student.section || "-"}</p>
+            <div class="student-profile-meta">
+              <span>${student.student_number}</span>
+              ${badge(student.academic_level || "student")}
+            </div>
+          </div>
+        </div>
+        <div class="student-qr-panel">
+          <strong>Student QR</strong>
+          ${student.qr_code_data_url ? `
+            <img class="qr-thumb large student-qr-thumb" src="${student.qr_code_data_url}" alt="QR code for ${student.student_number}">
+            <button type="button" class="compact-btn" id="printQrBtn">Print QR Code</button>
+          ` : `
+            <div class="empty-state">QR code has not been generated for this student yet.</div>
+          `}
+        </div>
+      </div>
+      <div class="student-profile-grid">
+        <div class="student-profile-stat">
+          <strong>Email</strong>
+          <span>${student.email || "-"}</span>
+        </div>
+        <div class="student-profile-stat">
+          <strong>Department</strong>
+          <span>${student.department || "-"}</span>
+        </div>
+        <div class="student-profile-stat">
+          <strong>Program</strong>
+          <span>${student.program || "-"}</span>
+        </div>
+        <div class="student-profile-stat">
+          <strong>Year / Section</strong>
+          <span>${student.year_level || "-"} / ${student.section || "-"}</span>
+        </div>
+        <div class="student-profile-stat">
+          <strong>Academic Level</strong>
+          <span>${student.academic_level || "-"}</span>
+        </div>
+        <div class="student-profile-stat">
+          <strong>QR Token</strong>
+          <span>${student.qr_token || "Not issued"}</span>
+        </div>
+      </div>
+    `;
+
+    const printQrBtn = document.getElementById("printQrBtn");
+    if (printQrBtn) {
+      printQrBtn.addEventListener("click", () => printStudentQr(currentStudentNumber, currentStudentQr));
+    }
+
+    const parents = Array.isArray(res.parents) ? res.parents : [];
+    const recentCases = Array.isArray(res.recentCases) ? res.recentCases : [];
+    const hearings = Array.isArray(res.hearings) ? res.hearings : [];
+    const sanctions = Array.isArray(res.sanctions) ? res.sanctions : [];
+    const appeals = Array.isArray(res.appeals) ? res.appeals : [];
+
+    if (!parents.length) {
+      parentsInfo.innerHTML = `<div class="empty-state">No parent or guardian records linked yet.</div>`;
+    } else {
+      parentsInfo.innerHTML = `<div class="detail-list">` + parents.map(parent => `
+        <div class="detail-item">
+          <p><strong>${parent.first_name} ${parent.last_name}</strong> ${badge(parent.relationship || "guardian")}</p>
+          <p>${parent.email || "-"}</p>
+          <p>${parent.phone_number || "No phone number recorded."}</p>
+        </div>
+      `).join("") + `</div>`;
+    }
+
+    casesInfo.innerHTML = renderTimelineCards(
+      recentCases,
+      "No disciplinary cases found.",
+      item => `
+        <div class="detail-item">
+          <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
+          <p>${item.violation_type} | ${badge(item.severity_level)}</p>
+          <p class="muted">Reported ${formatDate(item.created_at)}</p>
+        </div>
+      `
+    );
+
+    hearingsInfo.innerHTML = renderTimelineCards(
+      hearings,
+      "No hearings found.",
+      item => `
+        <div class="detail-item">
+          <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
+          <p>${formatDate(item.scheduled_date)} ${item.scheduled_time || ""}</p>
+          <p class="muted">${item.location || "Location not set"}</p>
+        </div>
+      `
+    );
+
+    sanctionsInfo.innerHTML = renderTimelineCards(
+      sanctions,
+      "No sanctions found.",
+      item => `
+        <div class="detail-item">
+          <p><strong>${item.sanction_type}</strong> ${badge(item.display_status || item.status)}</p>
+          <p>${formatDate(item.start_date)} to ${formatDate(item.end_date)}</p>
+        </div>
+      `
+    );
+
+    appealsInfo.innerHTML = renderTimelineCards(
+      appeals,
+      "No appeals found.",
+      item => `
+        <div class="detail-item">
+          <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
+          <p>${item.reason}</p>
+          <p class="muted">${item.decision_notes || "No decision notes yet."}</p>
+        </div>
+      `
+    );
+  } catch (error) {
+    studentInfo.textContent = "Failed to load profile.";
+    parentsInfo.textContent = "";
+    casesInfo.textContent = "";
+    hearingsInfo.textContent = "";
+    sanctionsInfo.textContent = "";
+    appealsInfo.textContent = "";
+  }
+}
+
+function printStudentQr(studentNumber, qrDataUrl) {
+  if (!studentNumber || !qrDataUrl) {
+    return;
+  }
+
+  const printWindow = window.open("", "_blank", "width=760,height=760");
+  if (!printWindow) {
+    return;
+  }
+
+  const doc = printWindow.document;
+  doc.title = "Print Student QR";
+
+  doc.body.style.margin = "0";
+  doc.body.style.fontFamily = "Segoe UI, sans-serif";
+  doc.body.style.background = "#fffaf6";
+  doc.body.style.color = "#4d1223";
+  doc.body.style.display = "grid";
+  doc.body.style.placeItems = "center";
+  doc.body.style.minHeight = "100vh";
+
+  const sheet = doc.createElement("div");
+  sheet.style.width = "340px";
+  sheet.style.padding = "28px";
+  sheet.style.border = "2px solid #6f1730";
+  sheet.style.borderRadius = "24px";
+  sheet.style.textAlign = "center";
+  sheet.style.background = "#ffffff";
+
+  const title = doc.createElement("h1");
+  title.textContent = "Student Identification QR";
+  title.style.fontSize = "22px";
+  title.style.margin = "0 0 10px";
+
+  const number = doc.createElement("p");
+  number.style.margin = "6px 0";
+  const numberLabel = doc.createElement("strong");
+  numberLabel.textContent = "Student Number: ";
+  number.appendChild(numberLabel);
+  number.appendChild(doc.createTextNode(studentNumber));
+
+  const note = doc.createElement("p");
+  note.textContent = "Present this QR during reporting, verification, or student lookup.";
+  note.style.margin = "6px 0 18px";
+
+  const image = doc.createElement("img");
+  image.src = qrDataUrl;
+  image.alt = "Student QR Code";
+  image.style.width = "240px";
+  image.style.height = "240px";
+  image.style.objectFit = "contain";
+
+  sheet.appendChild(title);
+  sheet.appendChild(number);
+  sheet.appendChild(note);
+  sheet.appendChild(image);
+  doc.body.appendChild(sheet);
+
+  printWindow.focus();
+  printWindow.print();
+}
+
+loadProfile();
+</script>
+
+</body>
+</html>

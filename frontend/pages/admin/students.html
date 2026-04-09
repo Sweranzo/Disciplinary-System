@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Records Management</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Student Records Management</h1>
+      <p class="muted">Create student profiles with or without login accounts, generate QR codes, link parents now or later, and open full student history.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <a href="accounts.html"><button class="secondary">Accounts & Identity</button></a>
+      <button id="openCreateModalBtn">Create Student</button>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="summary-band">
+    <div class="summary-chip"><strong>Total Records</strong><span id="totalStudents">0</span></div>
+    <div class="summary-chip"><strong>With Account</strong><span id="withAccountCount">0</span></div>
+    <div class="summary-chip"><strong>Profile Only</strong><span id="profileOnlyCount">0</span></div>
+    <div class="summary-chip"><strong>Visible Inactive</strong><span id="inactiveCount">0</span></div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Search and Filters</h2>
+        <p class="muted">Find records by student number, name, email, status, or whether the student already has a login account.</p>
+      </div>
+      <p class="muted" id="paginationInfo">Loading...</p>
+    </div>
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="Search student number, name, or email">
+      <select id="statusFilter">
+        <option value="">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+      <select id="accountFilter">
+        <option value="">All Account Types</option>
+        <option value="with_account">With Account</option>
+        <option value="profile_only">Profile Only</option>
+      </select>
+      <button id="searchBtn">Apply Filters</button>
+      <button id="clearBtn" class="secondary">Clear</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Student List</h2>
+        <p class="muted">Open a profile for full history, scan the QR preview, or create a linked account later for profile-only records.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>QR</th>
+            <th>Student</th>
+            <th>Program / Year</th>
+            <th>Account</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="studentTable">
+          <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="action-row" style="margin-top:16px;">
+      <button id="prevBtn" class="secondary">Previous</button>
+      <button id="nextBtn">Next</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="createStudentModal">
+  <div class="modal-card modal-card-wide">
+    <div class="card-header">
+      <div>
+        <h2>Create Student Record</h2>
+        <p class="muted">Choose whether to create only the profile or the profile plus a login account. QR is generated automatically.</p>
+      </div>
+    </div>
+
+    <div class="section-tabs" style="margin-bottom:16px;">
+      <button type="button" id="studentEntryTab" class="section-tab active">Single Entry</button>
+      <button type="button" id="studentImportTab" class="section-tab">Bulk Import</button>
+    </div>
+
+    <div id="studentEntryPane">
+
+      <div class="form-grid">
+        <input type="text" id="createStudentNumber" placeholder="Student Number">
+        <input type="text" id="createFirstName" placeholder="First Name">
+        <input type="text" id="createMiddleName" placeholder="Middle Name">
+        <input type="text" id="createLastName" placeholder="Last Name">
+        <input type="email" id="createEmail" placeholder="Email">
+        <select id="createAcademicLevel">
+          <option value="">Academic Level</option>
+          <option value="college">College</option>
+          <option value="shs">SHS</option>
+        </select>
+        <input type="text" id="createDepartment" placeholder="Department">
+        <input type="text" id="createProgram" placeholder="Program">
+        <input type="text" id="createYearLevel" placeholder="Year Level">
+        <input type="text" id="createSection" placeholder="Section">
+        <select id="createStatus">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        <select id="createAccountMode">
+          <option value="profile_only">Create Profile Only</option>
+          <option value="with_account">Create Profile + Login Account</option>
+        </select>
+      </div>
+
+      <div id="studentAccountFields" class="form-grid hidden">
+        <input type="text" id="createUsername" placeholder="Username">
+        <input type="password" id="createPassword" placeholder="Temporary Password">
+      </div>
+
+      <div class="toolbar">
+        <select id="parentLinkMode">
+          <option value="none">No Parent Link Yet</option>
+          <option value="existing">Link Existing Parent</option>
+          <option value="new">Create and Link New Parent</option>
+        </select>
+        <select id="createParentId" class="hidden">
+          <option value="">Select Existing Parent</option>
+        </select>
+        <input type="text" id="relationship" placeholder="Relationship" value="Parent/Guardian">
+      </div>
+
+      <div id="newParentFields" class="form-grid hidden">
+        <input type="text" id="newParentFirstName" placeholder="Parent First Name">
+        <input type="text" id="newParentMiddleName" placeholder="Parent Middle Name">
+        <input type="text" id="newParentLastName" placeholder="Parent Last Name">
+        <input type="email" id="newParentEmail" placeholder="Parent Email">
+        <input type="text" id="newParentPhone" placeholder="Parent Phone Number">
+        <input type="text" id="newParentAddress" placeholder="Parent Address">
+        <select id="newParentAccountMode">
+          <option value="profile_only">Create Parent Profile Only</option>
+          <option value="with_account">Create Parent Profile + Account</option>
+        </select>
+        <input type="text" id="newParentUsername" placeholder="Parent Username">
+        <input type="password" id="newParentPassword" placeholder="Parent Password">
+      </div>
+
+      <p id="createResult" class="muted"></p>
+      <div class="modal-actions">
+        <button class="secondary" type="button" onclick="closeModal('createStudentModal')">Cancel</button>
+        <button id="createBtn" type="button">Create Student</button>
+      </div>
+    </div>
+
+    <div id="studentImportPane" class="hidden">
+      <div class="toolbar toolbar-import">
+        <label class="inline-note inline-note-compact">
+          <input type="checkbox" id="studentImportCreateLogins" checked>
+          Create login accounts during import
+        </label>
+        <input type="file" id="studentCsvFileInput" accept=".csv,text/csv">
+        <button id="previewStudentImportBtn" type="button" class="compact-btn">Preview CSV</button>
+        <button id="runStudentImportBtn" type="button" class="secondary compact-btn">Run Import</button>
+      </div>
+
+      <div class="inline-note">
+        CSV format:
+        `studentNumber,firstName,middleName,lastName,email,academicLevel,department,program,yearLevel,section,username,password,status`
+      </div>
+
+      <div id="studentImportPreview" class="import-preview" style="margin-top:16px;">No CSV preview loaded yet.</div>
+      <p id="studentImportResult" class="muted"></p>
+      <div class="modal-actions">
+        <button class="secondary" type="button" onclick="closeModal('createStudentModal')">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="createAccountModal">
+  <div class="modal-card">
+    <div class="card-header">
+      <div>
+        <h2>Create Login for Existing Student</h2>
+        <p class="muted">This links a new student account to an existing profile-only student record.</p>
+      </div>
+    </div>
+    <input type="hidden" id="accountStudentId">
+    <div class="key-value">
+      <div class="key-value-row">
+        <strong>Selected Student</strong>
+        <span id="accountStudentLabel">No student selected</span>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-top:16px;">
+      <input type="text" id="accountUsername" placeholder="Username">
+      <input type="email" id="accountEmail" placeholder="Email">
+      <input type="password" id="accountPassword" placeholder="Temporary Password">
+      <select id="accountStatus">
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </div>
+    <p id="accountResult" class="muted"></p>
+    <div class="modal-actions">
+      <button class="secondary" type="button" onclick="closeModal('createAccountModal')">Cancel</button>
+      <button id="createAccountBtn" type="button">Create Linked Account</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "admin") {
+  alert("Access denied");
+  logout();
+}
+
+let currentPage = 1;
+let totalPages = 1;
+let currentRows = [];
+let studentImportRows = [];
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function badge(value) {
+  return `<span class="badge ${String(value || "").replaceAll(" ", "_")}">${String(value || "").replaceAll("_", " ")}</span>`;
+}
+
+function studentAvatarMarkup(student) {
+  const fullName = `${student.first_name || ""} ${student.last_name || ""}`.trim() || student.student_number;
+  if (student.avatar_url) {
+    return `<span class="student-avatar has-image"><img src="${escapeHtml(student.avatar_url)}" alt="${escapeHtml(fullName)} avatar"></span>`;
+  }
+
+  const initials = `${student.first_name?.[0] || ""}${student.last_name?.[0] || ""}`.trim().toUpperCase() || "S";
+  return `<span class="student-avatar student-avatar-fallback" aria-label="${escapeHtml(fullName)} avatar placeholder">${escapeHtml(initials)}</span>`;
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add("open");
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove("open");
+}
+
+function setCreateStudentMode(mode) {
+  const isImport = mode === "import";
+  document.getElementById("studentEntryPane").classList.toggle("hidden", isImport);
+  document.getElementById("studentImportPane").classList.toggle("hidden", !isImport);
+  document.getElementById("studentEntryTab").classList.toggle("active", !isImport);
+  document.getElementById("studentImportTab").classList.toggle("active", isImport);
+}
+
+function csvToRows(text) {
+  const lines = text.split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+
+  const parseLine = line => {
+    const values = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      const next = line[index + 1];
+
+      if (char === '"' && inQuotes && next === '"') {
+        current += '"';
+        index += 1;
+      } else if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === "," && !inQuotes) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+
+    values.push(current.trim());
+    return values;
+  };
+
+  const headers = parseLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const values = parseLine(line);
+    const row = {};
+    headers.forEach((header, index) => {
+      row[header] = values[index] || "";
+    });
+    return row;
+  });
+}
+
+async function loadParentOptions() {
+  const res = await apiRequest("/admin/parents/options", "GET", null, true);
+  const select = document.getElementById("createParentId");
+
+  if (!res.success) {
+    select.innerHTML = `<option value="">No parent options available</option>`;
+    return;
+  }
+
+  select.innerHTML = `<option value="">Select Existing Parent</option>` + res.parents.map(parent => `
+    <option value="${parent.id}">${escapeHtml(parent.first_name)} ${escapeHtml(parent.last_name)}${parent.email ? ` (${escapeHtml(parent.email)})` : ""}</option>
+  `).join("");
+}
+
+function applyClientFilters(rows) {
+  const accountFilter = document.getElementById("accountFilter").value;
+  if (!accountFilter) return rows;
+  return rows.filter(row => accountFilter === "with_account" ? row.has_account : !row.has_account);
+}
+
+async function loadStudents() {
+  const table = document.getElementById("studentTable");
+  const query = new URLSearchParams({
+    page: currentPage,
+    limit: 10,
+    search: document.getElementById("search").value.trim(),
+    status: document.getElementById("statusFilter").value
+  });
+
+  const res = await apiRequest(`/students/all?${query.toString()}`, "GET", null, true);
+
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="6">${escapeHtml(res.message)}</td></tr>`;
+    return;
+  }
+
+  totalPages = res.pagination.totalPages || 1;
+  currentRows = applyClientFilters(res.students || []);
+
+  document.getElementById("paginationInfo").textContent =
+    `Page ${res.pagination.page} of ${totalPages} | ${res.pagination.total} student records`;
+
+  document.getElementById("totalStudents").textContent = res.pagination.total;
+  document.getElementById("withAccountCount").textContent = (res.students || []).filter(student => student.has_account).length;
+  document.getElementById("profileOnlyCount").textContent = (res.students || []).filter(student => !student.has_account).length;
+  document.getElementById("inactiveCount").textContent = (res.students || []).filter(student => student.status === "inactive").length;
+
+  if (!currentRows.length) {
+    table.innerHTML = `<tr><td colspan="6">No students found for the current filters.</td></tr>`;
+    return;
+  }
+
+    table.innerHTML = currentRows.map(student => `
+      <tr>
+        <td>${student.qr_code_data_url ? `<img class="qr-thumb" src="${student.qr_code_data_url}" alt="QR for ${escapeHtml(student.student_number)}">` : "-"}</td>
+        <td>
+          <div class="student-cell">
+            ${studentAvatarMarkup(student)}
+            <div class="student-cell-copy">
+              <strong>${escapeHtml(student.student_number)}</strong><br>
+              <span>${escapeHtml(student.first_name)} ${escapeHtml(student.last_name)}</span><br>
+              <span class="muted">${escapeHtml(student.email || "-")}</span>
+            </div>
+          </div>
+        </td>
+      <td>${escapeHtml(student.program || "-")} / ${escapeHtml(student.year_level || "-")}<br><span class="muted">${escapeHtml(student.section || "-")}</span></td>
+      <td>${student.has_account ? badge("linked_account") + `<br><span class="muted">${escapeHtml(student.username || "-")}</span>` : `<span class="muted">Profile only</span>`}</td>
+      <td>${badge(student.status)}</td>
+      <td>
+        <div class="action-row">
+          <a href="student-profile.html?id=${student.id}"><button type="button">Open Profile</button></a>
+          ${!student.has_account ? `<button type="button" class="secondary" onclick="openCreateAccountModal(${student.id})">Create Login</button>` : ""}
+          ${student.status === "active" ? `<button type="button" class="secondary" onclick="deactivateStudent(${student.id})">Deactivate</button>` : ""}
+        </div>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function handleCreateModeChange() {
+  const withAccount = document.getElementById("createAccountMode").value === "with_account";
+  document.getElementById("studentAccountFields").classList.toggle("hidden", !withAccount);
+}
+
+function handleParentModeChange() {
+  const mode = document.getElementById("parentLinkMode").value;
+  document.getElementById("createParentId").classList.toggle("hidden", mode !== "existing");
+  document.getElementById("newParentFields").classList.toggle("hidden", mode !== "new");
+}
+
+async function createStudent() {
+  const payload = {
+    studentNumber: document.getElementById("createStudentNumber").value.trim(),
+    firstName: document.getElementById("createFirstName").value.trim(),
+    middleName: document.getElementById("createMiddleName").value.trim(),
+    lastName: document.getElementById("createLastName").value.trim(),
+    email: document.getElementById("createEmail").value.trim(),
+    department: document.getElementById("createDepartment").value.trim(),
+    program: document.getElementById("createProgram").value.trim(),
+    yearLevel: document.getElementById("createYearLevel").value.trim(),
+    section: document.getElementById("createSection").value.trim(),
+    academicLevel: document.getElementById("createAcademicLevel").value,
+    status: document.getElementById("createStatus").value,
+    createAccount: document.getElementById("createAccountMode").value === "with_account",
+    username: document.getElementById("createUsername").value.trim(),
+    password: document.getElementById("createPassword").value,
+    parentLinkMode: document.getElementById("parentLinkMode").value,
+    existingParentId: document.getElementById("createParentId").value || null,
+    relationship: document.getElementById("relationship").value.trim()
+  };
+
+  if (payload.parentLinkMode === "new") {
+    payload.newParent = {
+      firstName: document.getElementById("newParentFirstName").value.trim(),
+      middleName: document.getElementById("newParentMiddleName").value.trim(),
+      lastName: document.getElementById("newParentLastName").value.trim(),
+      email: document.getElementById("newParentEmail").value.trim(),
+      phoneNumber: document.getElementById("newParentPhone").value.trim(),
+      address: document.getElementById("newParentAddress").value.trim(),
+      createAccount: document.getElementById("newParentAccountMode").value === "with_account",
+      username: document.getElementById("newParentUsername").value.trim(),
+      password: document.getElementById("newParentPassword").value
+    };
+  }
+
+  const res = await apiRequest("/admin/students", "POST", payload, true);
+  document.getElementById("createResult").textContent = res.success ? "Student created successfully." : res.message;
+
+  if (res.success) {
+    document.querySelectorAll("#createStudentModal input").forEach(input => { input.value = ""; });
+    document.querySelectorAll("#createStudentModal select").forEach(select => {
+      if (select.id === "createStatus") select.value = "active";
+      else if (select.id === "createAccountMode") select.value = "profile_only";
+      else if (select.id === "parentLinkMode") select.value = "none";
+      else if (select.options.length) select.selectedIndex = 0;
+    });
+    handleCreateModeChange();
+    handleParentModeChange();
+    currentPage = 1;
+    await Promise.all([loadStudents(), loadParentOptions()]);
+    closeModal("createStudentModal");
+  }
+}
+
+function openCreateAccountModal(studentId) {
+  const item = currentRows.find(row => Number(row.id) === Number(studentId));
+  if (!item) return;
+
+  document.getElementById("accountStudentId").value = studentId;
+  document.getElementById("accountStudentLabel").textContent = `${item.student_number} - ${item.first_name} ${item.last_name}`;
+  document.getElementById("accountUsername").value = "";
+  document.getElementById("accountEmail").value = item.email || "";
+  document.getElementById("accountPassword").value = "";
+  document.getElementById("accountStatus").value = item.status || "active";
+  document.getElementById("accountResult").textContent = "";
+  openModal("createAccountModal");
+}
+
+async function createLinkedAccount() {
+  const studentId = document.getElementById("accountStudentId").value;
+  const res = await apiRequest(`/admin/students/${studentId}/create-account`, "POST", {
+    username: document.getElementById("accountUsername").value.trim(),
+    email: document.getElementById("accountEmail").value.trim(),
+    password: document.getElementById("accountPassword").value,
+    status: document.getElementById("accountStatus").value
+  }, true);
+
+  document.getElementById("accountResult").textContent = res.success ? "Linked account created." : res.message;
+
+  if (res.success) {
+    await loadStudents();
+    closeModal("createAccountModal");
+  }
+}
+
+async function deactivateStudent(id) {
+  const res = await apiRequest(`/students/${id}/deactivate`, "PUT", {}, true);
+  if (!res.success) {
+    alert(res.message);
+    return;
+  }
+  loadStudents();
+}
+
+async function previewStudentImport() {
+  const file = document.getElementById("studentCsvFileInput").files[0];
+  const preview = document.getElementById("studentImportPreview");
+  const result = document.getElementById("studentImportResult");
+
+  if (!file) {
+    result.textContent = "Choose a CSV file first.";
+    return;
+  }
+
+  const text = await file.text();
+  studentImportRows = csvToRows(text);
+
+  if (!studentImportRows.length) {
+    preview.textContent = "No valid rows found. Make sure the CSV includes a header row and at least one student row.";
+    result.textContent = "Preview failed: no importable rows detected.";
+    return;
+  }
+
+  const headers = Object.keys(studentImportRows[0] || {});
+  const sampleRows = studentImportRows.slice(0, 5);
+  preview.innerHTML = `
+    <div class="card-header" style="margin-bottom:12px;">
+      <div>
+        <h3>Preview Ready</h3>
+        <p class="muted">${studentImportRows.length} rows detected. Showing the first ${sampleRows.length} row(s).</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>${headers.map(header => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
+        </thead>
+        <tbody>
+          ${sampleRows.map(row => `
+            <tr>${headers.map(header => `<td>${escapeHtml(row[header] || "-")}</td>`).join("")}</tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+  result.textContent = "Preview generated successfully. You can now run the import.";
+}
+
+async function runStudentImport() {
+  const result = document.getElementById("studentImportResult");
+
+  if (!studentImportRows.length) {
+    result.textContent = "Preview the CSV first before running the import.";
+    return;
+  }
+
+  const res = await apiRequest("/admin/bulk-import", "POST", {
+    importType: "students",
+    createLoginAccounts: document.getElementById("studentImportCreateLogins").checked,
+    rows: studentImportRows
+  }, true);
+
+  if (!res.success) {
+    result.textContent = res.message;
+    return;
+  }
+
+  const summary = res.summary || {};
+  result.textContent = `Import finished. Created: ${summary.created || 0}, skipped: ${summary.skipped || 0}, total: ${summary.total || studentImportRows.length}.`;
+
+  if (Array.isArray(summary.errors) && summary.errors.length) {
+    document.getElementById("studentImportPreview").innerHTML = `
+      <div class="card-header" style="margin-bottom:12px;">
+        <div>
+          <h3>Import Summary</h3>
+          <p class="muted">Some rows were skipped. Review the first errors below.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Row</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${summary.errors.slice(0, 10).map(error => `
+              <tr>
+                <td>${escapeHtml(error.row)}</td>
+                <td>${escapeHtml(error.message)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  currentPage = 1;
+  await loadStudents();
+}
+
+document.getElementById("openCreateModalBtn").addEventListener("click", () => {
+  document.getElementById("createResult").textContent = "";
+  handleCreateModeChange();
+  handleParentModeChange();
+  setCreateStudentMode("entry");
+  openModal("createStudentModal");
+});
+document.getElementById("studentEntryTab").addEventListener("click", () => setCreateStudentMode("entry"));
+document.getElementById("studentImportTab").addEventListener("click", () => setCreateStudentMode("import"));
+document.getElementById("createBtn").addEventListener("click", createStudent);
+document.getElementById("createAccountBtn").addEventListener("click", createLinkedAccount);
+document.getElementById("previewStudentImportBtn").addEventListener("click", previewStudentImport);
+document.getElementById("runStudentImportBtn").addEventListener("click", runStudentImport);
+document.getElementById("createAccountMode").addEventListener("change", handleCreateModeChange);
+document.getElementById("parentLinkMode").addEventListener("change", handleParentModeChange);
+document.getElementById("searchBtn").addEventListener("click", () => { currentPage = 1; loadStudents(); });
+document.getElementById("clearBtn").addEventListener("click", () => {
+  document.getElementById("search").value = "";
+  document.getElementById("statusFilter").value = "";
+  document.getElementById("accountFilter").value = "";
+  currentPage = 1;
+  loadStudents();
+});
+document.getElementById("prevBtn").addEventListener("click", () => {
+  if (currentPage > 1) {
+    currentPage -= 1;
+    loadStudents();
+  }
+});
+document.getElementById("nextBtn").addEventListener("click", () => {
+  if (currentPage < totalPages) {
+    currentPage += 1;
+    loadStudents();
+  }
+});
+
+handleCreateModeChange();
+handleParentModeChange();
+loadParentOptions();
+loadStudents();
+</script>
+
+</body>
+</html>

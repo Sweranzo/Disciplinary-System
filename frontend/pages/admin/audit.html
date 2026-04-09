@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Log Viewer</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Audit Visibility</span>
+      <h1 style="margin-top:16px;">Audit Log Viewer</h1>
+      <p class="muted">Review who performed high-impact actions across cases, hearings, sanctions, appeals, profiles, and system administration.</p>
+    </div>
+    <div class="action-row">
+      <button id="refreshBtn" type="button" class="secondary compact-btn">Refresh</button>
+      <button onclick="logout()" type="button" class="compact-btn">Logout</button>
+    </div>
+  </div>
+
+  <div class="summary-band">
+    <div class="summary-chip"><strong>Total Logs</strong><span id="totalLogs">0</span></div>
+    <div class="summary-chip"><strong>Visible Page</strong><span id="pageLogs">0</span></div>
+    <div class="summary-chip"><strong>Unique Actions</strong><span id="uniqueActions">0</span></div>
+    <div class="summary-chip"><strong>Unique Actors</strong><span id="uniqueActors">0</span></div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Filters</h2>
+        <p class="muted">Search by action, actor, target, or details and narrow the log by action name or table.</p>
+      </div>
+      <p class="muted" id="paginationInfo">Loading...</p>
+    </div>
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="Search action, actor, target, or detail">
+      <select id="actionFilter">
+        <option value="">All Actions</option>
+      </select>
+      <select id="tableFilter">
+        <option value="">All Tables</option>
+        <option value="users">Users</option>
+        <option value="students">Students</option>
+        <option value="parents">Parents</option>
+        <option value="cases">Cases</option>
+        <option value="hearings">Hearings</option>
+        <option value="sanctions">Sanctions</option>
+        <option value="appeals">Appeals</option>
+        <option value="notifications">Notifications</option>
+      </select>
+      <button id="applyBtn" class="compact-btn" type="button">Apply</button>
+      <button id="clearBtn" class="secondary compact-btn" type="button">Clear</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Audit Trail</h2>
+        <p class="muted">Use this page for oversight, issue tracing, and accountability review.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Target</th>
+            <th>Details</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody id="auditTable">
+          <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="action-row action-row-tight" style="margin-top:16px;">
+      <button id="prevBtn" type="button" class="secondary compact-btn">Previous</button>
+      <button id="nextBtn" type="button" class="compact-btn">Next</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "admin") {
+  alert("Access denied");
+  logout();
+}
+
+let currentPage = 1;
+let totalPages = 1;
+let currentLogs = [];
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function formatActor(log) {
+  if (!log.actor_user_id) return "System";
+  return `${log.first_name || ""} ${log.last_name || ""}`.trim() + (log.role ? ` - ${getRoleLabel(log.role)}` : "");
+}
+
+function renderSummary(logs, pagination) {
+  document.getElementById("totalLogs").textContent = pagination.total || 0;
+  document.getElementById("pageLogs").textContent = logs.length;
+  document.getElementById("uniqueActions").textContent = new Set(logs.map(log => log.action)).size;
+  document.getElementById("uniqueActors").textContent = new Set(logs.map(log => log.actor_user_id || "system")).size;
+}
+
+function renderTable(logs) {
+  const table = document.getElementById("auditTable");
+  if (!logs.length) {
+    table.innerHTML = `<tr><td colspan="6">No audit logs match the current filters.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = logs.map(log => `
+    <tr>
+      <td>${formatDateTime(log.created_at)}</td>
+      <td>${formatActor(log)}<br><span class="muted">${log.username || "-"}</span></td>
+      <td><span class="badge">${log.action}</span></td>
+      <td>${log.target_table || "-"}${log.target_id ? `<br><span class="muted">#${log.target_id}</span>` : ""}</td>
+      <td>${log.details || "-"}</td>
+      <td><span class="code-text">${log.ip_address || "-"}</span></td>
+    </tr>
+  `).join("");
+}
+
+function populateActionOptions(options) {
+  const select = document.getElementById("actionFilter");
+  const selected = select.value;
+  select.innerHTML = `<option value="">All Actions</option>` + (options || []).map(option => `
+    <option value="${option.action}" ${selected === option.action ? "selected" : ""}>${option.action}</option>
+  `).join("");
+}
+
+async function loadAuditLogs() {
+  const query = new URLSearchParams({
+    page: currentPage,
+    limit: 20,
+    search: document.getElementById("searchInput").value.trim(),
+    action: document.getElementById("actionFilter").value,
+    targetTable: document.getElementById("tableFilter").value
+  });
+
+  const res = await apiRequest(`/admin/audit-logs?${query.toString()}`, "GET", null, true);
+  if (!res.success) {
+    document.getElementById("auditTable").innerHTML = `<tr><td colspan="6">${res.message}</td></tr>`;
+    return;
+  }
+
+  currentLogs = res.logs || [];
+  totalPages = res.pagination?.totalPages || 1;
+  document.getElementById("paginationInfo").textContent = `Page ${res.pagination.page} of ${totalPages} | ${res.pagination.total} logs`;
+  document.getElementById("prevBtn").disabled = currentPage <= 1;
+  document.getElementById("nextBtn").disabled = currentPage >= totalPages;
+  populateActionOptions(res.actionOptions);
+  renderSummary(currentLogs, res.pagination);
+  renderTable(currentLogs);
+}
+
+document.getElementById("applyBtn").addEventListener("click", () => {
+  currentPage = 1;
+  loadAuditLogs();
+});
+
+document.getElementById("clearBtn").addEventListener("click", () => {
+  document.getElementById("searchInput").value = "";
+  document.getElementById("actionFilter").value = "";
+  document.getElementById("tableFilter").value = "";
+  currentPage = 1;
+  loadAuditLogs();
+});
+
+document.getElementById("refreshBtn").addEventListener("click", loadAuditLogs);
+document.getElementById("prevBtn").addEventListener("click", () => {
+  if (currentPage > 1) {
+    currentPage -= 1;
+    loadAuditLogs();
+  }
+});
+document.getElementById("nextBtn").addEventListener("click", () => {
+  if (currentPage < totalPages) {
+    currentPage += 1;
+    loadAuditLogs();
+  }
+});
+document.getElementById("searchInput").addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    currentPage = 1;
+    loadAuditLogs();
+  }
+});
+
+loadAuditLogs();
+</script>
+
+</body>
+</html>

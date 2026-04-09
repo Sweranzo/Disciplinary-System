@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Sanctions</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>My Sanctions</h1>
+      <p class="muted">Track active sanctions, fulfillment status, due dates, and assigned schedules.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <a href="appeals.html"><button>Appeals</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="summary-band">
+    <div class="summary-chip">
+      <strong>Total Sanctions</strong>
+      <span id="sanctionCount">0</span>
+    </div>
+    <div class="summary-chip">
+      <strong>Active</strong>
+      <span id="activeCount">0</span>
+    </div>
+    <div class="summary-chip">
+      <strong>Completed / Cancelled</strong>
+      <span id="closedCount">0</span>
+    </div>
+    <div class="summary-chip">
+      <strong>Due Soon / Overdue</strong>
+      <span id="attentionCount">0</span>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Sanction Records</h2>
+        <p class="muted">Sanctions shown here are limited to your student record.</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Case</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Sanction Status</th>
+            <th>Case Status</th>
+            <th>Schedule</th>
+          </tr>
+        </thead>
+        <tbody id="sanctionTable">
+          <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "student") {
+  alert("Access denied");
+  logout();
+}
+
+function badge(value) {
+  const normalized = String(value || "active").toLowerCase().replaceAll(" ", "_");
+  const labelMap = {
+    active: "Active",
+    due_soon: "Due Soon",
+    overdue: "Overdue",
+    fulfilled: "Completed",
+    completed: "Completed",
+    resolved: "Completed",
+    cancelled: "Cancelled"
+  };
+
+  return `<span class="badge ${normalized}">${labelMap[normalized] || String(value).replaceAll("_", " ")}</span>`;
+}
+
+function toDateOnly(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function getDisplayStatus(item) {
+  const value = item.display_status || item.status || "active";
+  return value === "fulfilled" ? "completed" : value;
+}
+
+function formatSchedule(item) {
+  const start = item.start_date ? new Date(item.start_date).toLocaleDateString() : "-";
+  const end = item.end_date ? new Date(item.end_date).toLocaleDateString() : "-";
+  return `${start} to ${end}`;
+}
+
+async function loadSanctions() {
+  const table = document.getElementById("sanctionTable");
+  const res = await apiRequest("/sanctions/my", "GET", null, true);
+
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="6">${res.message}</td></tr>`;
+    return;
+  }
+
+  const sanctions = (res.sanctions || []).map(item => ({
+    ...item,
+    display_status: getDisplayStatus(item)
+  }));
+
+  document.getElementById("sanctionCount").textContent = sanctions.length;
+  document.getElementById("activeCount").textContent = sanctions.filter(item => item.display_status === "active" || item.display_status === "due_soon").length;
+  document.getElementById("closedCount").textContent = sanctions.filter(item => ["completed", "cancelled"].includes(item.display_status)).length;
+  document.getElementById("attentionCount").textContent = sanctions.filter(item => ["due_soon", "overdue"].includes(item.display_status)).length;
+
+  if (!sanctions.length) {
+    table.innerHTML = `<tr><td colspan="6">No sanctions found.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = sanctions.map(item => `
+    <tr>
+      <td><strong>${item.case_number}</strong></td>
+      <td>${item.sanction_type}</td>
+      <td>${item.description || "-"}</td>
+      <td>${badge(item.display_status)}</td>
+      <td>${badge(item.case_status || "resolved")}</td>
+      <td>${formatSchedule(item)}</td>
+    </tr>
+  `).join("");
+}
+
+loadSanctions();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Profile</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Student Profile</h1>
+      <p class="muted">Full student record with linked family, cases, hearings, sanctions, and appeals.</p>
+    </div>
+    <div class="action-row">
+      <a href="students.html"><button class="secondary">Back</button></a>
+      <a href="accounts.html"><button class="secondary">Accounts</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Profile Overview</h2>
+        <p class="muted" id="profileMeta">Loading student record...</p>
+      </div>
+    </div>
+    <div id="studentInfo">Loading...</div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Edit Student Record</h2>
+          <p class="muted">Update academic information and account status.</p>
+        </div>
+      </div>
+      <div class="form-grid">
+        <input type="text" id="firstName" placeholder="First Name">
+        <input type="text" id="middleName" placeholder="Middle Name">
+        <input type="text" id="lastName" placeholder="Last Name">
+        <input type="email" id="email" placeholder="Email">
+        <input type="text" id="department" placeholder="Department">
+        <input type="text" id="program" placeholder="Program">
+        <input type="text" id="yearLevel" placeholder="Year Level">
+        <input type="text" id="section" placeholder="Section">
+        <select id="academicLevel">
+          <option value="">Academic Level</option>
+          <option value="college">College</option>
+          <option value="shs">SHS</option>
+        </select>
+        <select id="status">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+      <div class="action-row">
+        <button id="saveBtn">Save Student Record</button>
+        <span id="saveResult" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Link Parent</h2>
+          <p class="muted">Connect a parent or guardian to this student record.</p>
+        </div>
+      </div>
+      <div class="form-grid">
+        <select id="linkParentId">
+          <option value="">Select Parent</option>
+        </select>
+        <input type="text" id="relationship" placeholder="Relationship">
+      </div>
+      <div class="action-row">
+        <button id="linkParentBtn">Link Parent</button>
+        <span id="linkResult" class="muted"></span>
+      </div>
+      <div id="parentsInfo" style="margin-top:16px;">Loading...</div>
+    </div>
+  </div>
+
+  <div class="stack-grid page-section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Recent Cases</h2>
+          <p class="muted">Most recent case history linked to this student.</p>
+        </div>
+      </div>
+      <div id="casesInfo">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Sanctions</h2>
+          <p class="muted">Assigned sanctions and completion status.</p>
+        </div>
+      </div>
+      <div id="sanctionsInfo">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Hearings</h2>
+          <p class="muted">Scheduled, completed, or cancelled hearing history.</p>
+        </div>
+      </div>
+      <div id="hearingsInfo">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Appeals</h2>
+          <p class="muted">Appeal submissions and recorded board decisions.</p>
+        </div>
+      </div>
+      <div id="appealsInfo">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || !["admin", "discipline_officer", "guidance_counselor"].includes(user.role)) {
+  alert("Access denied");
+  logout();
+}
+
+const studentId = new URLSearchParams(window.location.search).get("id");
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+function renderList(items, emptyMessage, mapFn) {
+  if (!items || !items.length) {
+    return `<div class="empty-state">${emptyMessage}</div>`;
+  }
+
+  return `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
+}
+
+async function loadParentOptions() {
+  const res = await apiRequest("/students/parent-options", "GET", null, true);
+  const select = document.getElementById("linkParentId");
+
+  if (!res.success) {
+    select.innerHTML = `<option value="">No parent options available</option>`;
+    return;
+  }
+
+  select.innerHTML = `<option value="">Select Parent</option>` + res.parents.map(parent => `
+    <option value="${parent.id}">${parent.first_name} ${parent.last_name} (${parent.email})</option>
+  `).join("");
+}
+
+async function loadProfile() {
+  const studentInfo = document.getElementById("studentInfo");
+
+  if (!studentId) {
+    studentInfo.innerHTML = `<div class="empty-state">No student record was selected.</div>`;
+    return;
+  }
+
+  const res = await apiRequest(`/students/${studentId}`, "GET", null, true);
+  if (!res.success) {
+    studentInfo.innerHTML = `<div class="empty-state">${res.message}</div>`;
+    return;
+  }
+
+  const student = res.student;
+  document.getElementById("profileMeta").innerHTML =
+    `${student.first_name} ${student.last_name} | ${student.student_number} | ${badge(student.status)}`;
+
+  studentInfo.innerHTML = `
+    <div class="info-grid">
+      <div><strong>Name</strong><span>${student.first_name} ${student.last_name}</span></div>
+      <div><strong>Student Number</strong><span>${student.student_number}</span></div>
+      <div><strong>Email</strong><span>${student.email}</span></div>
+      <div><strong>Status</strong><span>${badge(student.status)}</span></div>
+      <div><strong>Department</strong><span>${student.department || "-"}</span></div>
+      <div><strong>Program</strong><span>${student.program || "-"}</span></div>
+      <div><strong>Year Level</strong><span>${student.year_level || "-"}</span></div>
+      <div><strong>Section</strong><span>${student.section || "-"}</span></div>
+      <div><strong>Academic Level</strong><span>${student.academic_level || "-"}</span></div>
+      <div><strong>QR Token</strong><span>${student.qr_token || "Not generated"}</span></div>
+      <div><strong>Account Mode</strong><span>${student.has_account ? "Linked account" : "Profile only"}</span></div>
+    </div>
+    ${student.qr_code_data_url ? `<div style="margin-top:16px;"><img class="qr-thumb large" src="${student.qr_code_data_url}" alt="QR for ${student.student_number}"></div>` : ""}
+  `;
+
+  document.getElementById("firstName").value = student.first_name || "";
+  document.getElementById("middleName").value = student.middle_name || "";
+  document.getElementById("lastName").value = student.last_name || "";
+  document.getElementById("email").value = student.email || "";
+  document.getElementById("department").value = student.department || "";
+  document.getElementById("program").value = student.program || "";
+  document.getElementById("yearLevel").value = student.year_level || "";
+  document.getElementById("section").value = student.section || "";
+  document.getElementById("academicLevel").value = student.academic_level || "";
+  document.getElementById("status").value = student.status || "active";
+
+  if (studentInfo.dataset.accountBannerApplied !== "yes" && !student.has_account) {
+    const banner = document.createElement("div");
+    banner.className = "inline-note";
+    banner.style.marginTop = "16px";
+    banner.innerHTML = `This student currently has no login account. Create one later from <a href="accounts.html">Accounts & Identity</a> or the <a href="students.html">student list</a>.`;
+    studentInfo.appendChild(banner);
+    studentInfo.dataset.accountBannerApplied = "yes";
+  }
+
+  document.getElementById("parentsInfo").innerHTML = renderList(
+    res.parents,
+    "No linked parents or guardians yet.",
+    parent => `
+      <div class="detail-item">
+        <p><strong>${parent.first_name} ${parent.last_name}</strong> ${badge(parent.relationship || "linked")}</p>
+        <p>Email: ${parent.email}</p>
+        <p>Phone: ${parent.phone_number || "-"}</p>
+      </div>
+    `
+  );
+
+  document.getElementById("casesInfo").innerHTML = renderList(
+    res.recentCases,
+    "No case history found for this student.",
+    item => `
+      <div class="detail-item">
+        <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
+        <p>${item.violation_type} | ${badge(item.severity_level)}</p>
+        <p>Incident date: ${item.incident_date}</p>
+      </div>
+    `
+  );
+
+  document.getElementById("sanctionsInfo").innerHTML = renderList(
+    res.sanctions,
+    "No sanctions recorded.",
+    item => `
+      <div class="detail-item">
+        <p><strong>${item.sanction_type}</strong> ${badge(item.status)}</p>
+        <p>Schedule: ${item.start_date || "-"} to ${item.end_date || "-"}</p>
+        <p class="muted">Recorded on ${item.created_at}</p>
+      </div>
+    `
+  );
+
+  document.getElementById("hearingsInfo").innerHTML = renderList(
+    res.hearings,
+    "No hearings scheduled.",
+    item => `
+      <div class="detail-item">
+        <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
+        <p>${item.violation_type}</p>
+        <p>${item.scheduled_date} ${item.scheduled_time} at ${item.location || "-"}</p>
+      </div>
+    `
+  );
+
+  document.getElementById("appealsInfo").innerHTML = renderList(
+    res.appeals,
+    "No appeals submitted.",
+    item => `
+      <div class="detail-item">
+        <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
+        <p>${item.reason}</p>
+        <p>${item.decision_notes || "No decision notes yet."}</p>
+      </div>
+    `
+  );
+}
+
+document.getElementById("saveBtn").addEventListener("click", async () => {
+  const res = await apiRequest(`/students/${studentId}`, "PUT", {
+    firstName: document.getElementById("firstName").value,
+    middleName: document.getElementById("middleName").value,
+    lastName: document.getElementById("lastName").value,
+    email: document.getElementById("email").value,
+    department: document.getElementById("department").value,
+    program: document.getElementById("program").value,
+    yearLevel: document.getElementById("yearLevel").value,
+    section: document.getElementById("section").value,
+    academicLevel: document.getElementById("academicLevel").value,
+    status: document.getElementById("status").value
+  }, true);
+
+  document.getElementById("saveResult").textContent = res.success ? "Student record updated." : res.message;
+  if (res.success) {
+    loadProfile();
+  }
+});
+
+document.getElementById("linkParentBtn").addEventListener("click", async () => {
+  const res = await apiRequest(`/students/${studentId}/link-parent`, "POST", {
+    parentId: document.getElementById("linkParentId").value,
+    relationship: document.getElementById("relationship").value
+  }, true);
+
+  document.getElementById("linkResult").textContent = res.success ? "Parent linked successfully." : res.message;
+  if (res.success) {
+    document.getElementById("relationship").value = "";
+    document.getElementById("linkParentId").value = "";
+    loadProfile();
+    loadParentOptions();
+  }
+});
+
+loadParentOptions();
+loadProfile();
+</script>
+
+</body>
+</html>

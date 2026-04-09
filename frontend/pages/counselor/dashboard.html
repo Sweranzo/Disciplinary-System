@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guidance Counselor Dashboard</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Guidance Counselor Workspace</h1>
+      <p class="muted">Review relevant cases, intervention notes, hearing support, and follow-up work from one dashboard.</p>
+    </div>
+    <div class="action-row">
+      <a href="cases.html"><button class="secondary">Case Queue</button></a>
+      <a href="hearings.html"><button>Hearings</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <h3>Assigned Cases</h3>
+      <div class="stat-value" id="assignedCases">0</div>
+      <div class="muted">Cases assigned or visible for counselor support</div>
+    </div>
+    <div class="stat-card">
+      <h3>Active Follow-Ups</h3>
+      <div class="stat-value" id="activeFollowUps">0</div>
+      <div class="muted">Interventions that still need monitoring</div>
+    </div>
+    <div class="stat-card">
+      <h3>Scheduled Hearings</h3>
+      <div class="stat-value" id="scheduledHearings">0</div>
+      <div class="muted">Upcoming hearings for counselor-visible cases</div>
+    </div>
+    <div class="stat-card">
+      <h3>Total Notes</h3>
+      <div class="stat-value" id="totalNotes">0</div>
+      <div class="muted">Intervention, behavior, recommendation, and follow-up notes</div>
+    </div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Recent Counselor Notes</h2>
+          <p class="muted">Latest student interventions and counselor activity.</p>
+        </div>
+      </div>
+      <div id="recentNotes">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Upcoming Hearings</h2>
+          <p class="muted">Hearings where counselor support may be needed.</p>
+        </div>
+      </div>
+      <div id="upcomingHearings">Loading...</div>
+    </div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Cases Requiring Follow-Up</h2>
+          <p class="muted">Quick entry point for cases that may need behavior monitoring or recommendations.</p>
+        </div>
+      </div>
+      <div id="followUpCases">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Quick Actions</h2>
+          <p class="muted">Open the main counselor work areas.</p>
+        </div>
+      </div>
+      <div class="detail-list">
+        <div class="detail-item">
+          <p><strong><a href="cases.html">Case Queue</a></strong></p>
+          <p>Review case context, student history, and hearing or sanction support needs.</p>
+        </div>
+        <div class="detail-item">
+          <p><strong><a href="sanctions.html">Sanction Monitoring</a></strong></p>
+          <p>Track whether sanction follow-up and counselor support are progressing.</p>
+        </div>
+        <div class="detail-item">
+          <p><strong><a href="hearings.html">Hearing Support</a></strong></p>
+          <p>See scheduled hearing dates connected to counselor-visible cases.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "guidance_counselor") {
+  alert("Access denied");
+  logout();
+}
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+function renderList(items, emptyMessage, mapFn) {
+  if (!items || !items.length) {
+    return `<div class="empty-state">${emptyMessage}</div>`;
+  }
+  return `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
+}
+
+async function loadDashboard() {
+  const [dashboardRes, interventionsRes, hearingsRes, casesRes] = await Promise.all([
+    apiRequest("/counselor/dashboard", "GET", null, true),
+    apiRequest("/counselor/interventions", "GET", null, true),
+    apiRequest("/hearings/all?status=scheduled", "GET", null, true),
+    apiRequest("/counselor/cases", "GET", null, true)
+  ]);
+
+  const recentNotes = document.getElementById("recentNotes");
+  const upcomingHearings = document.getElementById("upcomingHearings");
+  const followUpCases = document.getElementById("followUpCases");
+
+  if (!dashboardRes.success) {
+    recentNotes.innerHTML = `<div class="empty-state">${dashboardRes.message}</div>`;
+    upcomingHearings.innerHTML = `<div class="empty-state">${dashboardRes.message}</div>`;
+    followUpCases.innerHTML = `<div class="empty-state">${dashboardRes.message}</div>`;
+    return;
+  }
+
+  document.getElementById("assignedCases").textContent = dashboardRes.summary.assignedCases;
+  document.getElementById("activeFollowUps").textContent = dashboardRes.summary.activeFollowUps;
+  document.getElementById("scheduledHearings").textContent = dashboardRes.summary.scheduledHearings;
+  document.getElementById("totalNotes").textContent =
+    interventionsRes.success ? interventionsRes.interventions.length : dashboardRes.recentNotes.length;
+
+  recentNotes.innerHTML = renderList(
+    dashboardRes.recentNotes,
+    "No counselor notes have been recorded yet.",
+    note => `
+      <div class="detail-item">
+        <p><strong>${note.case_number}</strong> ${badge(note.status)}</p>
+        <p>${note.first_name} ${note.last_name} (${note.student_number})</p>
+        <p>${note.note_type}: ${note.note}</p>
+      </div>
+    `
+  );
+
+  upcomingHearings.innerHTML = renderList(
+    hearingsRes.success ? hearingsRes.hearings.slice(0, 6) : [],
+    "No scheduled hearings found for counselor-visible cases.",
+    hearing => `
+      <div class="detail-item">
+        <p><strong>${hearing.case_number}</strong> ${badge(hearing.status)}</p>
+        <p>${hearing.first_name} ${hearing.last_name} (${hearing.student_number})</p>
+        <p>${hearing.scheduled_date} ${hearing.scheduled_time} at ${hearing.location || "-"}</p>
+      </div>
+    `
+  );
+
+  const activeCases = casesRes.success
+    ? casesRes.cases.filter(item => !["resolved", "dismissed"].includes(item.status)).slice(0, 6)
+    : [];
+
+  followUpCases.innerHTML = renderList(
+    activeCases,
+    "No active counselor-visible cases at the moment.",
+    item => `
+      <div class="detail-item">
+        <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
+        <p>${item.first_name} ${item.last_name} (${item.student_number})</p>
+        <p>${item.violation_type} | ${badge(item.severity_level)}</p>
+        <div class="action-row">
+          <a href="case-details.html?id=${item.id}"><button type="button">Open Case</button></a>
+        </div>
+      </div>
+    `
+  );
+}
+
+loadDashboard();
+</script>
+
+</body>
+</html>

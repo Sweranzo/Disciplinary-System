@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discipline Cases</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Primary Workflow</span>
+      <h1 style="margin-top:16px;">Primary Case Management</h1>
+      <p class="muted">Operate the investigation queue, narrow by assignment, and open each case for evidence, hearings, sanctions, and appeals.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Queue Filters</h2>
+        <p class="muted">Use these controls to focus the case queue on open priorities and assignment gaps.</p>
+      </div>
+      <p class="muted" id="paginationInfo">Loading...</p>
+    </div>
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="Search case, student, or violation">
+      <select id="status">
+        <option value="">All Statuses</option>
+        <option value="pending">Pending</option>
+        <option value="under_investigation">Under Investigation</option>
+        <option value="hearing_scheduled">Hearing Scheduled</option>
+        <option value="dismissed">Dismissed</option>
+        <option value="resolved">Resolved</option>
+      </select>
+      <select id="severity">
+        <option value="">All Severities</option>
+        <option value="minor">Minor</option>
+        <option value="major">Major</option>
+        <option value="grave">Grave</option>
+      </select>
+      <select id="assigned">
+        <option value="">All Assignments</option>
+        <option value="unassigned">Unassigned</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Case Queue</h2>
+        <p class="muted">Open a case to continue investigation, upload or review evidence, schedule hearings, and record outcomes.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Case</th>
+            <th>Student</th>
+            <th>Violation</th>
+            <th>Severity</th>
+            <th>Status</th>
+            <th>Assigned</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="casesTable">
+          <tr><td colspan="7">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "discipline_officer") {
+  alert("Access denied");
+  logout();
+}
+
+function badge(value) {
+  return `<span class="badge ${value}">${value.replaceAll("_", " ")}</span>`;
+}
+
+async function loadCases() {
+  const table = document.getElementById("casesTable");
+  const query = new URLSearchParams({
+    page: 1,
+    limit: 25,
+    activeOnly: "true",
+    search: document.getElementById("search").value,
+    status: document.getElementById("status").value,
+    severity: document.getElementById("severity").value,
+    assigned: document.getElementById("assigned").value
+  });
+
+  const res = await apiRequest(`/cases/all?${query.toString()}`, "GET", null, true);
+
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="7">${res.message}</td></tr>`;
+    return;
+  }
+
+  document.getElementById("paginationInfo").textContent =
+    `${res.pagination.total} active cases in queue`;
+
+  if (!res.cases.length) {
+    table.innerHTML = `<tr><td colspan="7">No cases found.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = res.cases.map(c => `
+    <tr>
+      <td><strong>${c.case_number}</strong></td>
+      <td>${c.first_name} ${c.last_name}<br><span class="muted">${c.student_number}</span></td>
+      <td>${c.violation_type}</td>
+      <td>${badge(c.severity_level)}</td>
+      <td>${badge(c.status)}</td>
+      <td>${c.assigned_to_first_name ? `${c.assigned_to_first_name} ${c.assigned_to_last_name}` : "-"}</td>
+      <td><a href="case-details.html?id=${c.id}"><button type="button">Manage</button></a></td>
+    </tr>
+  `).join("");
+}
+
+["search", "status", "severity", "assigned"].forEach(id => {
+  document.getElementById(id).addEventListener("change", loadCases);
+});
+
+document.getElementById("search").addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    loadCases();
+  }
+});
+
+loadCases();
+</script>
+
+</body>
+</html>

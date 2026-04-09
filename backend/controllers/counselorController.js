@@ -1,0 +1,347 @@
+const pool = require("../config/db");
+const { logAudit } = require("../utils/auditLogger");
+const { getCaseStatusRecord, isCaseClosed } = require("./caseController");
+
+function formatRoleLabel(role = "") {
+  return String(role || "")
+    .split("_")
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+async function getCounselorDashboard(req, res) {
+  try {
+    const [assignedCases] = await pool.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM cases
+      WHERE assigned_to_user_id = ?
+      `,
+      [req.user.id]
+    );
+
+    const [followUps] = await pool.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM counselor_interventions
+      WHERE counselor_user_id = ?
+        AND status IN ('planned', 'ongoing')
+      `,
+      [req.user.id]
+    );
+
+    const [hearings] = await pool.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM hearings h
+      JOIN cases c ON h.case_id = c.id
+      WHERE c.assigned_to_user_id = ?
+        AND h.status = 'scheduled'
+      `,
+      [req.user.id]
+    );
+
+    const [recentNotes] = await pool.query(
+      `
+      SELECT
+        ci.id,
+        ci.note_type,
+        ci.note,
+        ci.status,
+        ci.follow_up_date,
+        ci.created_at,
+        c.case_number,
+        u.first_name,
+        u.last_name,
+        ci.counselor_user_id,
+        counselor.first_name AS counselor_first_name,
+        counselor.last_name AS counselor_last_name,
+        counselor.role AS counselor_role,
+        s.student_number
+      FROM counselor_interventions ci
+      JOIN cases c ON ci.case_id = c.id
+      JOIN students s ON ci.student_id = s.id
+      JOIN users u ON s.user_id = u.id
+      JOIN users counselor ON ci.counselor_user_id = counselor.id
+      WHERE ci.counselor_user_id = ?
+      ORDER BY ci.created_at DESC
+      LIMIT 10
+      `,
+      [req.user.id]
+    );
+
+    return res.json({
+      success: true,
+      summary: {
+        assignedCases: assignedCases[0].total,
+        activeFollowUps: followUps[0].total,
+        scheduledHearings: hearings[0].total
+      },
+      recentNotes: recentNotes.map(item => ({
+        ...item,
+        counselor_role_label: formatRoleLabel(item.counselor_role)
+      }))
+    });
+  } catch (error) {
+    console.error("Counselor dashboard error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching counselor dashboard."
+    });
+  }
+}
+
+async function getCounselorCases(req, res) {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT
+        c.id,
+        c.case_number,
+        c.violation_type,
+        c.severity_level,
+        c.status,
+        c.incident_date,
+        s.student_number,
+        u.first_name,
+        u.last_name
+      FROM cases c
+      JOIN students s ON c.student_id = s.id
+      JOIN users u ON s.user_id = u.id
+      WHERE c.assigned_to_user_id = ? OR c.assigned_to_user_id IS NULL
+      ORDER BY c.created_at DESC
+      `,
+      [req.user.id]
+    );
+
+    return res.json({
+      success: true,
+      cases: rows
+    });
+  } catch (error) {
+    console.error("Counselor cases error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching counselor cases."
+    });
+  }
+}
+
+async function getCounselorInterventions(req, res) {
+  try {
+    const caseId = req.query.caseId || null;
+    const params = [req.user.id];
+    let whereClause = "WHERE ci.counselor_user_id = ?";
+
+    if (caseId) {
+      whereClause += " AND ci.case_id = ?";
+      params.push(caseId);
+    }
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        ci.id,
+        ci.case_id,
+        ci.student_id,
+        ci.note_type,
+        ci.note,
+        ci.status,
+        ci.follow_up_date,
+        ci.created_at,
+        c.case_number,
+        u.first_name,
+        u.last_name,
+        counselor.first_name AS counselor_first_name,
+        counselor.last_name AS counselor_last_name,
+        counselor.role AS counselor_role,
+        s.student_number
+      FROM counselor_interventions ci
+      JOIN cases c ON ci.case_id = c.id
+      JOIN students s ON ci.student_id = s.id
+      JOIN users u ON s.user_id = u.id
+      JOIN users counselor ON ci.counselor_user_id = counselor.id
+      ${whereClause}
+      ORDER BY ci.created_at DESC
+      `,
+      params
+    );
+
+    return res.json({
+      success: true,
+      interventions: rows.map(item => ({
+        ...item,
+        counselor_role_label: formatRoleLabel(item.counselor_role)
+      }))
+    });
+  } catch (error) {
+    console.error("Get interventions error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching interventions."
+    });
+  }
+}
+
+async function createCounselorIntervention(req, res) {
+  try {
+    const { caseId, noteType, note, status, followUpDate } = req.body;
+
+    if (!caseId || !note) {
+      return res.status(400).json({
+        success: false,
+        message: "Case and note are required."
+      });
+    }
+
+    const [caseRows] = await pool.query(
+      `
+      SELECT id, case_number, student_id
+      FROM cases
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [caseId]
+    );
+
+    if (!caseRows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Case not found."
+      });
+    }
+
+    if (isCaseClosed(caseRows[0].status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Resolved or dismissed cases are read-only."
+      });
+    }
+
+    const allowedTypes = ["intervention", "behavior_note", "recommendation", "follow_up"];
+    const allowedStatuses = ["planned", "ongoing", "completed"];
+    const finalType = allowedTypes.includes(noteType) ? noteType : "intervention";
+    const finalStatus = allowedStatuses.includes(status) ? status : "planned";
+
+    const [result] = await pool.query(
+      `
+      INSERT INTO counselor_interventions
+      (case_id, student_id, counselor_user_id, note_type, note, status, follow_up_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        caseId,
+        caseRows[0].student_id,
+        req.user.id,
+        finalType,
+        note,
+        finalStatus,
+        followUpDate || null
+      ]
+    );
+
+    await logAudit({
+      userId: req.user.id,
+      action: "CREATE_COUNSELOR_INTERVENTION",
+      targetTable: "counselor_interventions",
+      targetId: result.insertId,
+      details: `Added ${finalType} note for ${caseRows[0].case_number}`,
+      ipAddress: req.ip
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Counselor note saved successfully."
+    });
+  } catch (error) {
+    console.error("Create intervention error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while saving counselor note."
+    });
+  }
+}
+
+async function updateCounselorIntervention(req, res) {
+  try {
+    const { id } = req.params;
+    const { noteType, note, status, followUpDate } = req.body;
+
+    const [rows] = await pool.query(
+      `
+      SELECT id
+      FROM counselor_interventions
+      WHERE id = ? AND counselor_user_id = ?
+      LIMIT 1
+      `,
+      [id, req.user.id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Counselor note not found."
+      });
+    }
+
+    const [caseRows] = await pool.query(
+      `
+      SELECT case_id
+      FROM counselor_interventions
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [id]
+    );
+
+    const caseStatus = caseRows.length ? await getCaseStatusRecord(caseRows[0].case_id) : null;
+    if (caseStatus && isCaseClosed(caseStatus.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Resolved or dismissed cases are read-only."
+      });
+    }
+
+    const allowedTypes = ["intervention", "behavior_note", "recommendation", "follow_up"];
+    const allowedStatuses = ["planned", "ongoing", "completed"];
+
+    await pool.query(
+      `
+      UPDATE counselor_interventions
+      SET
+        note_type = ?,
+        note = ?,
+        status = ?,
+        follow_up_date = ?
+      WHERE id = ?
+      `,
+      [
+        allowedTypes.includes(noteType) ? noteType : "intervention",
+        note,
+        allowedStatuses.includes(status) ? status : "planned",
+        followUpDate || null,
+        id
+      ]
+    );
+
+    return res.json({
+      success: true,
+      message: "Counselor note updated successfully."
+    });
+  } catch (error) {
+    console.error("Update intervention error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while updating counselor note."
+    });
+  }
+}
+
+module.exports = {
+  getCounselorDashboard,
+  getCounselorCases,
+  getCounselorInterventions,
+  createCounselorIntervention,
+  updateCounselorIntervention
+};

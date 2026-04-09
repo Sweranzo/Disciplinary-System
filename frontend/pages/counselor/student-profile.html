@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Counselor Student Profile</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <h1>Student History and Profile</h1>
+    <div>
+      <a href="cases.html"><button>Back</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Student Overview</h2>
+    <div id="studentInfo">Loading...</div>
+  </div>
+
+  <div class="split-grid">
+    <div class="card">
+      <h2>Parents / Guardians</h2>
+      <div id="parentsInfo">Loading...</div>
+    </div>
+    <div class="card">
+      <h2>Recent Cases and Sanctions</h2>
+      <div id="historyInfo">Loading...</div>
+    </div>
+  </div>
+
+  <div class="split-grid">
+    <div class="card">
+      <h2>Hearings</h2>
+      <div id="hearingsInfo">Loading...</div>
+    </div>
+    <div class="card">
+      <h2>Appeals</h2>
+      <div id="appealsInfo">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "guidance_counselor") {
+  alert("Access denied");
+  logout();
+}
+
+const studentId = new URLSearchParams(window.location.search).get("id");
+
+async function loadProfile() {
+  const res = await apiRequest(`/students/${studentId}`, "GET", null, true);
+  if (!res.success) {
+    document.getElementById("studentInfo").textContent = res.message;
+    return;
+  }
+
+  const student = res.student;
+  document.getElementById("studentInfo").innerHTML = `
+    <div class="info-grid">
+      <div><strong>Name</strong><span>${student.first_name} ${student.last_name}</span></div>
+      <div><strong>Student #</strong><span>${student.student_number}</span></div>
+      <div><strong>Program</strong><span>${student.program || "-"}</span></div>
+      <div><strong>Year / Section</strong><span>${student.year_level || "-"} / ${student.section || "-"}</span></div>
+      <div><strong>Academic Level</strong><span>${student.academic_level || "-"}</span></div>
+      <div><strong>Status</strong><span>${student.status}</span></div>
+    </div>
+  `;
+
+  document.getElementById("parentsInfo").innerHTML = res.parents.length
+    ? res.parents.map(parent => `
+        <div class="detail-item">
+          <p><strong>${parent.first_name} ${parent.last_name}</strong> (${parent.relationship || "Not set"})</p>
+          <p>${parent.email}</p>
+          <p>${parent.phone_number || "-"}</p>
+        </div>
+      `).join("")
+    : "<p>No linked parents found.</p>";
+
+  const cases = res.recentCases.map(item => `
+    <div class="detail-item">
+      <p><strong>${item.case_number}</strong></p>
+      <p>${item.violation_type} | ${item.status}</p>
+    </div>
+  `).join("");
+
+  const sanctions = res.sanctions.map(item => `
+    <div class="detail-item">
+      <p><strong>${item.sanction_type}</strong> (${item.status})</p>
+      <p>${item.start_date || "-"} to ${item.end_date || "-"}</p>
+    </div>
+  `).join("");
+
+  document.getElementById("historyInfo").innerHTML = (cases || "<p>No recent cases.</p>") + (sanctions || "<p>No sanctions.</p>");
+
+  document.getElementById("hearingsInfo").innerHTML = res.hearings.length
+    ? res.hearings.map(item => `
+        <div class="detail-item">
+          <p><strong>${item.case_number}</strong> (${item.status})</p>
+          <p>${item.scheduled_date} ${item.scheduled_time} at ${item.location || "-"}</p>
+        </div>
+      `).join("")
+    : "<p>No hearings found.</p>";
+
+  document.getElementById("appealsInfo").innerHTML = res.appeals.length
+    ? res.appeals.map(item => `
+        <div class="detail-item">
+          <p><strong>${item.case_number}</strong> (${item.status})</p>
+          <p>${item.reason}</p>
+          <p>${item.decision_notes || "No decision notes yet."}</p>
+        </div>
+      `).join("")
+    : "<p>No appeals found.</p>";
+}
+
+loadProfile();
+</script>
+
+</body>
+</html>

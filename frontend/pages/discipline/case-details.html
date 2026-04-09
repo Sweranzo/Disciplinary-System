@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Case Detail and Timeline</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Case Details & Management</span>
+      <h1 style="margin-top:16px;">Case Detail and Timeline</h1>
+      <p class="muted">Investigation workspace for evidence review, hearings, sanctions, timeline updates, and appeals.</p>
+    </div>
+    <div class="action-row">
+      <a href="cases.html"><button class="secondary">Back</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="case-hero">
+    <div class="case-hero-panel">
+      <div class="case-title-row">
+        <div>
+          <h2 id="heroCaseTitle">Case Loading...</h2>
+          <p class="muted" id="heroSubtitle">Loading case details...</p>
+        </div>
+      </div>
+      <div class="case-tag-row" id="heroTags">
+        <span class="badge pending">Loading</span>
+      </div>
+    </div>
+
+    <div class="case-hero-panel">
+      <div class="card-header">
+        <div>
+          <h2>Quick Actions</h2>
+          <p class="muted">Immediate case actions for routing and workflow control.</p>
+        </div>
+      </div>
+      <div class="quick-grid">
+        <a href="#timelineSection" class="section-tab active">Timeline</a>
+        <a href="#evidenceSection" class="section-tab">Evidence</a>
+        <a href="#hearingSection" class="section-tab">Hearings</a>
+        <a href="#sanctionSection" class="section-tab">Sanctions</a>
+        <a href="#appealSection" class="section-tab">Appeals</a>
+        <a href="#notesSection" class="section-tab">Counselor Notes</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-tabs">
+    <a href="#overviewSection" class="section-tab active">Overview</a>
+    <a href="#timelineSection" class="section-tab">Timeline</a>
+    <a href="#evidenceSection" class="section-tab">Evidence</a>
+    <a href="#hearingSection" class="section-tab">Hearings</a>
+    <a href="#sanctionSection" class="section-tab">Sanctions</a>
+    <a href="#appealSection" class="section-tab">Appeals</a>
+    <a href="#notesSection" class="section-tab">Counselor Notes</a>
+  </div>
+
+  <div class="case-summary-grid case-section" id="overviewSection">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Case Information</h2>
+          <p class="muted">Core record details for the current disciplinary case.</p>
+        </div>
+      </div>
+      <div class="case-list" id="caseInfo">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Assignment & Actions</h2>
+          <p class="muted">Manage assignee, case status, and next workflow steps.</p>
+        </div>
+      </div>
+      <div class="soft-panel">
+        <div id="caseLockBanner" class="empty-state" style="display:none; margin-bottom:12px;"></div>
+        <div class="form-grid">
+          <select id="assignedToUserId"></select>
+          <button id="assignBtn">Assign Case</button>
+        </div>
+        <div class="form-grid" style="margin-top:12px;">
+          <select id="statusSelect">
+            <option value="pending">Pending</option>
+            <option value="under_investigation">Under Investigation</option>
+            <option value="hearing_scheduled">Hearing Scheduled</option>
+            <option value="dismissed">Dismissed</option>
+            <option value="resolved">Resolved</option>
+          </select>
+          <button id="saveStatusBtn" class="secondary">Save Status</button>
+        </div>
+        <p id="statusResult" class="muted"></p>
+      </div>
+      <div class="soft-panel" style="margin-top:16px;">
+        <div class="quick-grid">
+          <a href="#timelineComposer" class="section-tab active">Add Note</a>
+          <a href="#uploadPanel" class="section-tab">Add Evidence</a>
+          <a href="#hearingPlanner" class="section-tab">Schedule Hearing</a>
+          <a href="#sanctionPlanner" class="section-tab">Assign Sanction</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card case-section" id="timelineSection">
+    <div class="card-header">
+      <div>
+        <h2>Incident Description</h2>
+        <p class="muted">Narrative incident details and investigation updates.</p>
+      </div>
+    </div>
+    <div class="soft-panel" id="descriptionPanel">Loading...</div>
+  </div>
+
+  <div class="case-summary-grid case-section">
+    <div class="card" id="timelineComposer">
+      <div class="card-header">
+        <div>
+          <h2>Investigation Timeline</h2>
+          <p class="muted">Chronological updates, statements, hearing notes, and status changes.</p>
+        </div>
+      </div>
+      <div id="updatesContainer">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Add Timeline Update</h2>
+          <p class="muted">Record the next step in the investigation.</p>
+        </div>
+      </div>
+      <select id="updateType">
+        <option value="investigation">Investigation</option>
+        <option value="note">Note</option>
+        <option value="witness_statement">Witness Statement</option>
+        <option value="hearing_note">Hearing Note</option>
+        <option value="status_change">Status Change</option>
+        <option value="other">Other</option>
+      </select>
+      <textarea id="content" placeholder="Enter case timeline update"></textarea>
+      <div class="action-row">
+        <button id="submitUpdateBtn">Save Update</button>
+        <span id="updateResult" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="case-summary-grid case-section" id="evidenceSection">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Evidence Files</h2>
+          <p class="muted">Upload, inspect, approve, reject, and annotate case evidence.</p>
+        </div>
+      </div>
+      <div id="evidenceContainer">Loading...</div>
+    </div>
+
+    <div class="card" id="uploadPanel">
+      <div class="card-header">
+        <div>
+          <h2>Upload Evidence</h2>
+          <p class="muted">Attach supporting files directly to this case.</p>
+        </div>
+      </div>
+      <input type="file" id="evidenceFile">
+      <div class="action-row">
+        <button id="uploadEvidenceBtn">Upload Evidence</button>
+        <span id="evidenceResult" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="case-summary-grid case-section" id="hearingSection">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Hearings</h2>
+          <p class="muted">Scheduled hearings, locations, outcomes, and linked management actions.</p>
+        </div>
+        <a href="hearings.html"><button type="button" class="secondary">Open Hearings</button></a>
+      </div>
+      <div id="hearingList">Loading...</div>
+    </div>
+
+    <div class="card" id="hearingPlanner">
+      <div class="card-header">
+        <div>
+          <h2>Schedule Hearing</h2>
+          <p class="muted">Create the next hearing event for this case.</p>
+        </div>
+      </div>
+      <div class="form-grid">
+        <input type="date" id="hearingDate">
+        <input type="time" id="hearingTime">
+        <input type="text" id="hearingLocation" placeholder="Location">
+      </div>
+      <div class="action-row">
+        <button id="scheduleHearingBtn">Schedule Hearing</button>
+        <span id="hearingResult" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="case-summary-grid case-section" id="sanctionSection">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Sanctions</h2>
+          <p class="muted">Assigned sanctions, duration, and monitoring status.</p>
+        </div>
+        <a href="sanctions.html"><button type="button" class="secondary">Open Sanctions</button></a>
+      </div>
+      <div id="sanctionList">Loading...</div>
+    </div>
+
+    <div class="card" id="sanctionPlanner">
+      <div class="card-header">
+        <div>
+          <h2>Assign Sanction</h2>
+          <p class="muted">Create a sanction and move the case toward resolution.</p>
+        </div>
+      </div>
+      <div class="form-grid">
+        <select id="sanctionType">
+          <option value="warning">Warning</option>
+          <option value="community_service">Community Service</option>
+          <option value="suspension">Suspension</option>
+          <option value="expulsion">Expulsion</option>
+          <option value="other">Other</option>
+        </select>
+        <input type="date" id="sanctionStartDate">
+        <input type="date" id="sanctionEndDate">
+      </div>
+      <textarea id="sanctionDescription" placeholder="Sanction details"></textarea>
+      <div class="action-row">
+        <button id="assignSanctionBtn">Assign Sanction</button>
+        <span id="sanctionResult" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="case-summary-grid case-section" id="appealSection">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Appeals Board Queue</h2>
+          <p class="muted">Review student appeals and record board decisions.</p>
+        </div>
+      </div>
+      <div id="appealList">Loading...</div>
+    </div>
+
+    <div class="card" id="notesSection">
+      <div class="card-header">
+        <div>
+          <h2>Counselor Notes</h2>
+          <p class="muted">Counselor interventions, recommendations, and follow-up notes tied to the case.</p>
+        </div>
+      </div>
+      <div id="counselorNotes">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "discipline_officer") {
+  alert("Access denied");
+  logout();
+}
+
+const caseId = new URLSearchParams(window.location.search).get("id");
+let currentCase = null;
+
+function badge(value) {
+  return `<span class="badge ${String(value).toLowerCase().replaceAll(" ", "_")}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+function renderItems(containerId, items, emptyMessage, mapFn) {
+  const el = document.getElementById(containerId);
+  if (!items || !items.length) {
+    el.innerHTML = `<div class="empty-state">${emptyMessage}</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
+}
+
+function isClosedCase(status) {
+  return ["resolved", "dismissed"].includes(String(status || "").toLowerCase());
+}
+
+function updateClosedCaseUi(caseItem) {
+  const locked = isClosedCase(caseItem?.status);
+  const lockedMessage = locked ? `This case is ${String(caseItem.status).replaceAll("_", " ")} and is now read-only.` : "";
+  const banner = document.getElementById("caseLockBanner");
+
+  [
+    "assignedToUserId",
+    "assignBtn",
+    "statusSelect",
+    "saveStatusBtn",
+    "updateType",
+    "content",
+    "submitUpdateBtn",
+    "evidenceFile",
+    "uploadEvidenceBtn",
+    "hearingDate",
+    "hearingTime",
+    "hearingLocation",
+    "scheduleHearingBtn",
+    "sanctionType",
+    "sanctionStartDate",
+    "sanctionEndDate",
+    "sanctionDescription",
+    "assignSanctionBtn"
+  ].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.disabled = locked;
+    }
+  });
+
+  banner.style.display = locked ? "block" : "none";
+  banner.textContent = locked
+    ? "Closed case: timeline updates, evidence, hearings, and sanctions are now locked for discipline workflow."
+    : "";
+
+  if (locked) {
+    document.getElementById("statusResult").textContent = lockedMessage;
+    document.getElementById("updateResult").textContent = lockedMessage;
+    document.getElementById("evidenceResult").textContent = lockedMessage;
+    document.getElementById("hearingResult").textContent = lockedMessage;
+    document.getElementById("sanctionResult").textContent = lockedMessage;
+  } else {
+    document.getElementById("statusResult").textContent = "";
+  }
+}
+
+async function loadAssignableStaff(selectedId) {
+  const select = document.getElementById("assignedToUserId");
+  const res = await apiRequest("/auth/staff-options", "GET", null, true);
+  if (!res.success) {
+    select.innerHTML = `<option value="">Unable to load staff</option>`;
+    return;
+  }
+
+  select.innerHTML = `<option value="">Select assignee</option>` + res.staff.map(item => `
+    <option value="${item.id}" ${Number(selectedId) === item.id ? "selected" : ""}>
+      ${item.first_name} ${item.last_name} (${item.role})
+    </option>
+  `).join("");
+}
+
+async function loadCaseDetails() {
+  const res = await apiRequest(`/cases/${caseId}`, "GET", null, true);
+
+  if (!res.success) {
+    document.getElementById("caseInfo").innerHTML = `<div class="empty-state">${res.message}</div>`;
+    return;
+  }
+
+  const c = res.case;
+  currentCase = c;
+  document.getElementById("heroCaseTitle").textContent = `Case: ${c.case_number}`;
+  document.getElementById("heroSubtitle").textContent = `${c.violation_type} | ${c.first_name} ${c.last_name} (${c.student_number})`;
+  document.getElementById("heroTags").innerHTML = `
+    ${badge(c.status)}
+    ${badge(c.severity_level)}
+    <span class="section-tab">${c.program || "-"}</span>
+  `;
+
+  document.getElementById("statusSelect").value = c.status;
+  await loadAssignableStaff(c.assigned_to_user_id);
+  updateClosedCaseUi(c);
+
+  document.getElementById("caseInfo").innerHTML = `
+    <div class="case-list">
+      <div class="case-list-row"><strong>Case Status</strong><span>${badge(c.status)}</span></div>
+      <div class="case-list-row"><strong>Student</strong><span>${c.first_name} ${c.last_name} (${c.student_number})</span></div>
+      <div class="case-list-row"><strong>Reported By</strong><span>${c.reported_by_first_name} ${c.reported_by_last_name} - ${c.reported_by_role_label || getRoleLabel(c.reported_by_role)}</span></div>
+      <div class="case-list-row"><strong>Violation</strong><span>${c.violation_type}</span></div>
+      <div class="case-list-row"><strong>Severity</strong><span>${badge(c.severity_level)}</span></div>
+      <div class="case-list-row"><strong>Incident Date</strong><span>${c.incident_date}</span></div>
+      <div class="case-list-row"><strong>Location</strong><span>${c.location || "-"}</span></div>
+      <div class="case-list-row"><strong>Academic Context</strong><span>${c.program || "-"} / ${c.year_level || "-"} / ${c.section || "-"}</span></div>
+      <div class="case-list-row"><strong>Assigned To</strong><span>${c.assigned_to_first_name ? `${c.assigned_to_first_name} ${c.assigned_to_last_name} - ${c.assigned_to_role_label || getRoleLabel(c.assigned_to_role)}` : "Unassigned"}</span></div>
+    </div>
+  `;
+
+  document.getElementById("descriptionPanel").innerHTML = `
+    <p><strong>Detailed Account</strong></p>
+    <p>${c.description || "No case description recorded."}</p>
+  `;
+
+  renderItems("updatesContainer", res.timeline.updates, "No timeline updates yet.", update => `
+    <div class="detail-item">
+      <p><strong>${update.update_type}</strong> ${badge(update.role)}</p>
+      <p>${update.content}</p>
+      <p class="muted">By ${update.first_name} ${update.last_name}</p>
+      <p class="muted">${update.created_at}</p>
+    </div>
+  `);
+
+  renderItems("evidenceContainer", res.timeline.evidence, "No evidence uploaded yet.", evidence => `
+    <div class="detail-item">
+      <p><strong>${evidence.original_name || evidence.file_name}</strong> ${badge(evidence.review_status || "pending")}</p>
+      <p>Uploaded by ${evidence.uploaded_by_first_name} ${evidence.uploaded_by_last_name} - ${evidence.uploaded_by_role_label || getRoleLabel(evidence.uploaded_by_role)}</p>
+      <p>Uploaded on ${evidence.uploaded_at || "-"}</p>
+      <p>File size: ${evidence.file_size || 0} bytes</p>
+      <p>${evidence.review_notes || "No review notes yet."}</p>
+      <p class="muted">${evidence.reviewed_by_first_name ? `Reviewed by ${evidence.reviewed_by_first_name} ${evidence.reviewed_by_last_name} - ${evidence.reviewed_by_role_label || getRoleLabel(evidence.reviewed_by_role)}` : "No reviewer assigned yet."}</p>
+      <div class="action-row">
+        <a href="http://localhost:5000${evidence.file_path}" target="_blank"><button type="button" class="secondary">Open File</button></a>
+      </div>
+      <div class="form-grid">
+        <select id="reviewStatus-${evidence.id}">
+          <option value="pending" ${evidence.review_status === "pending" ? "selected" : ""}>Pending</option>
+          <option value="approved" ${evidence.review_status === "approved" ? "selected" : ""}>Approved</option>
+          <option value="rejected" ${evidence.review_status === "rejected" ? "selected" : ""}>Rejected</option>
+        </select>
+        <input type="text" id="reviewNotes-${evidence.id}" placeholder="Review notes" value="${evidence.review_notes || ""}">
+        <button onclick="reviewEvidence(${evidence.id})">Save Review</button>
+      </div>
+    </div>
+  `);
+
+  renderItems("hearingList", res.timeline.hearings, "No hearings scheduled.", hearing => `
+    <div class="detail-item">
+      <p><strong>${hearing.scheduled_date} ${hearing.scheduled_time}</strong> ${badge(hearing.status)}</p>
+      <p>${hearing.location || "-"}</p>
+      <p>${hearing.outcome || "No outcome yet."}</p>
+      <p class="muted">Created by ${hearing.created_by_first_name} ${hearing.created_by_last_name} - ${hearing.created_by_role_label || getRoleLabel(hearing.created_by_role)}</p>
+    </div>
+  `);
+
+  renderItems("sanctionList", res.timeline.sanctions, "No sanctions yet.", sanction => `
+    <div class="detail-item">
+      <p><strong>${sanction.sanction_type}</strong> ${badge(sanction.status)}</p>
+      <p>${sanction.description || "-"}</p>
+      <p>${sanction.start_date || "-"} to ${sanction.end_date || "-"}</p>
+      <p class="muted">Assigned by ${sanction.assigned_by_first_name} ${sanction.assigned_by_last_name} - ${sanction.assigned_by_role_label || getRoleLabel(sanction.assigned_by_role)}</p>
+    </div>
+  `);
+
+  renderItems("appealList", res.timeline.appeals, "No appeals submitted.", appeal => `
+    <div class="detail-item">
+      <p><strong>${appeal.submitted_by_first_name} ${appeal.submitted_by_last_name}</strong> ${badge(appeal.status)}</p>
+      <p>${appeal.reason}</p>
+      <p class="muted">Submitted by ${appeal.submitted_by_role_label || getRoleLabel(appeal.submitted_by_role)}${appeal.reviewed_by_first_name ? ` | Reviewed by ${appeal.reviewed_by_first_name} ${appeal.reviewed_by_last_name} - ${appeal.reviewed_by_role_label || getRoleLabel(appeal.reviewed_by_role)}` : ""}</p>
+      <textarea id="appealNotes-${appeal.id}" placeholder="Decision notes">${appeal.decision_notes || ""}</textarea>
+      <div class="form-grid">
+        <select id="appealStatus-${appeal.id}">
+          <option value="under_review" ${appeal.status === "under_review" ? "selected" : ""}>Under Review</option>
+          <option value="approved" ${appeal.status === "approved" ? "selected" : ""}>Approved</option>
+          <option value="rejected" ${appeal.status === "rejected" ? "selected" : ""}>Rejected</option>
+        </select>
+        <button onclick="reviewAppeal(${appeal.id})">Save Appeal Decision</button>
+      </div>
+    </div>
+  `);
+
+  renderItems("counselorNotes", res.timeline.counselorNotes, "No counselor notes yet.", note => `
+    <div class="detail-item">
+      <p><strong>${note.note_type}</strong></p>
+      <p>${note.note}</p>
+      <p>Status: ${note.status} | Follow-up: ${note.follow_up_date || "-"}</p>
+      <p class="muted">${note.first_name} ${note.last_name} - ${note.role_label || getRoleLabel(note.role)}</p>
+      <p class="muted">By ${note.first_name} ${note.last_name}</p>
+    </div>
+  `);
+}
+
+document.getElementById("submitUpdateBtn").addEventListener("click", async () => {
+  if (isClosedCase(currentCase?.status)) return;
+  const res = await apiRequest(`/cases/${caseId}/updates`, "POST", {
+    updateType: document.getElementById("updateType").value,
+    content: document.getElementById("content").value.trim()
+  }, true);
+  document.getElementById("updateResult").textContent = res.success ? "Update saved." : res.message;
+  if (res.success) {
+    document.getElementById("content").value = "";
+    loadCaseDetails();
+  }
+});
+
+document.getElementById("saveStatusBtn").addEventListener("click", async () => {
+  if (isClosedCase(currentCase?.status)) return;
+  const res = await apiRequest(`/cases/${caseId}/status`, "PUT", {
+    status: document.getElementById("statusSelect").value
+  }, true);
+  document.getElementById("statusResult").textContent = res.success ? "Status updated." : res.message;
+  if (res.success) loadCaseDetails();
+});
+
+document.getElementById("assignBtn").addEventListener("click", async () => {
+  if (isClosedCase(currentCase?.status)) return;
+  const assignedToUserId = document.getElementById("assignedToUserId").value;
+  const res = await apiRequest(`/cases/${caseId}/assign`, "PUT", { assignedToUserId }, true);
+  document.getElementById("statusResult").textContent = res.success ? "Assignment saved." : res.message;
+  if (res.success) loadCaseDetails();
+});
+
+document.getElementById("uploadEvidenceBtn").addEventListener("click", async () => {
+  if (isClosedCase(currentCase?.status)) return;
+  const file = document.getElementById("evidenceFile").files[0];
+  if (!file) {
+    document.getElementById("evidenceResult").textContent = "Select a file first.";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("caseId", caseId);
+  formData.append("file", file);
+
+  const res = await apiRequest("/evidence/upload", "POST", formData, true);
+  document.getElementById("evidenceResult").textContent = res.success ? "Evidence uploaded." : res.message;
+  if (res.success) {
+    document.getElementById("evidenceFile").value = "";
+    loadCaseDetails();
+  }
+});
+
+async function reviewEvidence(id) {
+  if (isClosedCase(currentCase?.status)) return;
+  const res = await apiRequest(`/evidence/${id}/review`, "PUT", {
+    reviewStatus: document.getElementById(`reviewStatus-${id}`).value,
+    reviewNotes: document.getElementById(`reviewNotes-${id}`).value
+  }, true);
+  document.getElementById("evidenceResult").textContent = res.success ? "Evidence review saved." : res.message;
+  if (res.success) loadCaseDetails();
+}
+
+async function reviewAppeal(id) {
+  const res = await apiRequest(`/appeals/${id}/review`, "PUT", {
+    status: document.getElementById(`appealStatus-${id}`).value,
+    decisionNotes: document.getElementById(`appealNotes-${id}`).value
+  }, true);
+  document.getElementById("sanctionResult").textContent = res.success ? "Appeal review saved." : res.message;
+  if (res.success) loadCaseDetails();
+}
+
+document.getElementById("scheduleHearingBtn").addEventListener("click", async () => {
+  if (isClosedCase(currentCase?.status)) return;
+  const res = await apiRequest("/hearings/create", "POST", {
+    caseId,
+    scheduledDate: document.getElementById("hearingDate").value,
+    scheduledTime: document.getElementById("hearingTime").value,
+    location: document.getElementById("hearingLocation").value
+  }, true);
+  document.getElementById("hearingResult").textContent = res.success ? "Hearing scheduled." : res.message;
+  if (res.success) loadCaseDetails();
+});
+
+document.getElementById("assignSanctionBtn").addEventListener("click", async () => {
+  if (isClosedCase(currentCase?.status)) return;
+  const res = await apiRequest("/sanctions/create", "POST", {
+    caseId,
+    sanctionType: document.getElementById("sanctionType").value,
+    description: document.getElementById("sanctionDescription").value,
+    startDate: document.getElementById("sanctionStartDate").value,
+    endDate: document.getElementById("sanctionEndDate").value
+  }, true);
+  document.getElementById("sanctionResult").textContent = res.success ? "Sanction assigned." : res.message;
+  if (res.success) loadCaseDetails();
+});
+
+loadCaseDetails();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Case Oversight</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Case Oversight</span>
+      <h1 style="margin-top:16px;">Case Details & Management</h1>
+      <p class="muted">Administrative case oversight for routing, evidence review, timeline review, and appeals decisions.</p>
+    </div>
+    <div class="action-row">
+      <a href="cases.html"><button class="secondary">Back</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="case-hero">
+    <div class="case-hero-panel">
+      <div class="case-title-row">
+        <div>
+          <h2 id="heroCaseTitle">Case Loading...</h2>
+          <p class="muted" id="heroSubtitle">Loading case details...</p>
+        </div>
+      </div>
+      <div class="case-tag-row" id="heroTags">
+        <span class="badge pending">Loading</span>
+      </div>
+    </div>
+
+    <div class="case-hero-panel">
+      <div class="card-header">
+        <div>
+          <h2>Navigation</h2>
+          <p class="muted">Jump to the main case sections below.</p>
+        </div>
+      </div>
+      <div class="quick-grid">
+        <a href="#overviewSection" class="section-tab active">Overview</a>
+        <a href="#timelineSection" class="section-tab">Timeline</a>
+        <a href="#evidenceSection" class="section-tab">Evidence</a>
+        <a href="#appealSection" class="section-tab">Appeals</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-tabs">
+    <a href="#overviewSection" class="section-tab active">Overview</a>
+    <a href="#timelineSection" class="section-tab">Timeline</a>
+    <a href="#evidenceSection" class="section-tab">Evidence</a>
+    <a href="#appealSection" class="section-tab">Appeals</a>
+  </div>
+
+  <div class="case-summary-grid case-section" id="overviewSection">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Case Information</h2>
+          <p class="muted">Student, reporter, severity, and incident details.</p>
+        </div>
+      </div>
+      <div class="case-list" id="caseInfo">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Assignment & Actions</h2>
+          <p class="muted">Update staff assignment and overall case status.</p>
+        </div>
+      </div>
+      <div class="soft-panel">
+        <div id="caseLockBanner" class="empty-state" style="display:none; margin-bottom:12px;"></div>
+        <div class="form-grid">
+          <select id="assignedToUserId"></select>
+          <button id="assignBtn">Assign Case</button>
+        </div>
+        <div class="form-grid" style="margin-top:12px;">
+          <select id="statusSelect">
+            <option value="pending">Pending</option>
+            <option value="under_investigation">Under Investigation</option>
+            <option value="hearing_scheduled">Hearing Scheduled</option>
+            <option value="dismissed">Dismissed</option>
+            <option value="resolved">Resolved</option>
+          </select>
+          <button id="saveStatusBtn" class="secondary">Save Status</button>
+        </div>
+        <div class="action-row" style="margin-top:12px;">
+          <button id="reopenCaseBtn" type="button" style="display:none;">Reopen Case</button>
+        </div>
+        <p id="statusResult" class="muted"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card case-section">
+    <div class="card-header">
+      <div>
+        <h2>Incident Description</h2>
+        <p class="muted">Primary case narrative and reported incident context.</p>
+      </div>
+    </div>
+    <div class="soft-panel" id="descriptionPanel">Loading...</div>
+  </div>
+
+  <div class="case-summary-grid case-section" id="timelineSection">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Timeline</h2>
+          <p class="muted">Administrative read-only view of updates and activity.</p>
+        </div>
+      </div>
+      <div id="updatesContainer">Loading...</div>
+    </div>
+
+    <div class="card" id="appealSection">
+      <div class="card-header">
+        <div>
+          <h2>Appeals Queue</h2>
+          <p class="muted">Review and record appeal outcomes linked to this case.</p>
+        </div>
+      </div>
+      <div id="appealList">Loading...</div>
+    </div>
+  </div>
+
+  <div class="case-summary-grid case-section" id="evidenceSection">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Evidence Files</h2>
+          <p class="muted">Review evidence status, notes, and file access in one place.</p>
+        </div>
+      </div>
+      <div id="evidenceContainer">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Upload Evidence</h2>
+          <p class="muted">Attach an additional supporting file to this case.</p>
+        </div>
+      </div>
+      <input type="file" id="evidenceFile">
+      <div class="action-row">
+        <button id="uploadEvidenceBtn">Upload Evidence</button>
+        <span id="evidenceResult" class="muted"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "admin") {
+  alert("Access denied");
+  logout();
+}
+
+const caseId = new URLSearchParams(window.location.search).get("id");
+let currentCase = null;
+
+function badge(value) {
+  return `<span class="badge ${String(value).toLowerCase().replaceAll(" ", "_")}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+function renderItems(containerId, items, emptyMessage, mapFn) {
+  const el = document.getElementById(containerId);
+  if (!items || !items.length) {
+    el.innerHTML = `<div class="empty-state">${emptyMessage}</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
+}
+
+function isClosedCase(status) {
+  return ["resolved", "dismissed"].includes(String(status || "").toLowerCase());
+}
+
+function updateClosedCaseUi(caseItem) {
+  const locked = isClosedCase(caseItem?.status);
+  const lockedMessage = locked ? `This case is ${String(caseItem.status).replaceAll("_", " ")} and is now read-only.` : "";
+  const banner = document.getElementById("caseLockBanner");
+  const reopenButton = document.getElementById("reopenCaseBtn");
+
+  [
+    "assignedToUserId",
+    "assignBtn",
+    "statusSelect",
+    "saveStatusBtn",
+    "evidenceFile",
+    "uploadEvidenceBtn"
+  ].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.disabled = locked;
+    }
+  });
+
+  banner.style.display = locked ? "block" : "none";
+  banner.textContent = locked
+    ? "Closed case: evidence review, assignment, and appeal updates are locked. Admin can reopen the case if follow-up is required."
+    : "";
+  reopenButton.style.display = locked ? "inline-flex" : "none";
+
+  if (locked) {
+    document.getElementById("statusResult").textContent = lockedMessage;
+    document.getElementById("evidenceResult").textContent = lockedMessage;
+  } else {
+    document.getElementById("statusResult").textContent = "";
+  }
+}
+
+async function loadAssignableStaff(selectedId) {
+  const select = document.getElementById("assignedToUserId");
+  const res = await apiRequest("/auth/staff-options", "GET", null, true);
+  if (!res.success) {
+    select.innerHTML = `<option value="">Unable to load staff</option>`;
+    return;
+  }
+  select.innerHTML = `<option value="">Select assignee</option>` + res.staff.map(item => `
+    <option value="${item.id}" ${Number(selectedId) === item.id ? "selected" : ""}>
+      ${item.first_name} ${item.last_name} (${item.role})
+    </option>
+  `).join("");
+}
+
+async function loadCaseDetails() {
+  const res = await apiRequest(`/cases/${caseId}`, "GET", null, true);
+  if (!res.success) {
+    document.getElementById("caseInfo").innerHTML = `<div class="empty-state">${res.message}</div>`;
+    return;
+  }
+
+  const item = res.case;
+  currentCase = item;
+  document.getElementById("heroCaseTitle").textContent = `Case: ${item.case_number}`;
+  document.getElementById("heroSubtitle").textContent = `${item.violation_type} | ${item.first_name} ${item.last_name} (${item.student_number})`;
+  document.getElementById("heroTags").innerHTML = `
+    ${badge(item.status)}
+    ${badge(item.severity_level)}
+    <span class="section-tab">${item.program || "-"}</span>
+  `;
+
+  document.getElementById("statusSelect").value = item.status;
+  await loadAssignableStaff(item.assigned_to_user_id);
+  updateClosedCaseUi(item);
+
+  document.getElementById("caseInfo").innerHTML = `
+    <div class="case-list">
+      <div class="case-list-row"><strong>Case Status</strong><span>${badge(item.status)}</span></div>
+      <div class="case-list-row"><strong>Student</strong><span>${item.first_name} ${item.last_name} (${item.student_number})</span></div>
+      <div class="case-list-row"><strong>Reported By</strong><span>${item.reported_by_first_name} ${item.reported_by_last_name} - ${item.reported_by_role_label || getRoleLabel(item.reported_by_role)}</span></div>
+      <div class="case-list-row"><strong>Violation</strong><span>${item.violation_type}</span></div>
+      <div class="case-list-row"><strong>Severity</strong><span>${badge(item.severity_level)}</span></div>
+      <div class="case-list-row"><strong>Incident Date</strong><span>${item.incident_date}</span></div>
+      <div class="case-list-row"><strong>Location</strong><span>${item.location || "-"}</span></div>
+      <div class="case-list-row"><strong>Academic Context</strong><span>${item.program || "-"} / ${item.year_level || "-"} / ${item.section || "-"}</span></div>
+      <div class="case-list-row"><strong>Assigned To</strong><span>${item.assigned_to_first_name ? `${item.assigned_to_first_name} ${item.assigned_to_last_name} - ${item.assigned_to_role_label || getRoleLabel(item.assigned_to_role)}` : "Unassigned"}</span></div>
+    </div>
+  `;
+
+  document.getElementById("descriptionPanel").innerHTML = `
+    <p><strong>Detailed Account</strong></p>
+    <p>${item.description || "No case description recorded."}</p>
+  `;
+
+  renderItems("updatesContainer", res.timeline.updates, "No updates yet.", update => `
+    <div class="detail-item">
+      <p><strong>${update.update_type}</strong> ${badge(update.role)}</p>
+      <p>${update.content}</p>
+      <p class="muted">By ${update.first_name} ${update.last_name} - ${update.role_label || getRoleLabel(update.role)}</p>
+      <p class="muted">${update.created_at}</p>
+    </div>
+  `);
+
+  renderItems("evidenceContainer", res.timeline.evidence, "No evidence uploaded.", evidence => `
+    <div class="detail-item">
+      <p><strong>${evidence.original_name || evidence.file_name}</strong> ${badge(evidence.review_status || "pending")}</p>
+      <p>Uploaded by ${evidence.uploaded_by_first_name} ${evidence.uploaded_by_last_name} - ${evidence.uploaded_by_role_label || getRoleLabel(evidence.uploaded_by_role)}</p>
+      <p>Uploaded on ${evidence.uploaded_at || "-"}</p>
+      <p>${evidence.review_notes || "No review notes yet."}</p>
+      <p class="muted">${evidence.reviewed_by_first_name ? `Reviewed by ${evidence.reviewed_by_first_name} ${evidence.reviewed_by_last_name} - ${evidence.reviewed_by_role_label || getRoleLabel(evidence.reviewed_by_role)}` : "No reviewer assigned yet."}</p>
+      <div class="action-row">
+        <a href="http://localhost:5000${evidence.file_path}" target="_blank"><button type="button" class="secondary">Open File</button></a>
+      </div>
+      <div class="form-grid">
+        <select id="reviewStatus-${evidence.id}">
+          <option value="pending" ${evidence.review_status === "pending" ? "selected" : ""}>Pending</option>
+          <option value="approved" ${evidence.review_status === "approved" ? "selected" : ""}>Approved</option>
+          <option value="rejected" ${evidence.review_status === "rejected" ? "selected" : ""}>Rejected</option>
+        </select>
+        <input type="text" id="reviewNotes-${evidence.id}" placeholder="Review notes" value="${evidence.review_notes || ""}">
+        <button onclick="reviewEvidence(${evidence.id})">Review</button>
+      </div>
+    </div>
+  `);
+
+  renderItems("appealList", res.timeline.appeals, "No appeals submitted.", appeal => `
+    <div class="detail-item">
+      <p><strong>${appeal.submitted_by_first_name} ${appeal.submitted_by_last_name}</strong> ${badge(appeal.status)}</p>
+      <p>${appeal.reason}</p>
+      <p class="muted">Submitted by ${appeal.submitted_by_role_label || getRoleLabel(appeal.submitted_by_role)}${appeal.reviewed_by_first_name ? ` | Reviewed by ${appeal.reviewed_by_first_name} ${appeal.reviewed_by_last_name} - ${appeal.reviewed_by_role_label || getRoleLabel(appeal.reviewed_by_role)}` : ""}</p>
+      <textarea id="appealNotes-${appeal.id}" placeholder="Decision notes">${appeal.decision_notes || ""}</textarea>
+      <div class="form-grid">
+        <select id="appealStatus-${appeal.id}">
+          <option value="under_review" ${appeal.status === "under_review" ? "selected" : ""}>Under Review</option>
+          <option value="approved" ${appeal.status === "approved" ? "selected" : ""}>Approved</option>
+          <option value="rejected" ${appeal.status === "rejected" ? "selected" : ""}>Rejected</option>
+        </select>
+        <button onclick="reviewAppeal(${appeal.id})">Save</button>
+      </div>
+    </div>
+  `);
+}
+
+document.getElementById("assignBtn").addEventListener("click", async () => {
+  if (isClosedCase(currentCase?.status)) return;
+  const res = await apiRequest(`/cases/${caseId}/assign`, "PUT", {
+    assignedToUserId: document.getElementById("assignedToUserId").value
+  }, true);
+  document.getElementById("statusResult").textContent = res.success ? "Assignment saved." : res.message;
+  if (res.success) loadCaseDetails();
+});
+
+document.getElementById("saveStatusBtn").addEventListener("click", async () => {
+  if (isClosedCase(currentCase?.status)) return;
+  const res = await apiRequest(`/cases/${caseId}/status`, "PUT", {
+    status: document.getElementById("statusSelect").value
+  }, true);
+  document.getElementById("statusResult").textContent = res.success ? "Status updated." : res.message;
+  if (res.success) loadCaseDetails();
+});
+
+document.getElementById("uploadEvidenceBtn").addEventListener("click", async () => {
+  if (isClosedCase(currentCase?.status)) return;
+  const file = document.getElementById("evidenceFile").files[0];
+  if (!file) {
+    document.getElementById("evidenceResult").textContent = "Select a file first.";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("caseId", caseId);
+  formData.append("file", file);
+
+  const res = await apiRequest("/evidence/upload", "POST", formData, true);
+  document.getElementById("evidenceResult").textContent = res.success ? "Evidence uploaded." : res.message;
+
+  if (res.success) {
+    document.getElementById("evidenceFile").value = "";
+    loadCaseDetails();
+  }
+});
+
+document.getElementById("reopenCaseBtn").addEventListener("click", async () => {
+  const res = await apiRequest(`/cases/${caseId}/status`, "PUT", {
+    status: "under_investigation"
+  }, true);
+  document.getElementById("statusResult").textContent = res.success ? "Case reopened." : res.message;
+  if (res.success) loadCaseDetails();
+});
+
+async function reviewEvidence(id) {
+  if (isClosedCase(currentCase?.status)) return;
+  const res = await apiRequest(`/evidence/${id}/review`, "PUT", {
+    reviewStatus: document.getElementById(`reviewStatus-${id}`).value,
+    reviewNotes: document.getElementById(`reviewNotes-${id}`).value
+  }, true);
+  document.getElementById("statusResult").textContent = res.success ? "Evidence reviewed." : res.message;
+  if (res.success) loadCaseDetails();
+}
+
+async function reviewAppeal(id) {
+  if (isClosedCase(currentCase?.status)) return;
+  const res = await apiRequest(`/appeals/${id}/review`, "PUT", {
+    status: document.getElementById(`appealStatus-${id}`).value,
+    decisionNotes: document.getElementById(`appealNotes-${id}`).value
+  }, true);
+  document.getElementById("statusResult").textContent = res.success ? "Appeal updated." : res.message;
+  if (res.success) loadCaseDetails();
+}
+
+loadCaseDetails();
+</script>
+
+</body>
+</html>

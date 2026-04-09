@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Cases</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>My Disciplinary Cases</h1>
+      <p class="muted">Track current status, hearing progress, and disciplinary history tied to your record.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <a href="appeals.html"><button>Appeals</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="summary-band">
+    <div class="summary-chip">
+      <strong>Total Cases</strong>
+      <span id="caseCount">0</span>
+    </div>
+    <div class="summary-chip">
+      <strong>Open Cases</strong>
+      <span id="openCount">0</span>
+    </div>
+    <div class="summary-chip">
+      <strong>Resolved Cases</strong>
+      <span id="resolvedCount">0</span>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Case Records</h2>
+        <p class="muted">Only cases that belong to your student account are shown here.</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Case Number</th>
+            <th>Violation</th>
+            <th>Severity</th>
+            <th>Status</th>
+            <th>Incident Date</th>
+            <th>Location</th>
+          </tr>
+        </thead>
+        <tbody id="casesTable">
+          <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "student") {
+  alert("Access denied");
+  logout();
+}
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+async function loadMyCases() {
+  const table = document.getElementById("casesTable");
+  const res = await apiRequest("/cases/my-cases", "GET", null, true);
+
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="6">${res.message}</td></tr>`;
+    return;
+  }
+
+  const cases = res.cases || [];
+  document.getElementById("caseCount").textContent = cases.length;
+  document.getElementById("openCount").textContent = cases.filter(item => !["resolved", "dismissed"].includes(item.status)).length;
+  document.getElementById("resolvedCount").textContent = cases.filter(item => ["resolved", "dismissed"].includes(item.status)).length;
+
+  if (!cases.length) {
+    table.innerHTML = `<tr><td colspan="6">No case records found.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = cases.map(item => `
+    <tr>
+      <td><strong>${item.case_number}</strong></td>
+      <td>${item.violation_type}</td>
+      <td>${badge(item.severity_level)}</td>
+      <td>${badge(item.status)}</td>
+      <td>${item.incident_date}</td>
+      <td>${item.location || "-"}</td>
+    </tr>
+  `).join("");
+}
+
+loadMyCases();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifications Center</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Notifications Center</span>
+      <h1 style="margin-top:16px;">Alerts, Updates, and Messages</h1>
+      <p class="muted">Track case activity, hearings, sanctions, appeals, and system updates from one unified inbox.</p>
+    </div>
+    <div class="action-row">
+      <button id="markAllReadBtn" class="secondary compact-btn" type="button">Mark All Read</button>
+      <button onclick="logout()" class="compact-btn" type="button">Logout</button>
+    </div>
+  </div>
+
+  <div class="summary-band">
+    <div class="summary-chip"><strong>Total Notifications</strong><span id="totalCount">0</span></div>
+    <div class="summary-chip"><strong>Unread</strong><span id="unreadCount">0</span></div>
+    <div class="summary-chip"><strong>Case Related</strong><span id="caseRelatedCount">0</span></div>
+    <div class="summary-chip"><strong>Recent 7 Days</strong><span id="recentCount">0</span></div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Filters</h2>
+        <p class="muted">Narrow your notification feed by keyword, notification type, or unread status.</p>
+      </div>
+    </div>
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="Search title or message">
+      <select id="typeFilter">
+        <option value="">All Types</option>
+        <option value="system">System</option>
+        <option value="case">Case</option>
+        <option value="sanction">Sanction</option>
+        <option value="hearing">Hearing</option>
+        <option value="appeal">Appeal</option>
+        <option value="sms">SMS</option>
+      </select>
+      <select id="readFilter">
+        <option value="">All Statuses</option>
+        <option value="unread">Unread</option>
+        <option value="read">Read</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Inbox</h2>
+        <p class="muted">Open updates here first when reviewing activity across the system.</p>
+      </div>
+    </div>
+    <div id="notificationList" class="notification-list">
+      <div class="empty-state">Loading notifications...</div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+let notifications = [];
+
+function badge(value) {
+  return `<span class="badge ${String(value || "system").toLowerCase()}">${String(value || "system").replaceAll("_", " ")}</span>`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function applyFilters(rows) {
+  const search = document.getElementById("searchInput").value.trim().toLowerCase();
+  const type = document.getElementById("typeFilter").value;
+  const readFilter = document.getElementById("readFilter").value;
+
+  return rows.filter(item => {
+    const searchable = `${item.title} ${item.message}`.toLowerCase();
+    if (search && !searchable.includes(search)) return false;
+    if (type && item.type !== type) return false;
+    if (readFilter === "unread" && Number(item.is_read) === 1) return false;
+    if (readFilter === "read" && Number(item.is_read) !== 1) return false;
+    return true;
+  });
+}
+
+function renderSummary(rows) {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  document.getElementById("totalCount").textContent = rows.length;
+  document.getElementById("unreadCount").textContent = rows.filter(item => !Number(item.is_read)).length;
+  document.getElementById("caseRelatedCount").textContent = rows.filter(item => ["case", "hearing", "sanction", "appeal", "sms"].includes(item.type)).length;
+  document.getElementById("recentCount").textContent = rows.filter(item => {
+    const createdAt = new Date(item.created_at);
+    return !Number.isNaN(createdAt.getTime()) && createdAt >= sevenDaysAgo;
+  }).length;
+}
+
+function renderNotifications() {
+  const list = document.getElementById("notificationList");
+  const rows = applyFilters(notifications);
+  renderSummary(rows);
+
+  if (!rows.length) {
+    list.innerHTML = `<div class="empty-state">No notifications match the current filters.</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map(item => `
+    <div class="notification-card ${Number(item.is_read) ? "" : "unread"}">
+      <div class="notification-card-head">
+        <div>
+          <h3 style="margin:0 0 6px;">${item.title}</h3>
+          <div class="notification-meta">
+            ${badge(item.type)}
+            ${Number(item.is_read) ? `<span class="badge completed">read</span>` : `<span class="badge pending">unread</span>`}
+          </div>
+        </div>
+        <span class="muted">${formatDateTime(item.created_at)}</span>
+      </div>
+      <p style="margin:0;">${item.message}</p>
+      <div class="notification-actions">
+        ${Number(item.is_read) ? "" : `<button type="button" class="compact-btn" onclick="markAsRead(${item.id})">Mark Read</button>`}
+      </div>
+    </div>
+  `).join("");
+}
+
+async function loadNotifications() {
+  const res = await apiRequest("/auth/notifications", "GET", null, true);
+  if (!res.success) {
+    document.getElementById("notificationList").innerHTML = `<div class="empty-state">${res.message}</div>`;
+    return;
+  }
+
+  notifications = res.notifications || [];
+  renderNotifications();
+}
+
+async function markAsRead(id) {
+  const res = await apiRequest(`/auth/notifications/${id}/read`, "PUT", null, true);
+  if (!res.success) return;
+  await loadNotifications();
+}
+
+async function markAllRead() {
+  const res = await apiRequest("/auth/notifications/read-all", "PUT", null, true);
+  if (!res.success) return;
+  await loadNotifications();
+}
+
+document.getElementById("markAllReadBtn").addEventListener("click", markAllRead);
+["searchInput", "typeFilter", "readFilter"].forEach(id => {
+  document.getElementById(id).addEventListener("input", renderNotifications);
+  document.getElementById(id).addEventListener("change", renderNotifications);
+});
+
+window.markAsRead = markAsRead;
+loadNotifications();
+</script>
+
+</body>
+</html>

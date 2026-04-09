@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sanctions Monitoring</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Sanctions Tracking</span>
+      <h1 style="margin-top:16px;">Sanctions Monitoring & Tracking</h1>
+      <p class="muted">Track sanction activity, due-soon completions, and case-linked follow-up actions from the discipline workspace.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <button id="exportBtn">Export List</button>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="summary-band">
+    <div class="summary-chip">
+      <strong>Active Sanctions</strong>
+      <span id="activeCount">0</span>
+    </div>
+    <div class="summary-chip">
+      <strong>Students on Suspension</strong>
+      <span id="suspensionCount">0</span>
+    </div>
+    <div class="summary-chip">
+      <strong>Community Service Ongoing</strong>
+      <span id="communityServiceCount">0</span>
+    </div>
+    <div class="summary-chip">
+      <strong>Expulsions This Year</strong>
+      <span id="expulsionCount">0</span>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Filters</h2>
+        <p class="muted">Narrow sanctions by student, case, type, or status.</p>
+      </div>
+    </div>
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="Search student, case, or sanction type">
+      <select id="statusFilter">
+        <option value="">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="fulfilled">Completed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+      <select id="typeFilter">
+        <option value="">All Types</option>
+        <option value="warning">Warning</option>
+        <option value="community_service">Community Service</option>
+        <option value="suspension">Suspension</option>
+        <option value="expulsion">Expulsion</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Sanctions Nearing Completion (Next 7 Days)</h2>
+        <p class="muted">Spot active sanctions that may need closure action soon.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Sanction Type</th>
+            <th>Case Reference</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Days Remaining</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="nearCompletionTable">
+          <tr><td colspan="8">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>All Active and Historical Sanctions</h2>
+        <p class="muted">Use the main table for monitoring, case navigation, and sanction updates.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Sanction ID</th>
+            <th>Student</th>
+            <th>Type</th>
+            <th>Duration</th>
+            <th>Status</th>
+            <th>Assigned By</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="sanctionTable">
+          <tr><td colspan="7">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="sanctionModal">
+  <div class="modal-card">
+    <div class="card-header">
+      <div>
+        <h2>Update Sanction</h2>
+        <p class="muted">Review the selected sanction, then update schedule dates, completion status, or follow-up notes.</p>
+      </div>
+    </div>
+    <div class="key-value">
+      <div class="key-value-row">
+        <strong>Selected Sanction</strong>
+        <span id="selectedSanctionLabel">No sanction selected</span>
+      </div>
+    </div>
+    <input type="hidden" id="sanctionId">
+    <div class="form-grid" style="margin-top:16px;">
+      <div class="field-stack">
+        <label for="startDate">Start Date</label>
+        <input type="date" id="startDate">
+      </div>
+      <div class="field-stack">
+        <label for="endDate">End Date</label>
+        <input type="date" id="endDate">
+      </div>
+      <div class="field-stack">
+        <label for="sanctionStatus">Sanction Status</label>
+        <select id="sanctionStatus">
+          <option value="active">Active</option>
+          <option value="fulfilled">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-stack" style="margin-top:16px;">
+      <label for="description">Sanction Notes / Description</label>
+      <textarea id="description" placeholder="Add progress notes, completion details, or updated sanction remarks."></textarea>
+    </div>
+    <p id="result" class="muted"></p>
+    <div class="modal-actions">
+      <button id="closeSanctionModalBtn" class="secondary compact-btn" type="button">Close</button>
+      <button id="markCompleteBtn" class="secondary compact-btn" type="button">Mark Complete</button>
+      <button id="updateBtn" class="compact-btn" type="button">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "discipline_officer") {
+  alert("Access denied");
+  logout();
+}
+
+let sanctionRows = [];
+
+function openModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.add("open");
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.remove("open");
+}
+
+function badge(value) {
+  const normalized = String(value).toLowerCase().replaceAll(" ", "_");
+  return `<span class="badge ${normalized}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function toDateOnly(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function getDaysRemaining(endDate) {
+  const end = toDateOnly(endDate);
+  if (!end) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((end - today) / 86400000);
+}
+
+function getDurationLabel(item) {
+  if (!item.start_date && !item.end_date) {
+    return "N/A";
+  }
+  if (item.start_date && item.end_date) {
+    return `${formatDate(item.start_date)} - ${formatDate(item.end_date)}`;
+  }
+  if (item.start_date) {
+    return `Started ${formatDate(item.start_date)}`;
+  }
+  return `Due ${formatDate(item.end_date)}`;
+}
+
+function getAssignedBy(item) {
+  if (item.assigned_by_first_name) {
+    return `${item.assigned_by_first_name} ${item.assigned_by_last_name || ""}${item.assigned_by_role_label ? ` - ${item.assigned_by_role_label}` : ""}`.trim();
+  }
+  return "System";
+}
+
+function applyFilters(rows) {
+  const search = document.getElementById("search").value.trim().toLowerCase();
+  const status = document.getElementById("statusFilter").value;
+  const type = document.getElementById("typeFilter").value;
+
+  return rows.filter(item => {
+    const searchable = [
+      item.case_number,
+      item.violation_type,
+      item.student_number,
+      item.first_name,
+      item.last_name,
+      item.sanction_type,
+      item.description
+    ].join(" ").toLowerCase();
+
+    if (search && !searchable.includes(search)) return false;
+    if (status && item.status !== status) return false;
+    if (type && item.sanction_type !== type) return false;
+    return true;
+  });
+}
+
+function renderSummary(rows) {
+  const currentYear = new Date().getFullYear();
+  document.getElementById("activeCount").textContent = rows.filter(item => item.status === "active").length;
+  document.getElementById("suspensionCount").textContent = rows.filter(item => item.status === "active" && item.sanction_type === "suspension").length;
+  document.getElementById("communityServiceCount").textContent = rows.filter(item => item.status === "active" && item.sanction_type === "community_service").length;
+  document.getElementById("expulsionCount").textContent = rows.filter(item => item.sanction_type === "expulsion" && String(item.created_at || "").startsWith(String(currentYear))).length;
+}
+
+function renderNearCompletion(rows) {
+  const table = document.getElementById("nearCompletionTable");
+  const nearRows = rows
+    .filter(item => item.status === "active" && item.end_date)
+    .map(item => ({ ...item, daysRemaining: getDaysRemaining(item.end_date) }))
+    .filter(item => item.daysRemaining !== null && item.daysRemaining >= 0 && item.daysRemaining <= 7)
+    .sort((a, b) => a.daysRemaining - b.daysRemaining);
+
+  if (!nearRows.length) {
+    table.innerHTML = `<tr><td colspan="8">No active sanctions are nearing completion in the next 7 days.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = nearRows.map(item => `
+    <tr>
+      <td><strong>${item.first_name} ${item.last_name}</strong><br><span class="muted">${item.student_number}</span></td>
+      <td>${item.sanction_type.replaceAll("_", " ")}</td>
+      <td>${item.case_number}</td>
+      <td>${formatDate(item.start_date)}</td>
+      <td>${formatDate(item.end_date)}</td>
+      <td>${item.daysRemaining} day${item.daysRemaining === 1 ? "" : "s"}</td>
+      <td>${badge(item.status)}</td>
+      <td>
+        <div class="action-chip-group action-chip-group-compact">
+          <button type="button" class="compact-btn" onclick="selectSanction(${item.id})">Update</button>
+          <button type="button" class="secondary compact-btn" onclick="markFulfilled(${item.id})">Mark Complete</button>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function renderSanctions(rows) {
+  const table = document.getElementById("sanctionTable");
+
+  if (!rows.length) {
+    table.innerHTML = `<tr><td colspan="7">No sanctions match the current filters.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = rows.map(item => `
+    <tr>
+      <td><strong>SAN-${String(item.id).padStart(4, "0")}</strong><br><span class="muted">${item.case_number}</span></td>
+      <td>${item.first_name} ${item.last_name}<br><span class="muted">${item.student_number}</span></td>
+      <td>${item.sanction_type.replaceAll("_", " ")}</td>
+      <td>${getDurationLabel(item)}</td>
+      <td>${badge(item.status)}</td>
+      <td>${getAssignedBy(item)}</td>
+      <td>
+        <div class="action-chip-group action-chip-group-compact">
+          <button type="button" class="compact-btn" onclick="selectSanction(${item.id})">Update</button>
+          <a href="case-details.html?id=${item.case_id}"><button type="button" class="secondary compact-btn">Details</button></a>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function renderAll() {
+  const filteredRows = applyFilters(sanctionRows);
+  renderSummary(filteredRows);
+  renderNearCompletion(filteredRows);
+  renderSanctions(filteredRows);
+}
+
+async function loadSanctions() {
+  const res = await apiRequest("/sanctions/all", "GET", null, true);
+  const sanctionTable = document.getElementById("sanctionTable");
+  const nearTable = document.getElementById("nearCompletionTable");
+
+  if (!res.success) {
+    sanctionTable.innerHTML = `<tr><td colspan="7">${res.message}</td></tr>`;
+    nearTable.innerHTML = `<tr><td colspan="8">${res.message}</td></tr>`;
+    return;
+  }
+
+  sanctionRows = res.sanctions || [];
+  renderAll();
+}
+
+function selectSanction(id) {
+  const item = sanctionRows.find(row => Number(row.id) === Number(id));
+  if (!item) return;
+
+  document.getElementById("sanctionId").value = item.id;
+  document.getElementById("startDate").value = item.start_date ? String(item.start_date).slice(0, 10) : "";
+  document.getElementById("endDate").value = item.end_date ? String(item.end_date).slice(0, 10) : "";
+  document.getElementById("sanctionStatus").value = item.status;
+  document.getElementById("description").value = item.description || "";
+  document.getElementById("selectedSanctionLabel").textContent =
+    `SAN-${String(item.id).padStart(4, "0")} | ${item.first_name} ${item.last_name} | ${item.sanction_type.replaceAll("_", " ")}`;
+  document.getElementById("result").textContent = "";
+  openModal("sanctionModal");
+}
+
+async function saveSanctionUpdate(forceStatus = null) {
+  const sanctionId = document.getElementById("sanctionId").value;
+  const result = document.getElementById("result");
+
+  if (!sanctionId) {
+    result.textContent = "Select a sanction first.";
+    return;
+  }
+
+  const res = await apiRequest(`/sanctions/${sanctionId}`, "PUT", {
+    startDate: document.getElementById("startDate").value,
+    endDate: document.getElementById("endDate").value,
+    status: forceStatus || document.getElementById("sanctionStatus").value,
+    description: document.getElementById("description").value.trim()
+  }, true);
+
+  result.textContent = res.success ? "Sanction updated." : res.message;
+
+  if (res.success) {
+    await loadSanctions();
+    selectSanction(sanctionId);
+  }
+}
+
+async function markFulfilled(id) {
+  selectSanction(id);
+  await saveSanctionUpdate("fulfilled");
+}
+
+function exportCsv() {
+  const rows = applyFilters(sanctionRows);
+  const header = ["Sanction ID", "Case Number", "Student", "Student Number", "Type", "Status", "Start Date", "End Date", "Assigned By", "Description"];
+  const body = rows.map(item => [
+    `SAN-${String(item.id).padStart(4, "0")}`,
+    item.case_number,
+    `${item.first_name} ${item.last_name}`,
+    item.student_number,
+    item.sanction_type,
+    item.status,
+    item.start_date || "",
+    item.end_date || "",
+    getAssignedBy(item),
+    item.description || ""
+  ]);
+
+  const csv = [header, ...body]
+    .map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(","))
+    .join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "sanctions-monitoring.csv";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("updateBtn").addEventListener("click", () => saveSanctionUpdate());
+document.getElementById("markCompleteBtn").addEventListener("click", () => saveSanctionUpdate("fulfilled"));
+document.getElementById("closeSanctionModalBtn").addEventListener("click", () => closeModal("sanctionModal"));
+document.getElementById("exportBtn").addEventListener("click", exportCsv);
+["search", "statusFilter", "typeFilter"].forEach(id => {
+  document.getElementById(id).addEventListener("input", renderAll);
+  document.getElementById(id).addEventListener("change", renderAll);
+});
+
+loadSanctions();
+</script>
+
+</body>
+</html>

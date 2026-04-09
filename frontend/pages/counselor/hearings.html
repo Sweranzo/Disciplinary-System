@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Counselor Hearing Visibility</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <h1>Hearing Support Visibility</h1>
+    <div>
+      <a href="dashboard.html"><button>Back</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Hearings</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Case</th>
+            <th>Student</th>
+            <th>Violation</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Location</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="hearingTable">
+          <tr><td colspan="7">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+const user = getUser();
+if (!user || user.role !== "guidance_counselor") { alert("Access denied"); logout(); }
+
+async function loadHearings() {
+  const res = await apiRequest("/hearings/all", "GET", null, true);
+  const table = document.getElementById("hearingTable");
+
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="7">${res.message}</td></tr>`;
+    return;
+  }
+
+  if (!res.hearings.length) {
+    table.innerHTML = `<tr><td colspan="7">No hearings found.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = res.hearings.map(h => `
+    <tr>
+      <td>${h.case_number}</td>
+      <td>${h.first_name} ${h.last_name} (${h.student_number})</td>
+      <td>${h.violation_type}</td>
+      <td>${h.scheduled_date}</td>
+      <td>${h.scheduled_time}</td>
+      <td>${h.location || "-"}</td>
+      <td>${h.status}</td>
+    </tr>
+  `).join("");
+}
+
+loadHearings();
+</script>
+
+</body>
+</html>

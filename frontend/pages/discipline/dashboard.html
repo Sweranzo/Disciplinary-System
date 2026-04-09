@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discipline Officer Dashboard</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Discipline Officer</span>
+      <h1 style="margin-top:16px;">Operational Dashboard</h1>
+      <p class="muted">Investigation, evidence review, hearings, sanctions, and appeals in one connected workflow.</p>
+    </div>
+    <div class="action-row">
+      <a href="cases.html"><button class="secondary">Case Center</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <h3>Case Queue</h3>
+      <div class="stat-value" id="totalCases">0</div>
+      <div class="muted">Visible cases requiring discipline action</div>
+    </div>
+    <div class="stat-card">
+      <h3>Hearings</h3>
+      <div class="stat-value" id="totalHearings">0</div>
+      <div class="muted">Scheduled and completed hearing records</div>
+    </div>
+    <div class="stat-card">
+      <h3>Sanctions</h3>
+      <div class="stat-value" id="totalSanctions">0</div>
+      <div class="muted">Tracked sanction records</div>
+    </div>
+    <div class="stat-card">
+      <h3>Appeals</h3>
+      <div class="stat-value" id="totalAppeals">0</div>
+      <div class="muted">Appeals pending review or decision</div>
+    </div>
+  </div>
+
+  <div class="hero-grid page-section">
+    <div class="hero-panel">
+      <div class="card-header">
+        <div>
+          <h2>Core Responsibilities</h2>
+          <p class="muted">Use the sidebar to move through the full discipline workflow without leaving the role workspace.</p>
+        </div>
+      </div>
+      <div class="quick-actions quick-actions-muted">
+        <span class="quick-actions-note">Sidebar navigation is now the main workflow menu for discipline pages.</span>
+      </div>
+    </div>
+
+    <div class="hero-panel">
+      <div class="card-header">
+        <div>
+          <h2>Workflow Focus</h2>
+          <p class="muted">Recommended sequence for handling active disciplinary cases.</p>
+        </div>
+      </div>
+      <div class="detail-list">
+        <div class="detail-item">
+          <p><strong>1. Review case queue</strong></p>
+          <p>Confirm scope, assignee, student context, and existing updates.</p>
+        </div>
+        <div class="detail-item">
+          <p><strong>2. Validate evidence</strong></p>
+          <p>Approve or reject uploaded files and note review decisions.</p>
+        </div>
+        <div class="detail-item">
+          <p><strong>3. Schedule hearings and sanctions</strong></p>
+          <p>Keep hearing outcomes and sanction status aligned with the case record.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "discipline_officer") {
+  alert("Access denied");
+  logout();
+}
+
+async function loadSummary() {
+  const [caseSummary, hearings, sanctions, appeals] = await Promise.all([
+    apiRequest("/cases/summary", "GET", null, true),
+    apiRequest("/hearings/all", "GET", null, true),
+    apiRequest("/sanctions/all", "GET", null, true),
+    apiRequest("/appeals/all", "GET", null, true)
+  ]);
+
+  document.getElementById("totalCases").textContent = caseSummary.success ? (caseSummary.activeCaseQueue ?? caseSummary.totalCases) : 0;
+  document.getElementById("totalHearings").textContent = hearings.success ? hearings.hearings.length : 0;
+  document.getElementById("totalSanctions").textContent = sanctions.success ? sanctions.sanctions.length : 0;
+  document.getElementById("totalAppeals").textContent = appeals.success ? appeals.appeals.length : 0;
+}
+
+loadSummary();
+</script>
+
+</body>
+</html>

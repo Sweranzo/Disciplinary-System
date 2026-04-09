@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Parent Dashboard</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Parent Portal</h1>
+      <p class="muted" id="welcomeText">Loading linked student overview...</p>
+    </div>
+    <div class="action-row">
+      <a href="notifications.html"><button class="secondary">Notifications</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Linked Student Overview</h2>
+        <p class="muted">Only students formally linked to your parent account appear here.</p>
+      </div>
+    </div>
+    <div id="childrenOverview">Loading...</div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Monitoring Tools</h2>
+          <p class="muted">Follow your linked student's disciplinary process from reporting to resolution.</p>
+        </div>
+      </div>
+      <div class="detail-list">
+        <div class="detail-item">
+          <p><strong><a href="cases.html">Child Cases</a></strong></p>
+          <p>See case status, severity, and incident information for your linked students.</p>
+        </div>
+        <div class="detail-item">
+          <p><strong><a href="hearings.html">Hearings</a></strong></p>
+          <p>Review scheduled hearing dates, locations, and current hearing status.</p>
+        </div>
+        <div class="detail-item">
+          <p><strong><a href="sanctions.html">Sanctions</a></strong></p>
+          <p>Track sanction schedules, fulfillment, and cancellation updates.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Communication</h2>
+          <p class="muted">Check notices sent when hearings or disciplinary updates are recorded.</p>
+        </div>
+      </div>
+      <div class="detail-list">
+        <div class="detail-item">
+          <p><strong><a href="notifications.html">Notifications</a></strong></p>
+          <p>View hearing notices and case-related alerts sent to your account.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "parent") {
+  alert("Access denied");
+  logout();
+}
+
+document.getElementById("welcomeText").textContent =
+  `Hello ${user.first_name}, this portal only shows records for students linked to your parent account.`;
+
+async function loadChildrenOverview() {
+  const res = await apiRequest("/students/linked-children", "GET", null, true);
+  const container = document.getElementById("childrenOverview");
+
+  if (!res.success) {
+    container.innerHTML = `<div class="empty-state">${res.message}</div>`;
+    return;
+  }
+
+  if (!res.children.length) {
+    container.innerHTML = `<div class="empty-state">No linked student records found.</div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="detail-list">${res.children.map(child => `
+    <div class="detail-item">
+      <p><strong>${child.first_name} ${child.last_name}</strong> (${child.student_number})</p>
+      <p>${child.program || "-"} | ${child.year_level || "-"} | ${child.section || "-"}</p>
+      <p>Cases: ${child.total_cases} | Hearings: ${child.total_hearings} | Sanctions: ${child.total_sanctions}</p>
+    </div>
+  `).join("")}</div>`;
+}
+
+loadChildrenOverview();
+</script>
+
+</body>
+</html>

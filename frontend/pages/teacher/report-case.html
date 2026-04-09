@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Case</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Report New Incident</h1>
+      <p class="muted">Create a disciplinary case and optionally attach supporting evidence in the same submission flow.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <a href="cases.html"><button>My Cases</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Student and Incident Details</h2>
+          <p class="muted">Identify the student first, confirm the auto-filled profile details, then complete the violation record.</p>
+        </div>
+      </div>
+
+      <div class="detail-item" style="margin-bottom:16px;">
+        <div class="card-header" style="margin-bottom:12px;">
+          <div>
+            <h3>Student Identification</h3>
+            <p class="muted">Search by student number or scan the student's QR code to fill the record automatically.</p>
+          </div>
+        </div>
+        <div class="toolbar toolbar-compact">
+          <div class="field-stack">
+            <label for="studentId">Student Number</label>
+            <input type="text" id="studentId" placeholder="Enter student number">
+          </div>
+          <button type="button" id="lookupStudentBtn" class="compact-btn">Find Student</button>
+          <button type="button" id="openQrScannerBtn" class="secondary compact-btn">Scan QR Code</button>
+        </div>
+        <div class="toolbar toolbar-compact" style="margin-top:12px;">
+          <div class="field-stack">
+            <label for="qrImageInput">QR Image Upload</label>
+            <input type="file" id="qrImageInput" accept="image/*">
+          </div>
+          <button type="button" id="useQrImageBtn" class="secondary compact-btn">Read Uploaded QR</button>
+        </div>
+        <p id="studentLookupResult" class="muted"></p>
+        <p id="qrSupportHint" class="muted">Tip: if QR scan or image reading is unavailable in this browser, use the student number field for now.</p>
+      </div>
+
+      <div id="studentSnapshot" class="info-grid" style="display:none; margin-bottom:16px;"></div>
+
+      <div class="form-grid">
+        <div class="field-stack">
+          <label for="violation">Violation Type</label>
+          <input type="text" id="violation" placeholder="Ex. Academic dishonesty, dress code, misconduct">
+        </div>
+        <div class="field-stack">
+          <label for="severity">Severity Level</label>
+          <select id="severity">
+            <option value="">Select Severity</option>
+            <option value="minor">Minor</option>
+            <option value="major">Major</option>
+            <option value="grave">Grave</option>
+          </select>
+        </div>
+        <div class="field-stack">
+          <label for="date">Incident Date</label>
+          <input type="date" id="date">
+        </div>
+      </div>
+      <div class="field-stack">
+        <label for="location">Incident Location</label>
+        <input type="text" id="location" placeholder="Classroom, hallway, lab, office, or event area">
+      </div>
+      <div class="field-stack">
+        <label for="description">Incident Narrative</label>
+        <textarea id="description" placeholder="Describe what happened, what was observed, and any immediate action taken."></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Optional Evidence Attachment</h2>
+          <p class="muted">If you attach a file here, it will upload immediately after the case is created.</p>
+        </div>
+      </div>
+      <input type="file" id="evidenceFile">
+      <div class="detail-item">
+        <p><strong>Supported flow</strong></p>
+        <p>The case is created first. If the file upload fails, the case is still saved and you can retry from the case detail page.</p>
+      </div>
+      <div class="detail-item" style="margin-top:16px;">
+        <p><strong>Reporting tip</strong></p>
+        <p>QR scan works best when the student QR is clearly visible on screen or printed. If the browser does not support camera QR detection, you can still search by student number.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="action-row">
+      <button id="submitBtn">Submit Case</button>
+      <span id="result" class="muted"></span>
+    </div>
+    <div id="postCreateActions" style="display:none; margin-top:16px;">
+      <div class="detail-item">
+        <p><strong>Case created successfully.</strong></p>
+        <p id="createdCaseSummary"></p>
+        <p id="parentSmsSummary" class="muted"></p>
+        <div class="action-row">
+          <a id="openCaseLink" href="cases.html"><button type="button">Open Case Detail</button></a>
+          <a href="cases.html"><button type="button" class="secondary">Back to Case List</button></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="qrScannerModal">
+  <div class="modal-card">
+    <div class="card-header">
+      <div>
+        <h2>Scan Student QR</h2>
+        <p class="muted">Point the camera at the student's QR code. We will read the identity payload and fill the student information automatically.</p>
+      </div>
+    </div>
+    <div class="detail-item">
+      <video id="qrVideo" autoplay playsinline muted class="scanner-video hidden"></video>
+      <div id="qrScannerFallback" class="scanner-fallback hidden">
+        <p class="muted">Camera scanning is not available in this browser. Upload a QR image, or paste the QR payload or QR token below instead.</p>
+        <textarea id="qrManualInput" placeholder='Paste the scanned QR text or token here. Example: {"type":"student_identity","studentNumber":"2026-0001","qrToken":"qr_xxx"}'></textarea>
+        <button type="button" id="useManualQrBtn" class="compact-btn">Use QR Text</button>
+      </div>
+      <p id="scannerStatus" class="muted" style="margin-top:12px;">Preparing scanner...</p>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" type="button" id="closeQrScannerBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "teacher") {
+  alert("Access denied");
+  logout();
+}
+
+let selectedStudent = null;
+let qrStream = null;
+let qrDetectorInterval = null;
+let qrCanvas = null;
+let qrCanvasContext = null;
+
+function openModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.classList.add("open");
+  }
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.classList.remove("open");
+  }
+}
+
+async function uploadInitialEvidence(caseId) {
+  const file = document.getElementById("evidenceFile").files[0];
+  if (!file) {
+    return { skipped: true };
+  }
+
+  const formData = new FormData();
+  formData.append("caseId", caseId);
+  formData.append("file", file);
+
+  return apiRequest("/evidence/upload", "POST", formData, true);
+}
+
+function renderStudentSnapshot(student) {
+  const container = document.getElementById("studentSnapshot");
+  if (!student) {
+    container.style.display = "none";
+    container.innerHTML = "";
+    return;
+  }
+
+  container.style.display = "grid";
+  container.innerHTML = `
+    <div><strong>Student Name</strong><span>${student.full_name || `${student.first_name || ""} ${student.last_name || ""}`.trim()}</span></div>
+    <div><strong>Student #</strong><span>${student.student_number || "-"}</span></div>
+    <div><strong>Department</strong><span>${student.department || "-"}</span></div>
+    <div><strong>Program</strong><span>${student.program || "-"}</span></div>
+    <div><strong>Year / Section</strong><span>${student.year_level || "-"} / ${student.section || "-"}</span></div>
+    <div><strong>Academic Level</strong><span>${student.academic_level || "-"}</span></div>
+  `;
+}
+
+function parseQrPayload(rawValue) {
+  const trimmed = String(rawValue || "").trim();
+  if (!trimmed) {
+    return { studentNumber: "", qrToken: "" };
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    return {
+      studentNumber: parsed.studentNumber || "",
+      qrToken: parsed.qrToken || ""
+    };
+  } catch (error) {
+    if (trimmed.startsWith("qr_")) {
+      return { studentNumber: "", qrToken: trimmed };
+    }
+    return { studentNumber: trimmed, qrToken: "" };
+  }
+}
+
+function buildParentNotificationSummary(notification = {}) {
+  const notifiedParents = Number(notification.notifiedParents || 0);
+  const smsSentCount = Number(notification.smsSentCount || 0);
+
+  if (smsSentCount > 0) {
+    return `Linked parent SMS sent: ${smsSentCount}. In-app parent notifications created: ${notifiedParents}.`;
+  }
+
+  if (notifiedParents > 0 && notification.smsEnabled === false) {
+    return `Linked parents were notified inside the system, but SMS is not enabled yet. Configure SMS in the backend environment to send real text messages.`;
+  }
+
+  if (notifiedParents > 0) {
+    return `Linked parents were notified inside the system. No SMS message was delivered from this request.`;
+  }
+
+  return "No linked parent records were available for instant parent notification.";
+}
+
+async function lookupStudent({ studentNumber = "", qrToken = "" } = {}) {
+  const result = document.getElementById("studentLookupResult");
+  const searchParams = new URLSearchParams();
+  if (studentNumber) searchParams.set("studentNumber", studentNumber);
+  if (qrToken) searchParams.set("qrToken", qrToken);
+
+  if (!searchParams.toString()) {
+    result.textContent = "Enter a student number or scan a valid QR code first.";
+    return null;
+  }
+
+  result.textContent = "Looking up student record...";
+  const res = await apiRequest(`/students/reporting-lookup?${searchParams.toString()}`, "GET", null, true);
+
+  if (!res.success) {
+    selectedStudent = null;
+    renderStudentSnapshot(null);
+    result.textContent = res.message;
+    return null;
+  }
+
+  selectedStudent = res.student;
+  document.getElementById("studentId").value = res.student.student_number || studentNumber || "";
+  renderStudentSnapshot(res.student);
+  result.textContent = `Student identified: ${res.student.full_name}`;
+  return res.student;
+}
+
+function stopQrScanner() {
+  if (qrDetectorInterval) {
+    clearInterval(qrDetectorInterval);
+    qrDetectorInterval = null;
+  }
+
+  if (qrStream) {
+    qrStream.getTracks().forEach(track => track.stop());
+    qrStream = null;
+  }
+
+  const video = document.getElementById("qrVideo");
+  video.pause();
+  video.srcObject = null;
+}
+
+async function useScannedQrValue(rawValue) {
+  const payload = parseQrPayload(rawValue);
+  const student = await lookupStudent(payload);
+  if (student) {
+    stopQrScanner();
+    closeModal("qrScannerModal");
+  }
+}
+
+async function readQrFromImageFile(file) {
+  const lookupResult = document.getElementById("studentLookupResult");
+  if (!file) {
+    document.getElementById("scannerStatus").textContent = "Choose a QR image first.";
+    lookupResult.textContent = "Choose a QR image first.";
+    return;
+  }
+
+  if (typeof window.jsQR !== "function") {
+    const message = "QR decoding library is not available right now. Refresh the page and try again, or use student number lookup.";
+    document.getElementById("scannerStatus").textContent = message;
+    lookupResult.textContent = message;
+    return;
+  }
+
+  try {
+    document.getElementById("scannerStatus").textContent = "Reading QR image...";
+    lookupResult.textContent = "Reading uploaded QR image...";
+
+    const imageUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.src = imageUrl;
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = reject;
+    });
+
+    qrCanvas = qrCanvas || document.createElement("canvas");
+    qrCanvasContext = qrCanvasContext || qrCanvas.getContext("2d", { willReadFrequently: true });
+    qrCanvas.width = image.naturalWidth || image.width;
+    qrCanvas.height = image.naturalHeight || image.height;
+    qrCanvasContext.drawImage(image, 0, 0, qrCanvas.width, qrCanvas.height);
+
+    const imageData = qrCanvasContext.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+    const qrCode = window.jsQR(imageData.data, imageData.width, imageData.height);
+    URL.revokeObjectURL(imageUrl);
+
+    if (!qrCode || !qrCode.data) {
+      const message = "No QR code was found in the uploaded image.";
+      document.getElementById("scannerStatus").textContent = message;
+      lookupResult.textContent = message;
+      return;
+    }
+
+    document.getElementById("scannerStatus").textContent = "QR image detected. Looking up student...";
+    lookupResult.textContent = "QR image detected. Looking up student...";
+    await useScannedQrValue(qrCode.data);
+  } catch (error) {
+    const message = "Unable to read the uploaded QR image. Try a clearer screenshot or use student number lookup.";
+    document.getElementById("scannerStatus").textContent = message;
+    lookupResult.textContent = message;
+  }
+}
+
+async function openQrScanner() {
+  const status = document.getElementById("scannerStatus");
+  const video = document.getElementById("qrVideo");
+  const fallback = document.getElementById("qrScannerFallback");
+  document.getElementById("qrManualInput").value = "";
+
+  openModal("qrScannerModal");
+  status.textContent = "Preparing scanner...";
+  fallback.classList.add("hidden");
+  video.classList.add("hidden");
+
+  if (!("mediaDevices" in navigator) || !navigator.mediaDevices.getUserMedia) {
+    fallback.classList.remove("hidden");
+    status.textContent = "Camera QR scan is not supported in this browser. Use QR image upload, manual QR text, or student number lookup instead.";
+    return;
+  }
+
+  if (typeof window.jsQR !== "function") {
+    fallback.classList.remove("hidden");
+    status.textContent = "QR decoding library is not available right now. Use QR image upload or student number lookup instead.";
+    return;
+  }
+
+  try {
+    qrStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+      audio: false
+    });
+
+    video.srcObject = qrStream;
+    video.classList.remove("hidden");
+    await video.play();
+    status.textContent = "Scanning for a QR code...";
+
+    qrCanvas = qrCanvas || document.createElement("canvas");
+    qrCanvasContext = qrCanvasContext || qrCanvas.getContext("2d", { willReadFrequently: true });
+    qrDetectorInterval = window.setInterval(async () => {
+      try {
+        if (!video.videoWidth || !video.videoHeight) {
+          return;
+        }
+
+        qrCanvas.width = video.videoWidth;
+        qrCanvas.height = video.videoHeight;
+        qrCanvasContext.drawImage(video, 0, 0, qrCanvas.width, qrCanvas.height);
+        const imageData = qrCanvasContext.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+        const qrCode = window.jsQR(imageData.data, imageData.width, imageData.height);
+
+        if (qrCode && qrCode.data) {
+          status.textContent = "QR code detected. Looking up student...";
+          await useScannedQrValue(qrCode.data);
+        }
+      } catch (error) {
+        status.textContent = "Unable to read the QR frame. Try holding the code steady.";
+      }
+    }, 700);
+  } catch (error) {
+    fallback.classList.remove("hidden");
+    status.textContent = "Camera access failed. You can still upload a QR image, paste the QR text manually, or use student number lookup.";
+  }
+}
+
+function clearForm() {
+  document.getElementById("studentId").value = "";
+  document.getElementById("violation").value = "";
+  document.getElementById("severity").value = "";
+  document.getElementById("date").value = "";
+  document.getElementById("location").value = "";
+  document.getElementById("description").value = "";
+  document.getElementById("evidenceFile").value = "";
+  document.getElementById("studentLookupResult").textContent = "";
+  selectedStudent = null;
+  renderStudentSnapshot(null);
+}
+
+document.getElementById("submitBtn").addEventListener("click", async () => {
+  const result = document.getElementById("result");
+  const payload = {
+    studentNumber: document.getElementById("studentId").value.trim(),
+    violation: document.getElementById("violation").value.trim(),
+    severity: document.getElementById("severity").value,
+    date: document.getElementById("date").value,
+    location: document.getElementById("location").value.trim(),
+    description: document.getElementById("description").value.trim()
+  };
+
+  const createRes = await apiRequest("/cases/create", "POST", payload, true);
+  if (!createRes.success) {
+    result.textContent = createRes.message;
+    return;
+  }
+
+  const evidenceRes = await uploadInitialEvidence(createRes.case.id);
+  if (evidenceRes.skipped) {
+    result.textContent = "Case created successfully.";
+  } else if (evidenceRes.success) {
+    result.textContent = "Case created and evidence uploaded successfully.";
+  } else {
+    result.textContent = `Case created, but evidence upload failed: ${evidenceRes.message}`;
+  }
+
+  document.getElementById("createdCaseSummary").textContent =
+      `${createRes.case.case_number} for ${createRes.case.student_name} (${createRes.case.student_number})`;
+  document.getElementById("parentSmsSummary").textContent =
+      buildParentNotificationSummary(createRes.parent_notification || {});
+  document.getElementById("openCaseLink").href = `case-details.html?id=${createRes.case.id}`;
+  document.getElementById("postCreateActions").style.display = "block";
+
+  clearForm();
+});
+
+document.getElementById("lookupStudentBtn").addEventListener("click", async () => {
+  await lookupStudent({ studentNumber: document.getElementById("studentId").value.trim() });
+});
+
+document.getElementById("openQrScannerBtn").addEventListener("click", openQrScanner);
+document.getElementById("closeQrScannerBtn").addEventListener("click", () => {
+  stopQrScanner();
+  closeModal("qrScannerModal");
+});
+document.getElementById("useManualQrBtn").addEventListener("click", async () => {
+  const rawValue = document.getElementById("qrManualInput").value.trim();
+  if (!rawValue) {
+    document.getElementById("scannerStatus").textContent = "Paste a QR payload or token first.";
+    return;
+  }
+  document.getElementById("scannerStatus").textContent = "Reading QR text...";
+  await useScannedQrValue(rawValue);
+});
+document.getElementById("useQrImageBtn").addEventListener("click", async () => {
+  const file = document.getElementById("qrImageInput").files[0];
+  await readQrFromImageFile(file);
+});
+document.getElementById("qrImageInput").addEventListener("change", async event => {
+  const file = event.target.files[0];
+  if (file) {
+    await readQrFromImageFile(file);
+  }
+});
+window.addEventListener("beforeunload", stopQrScanner);
+</script>
+
+</body>
+</html>

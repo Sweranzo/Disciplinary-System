@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Hearings</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>My Hearings</h1>
+      <p class="muted">Review your hearing schedule, location, and current hearing status.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <a href="cases.html"><button>Cases</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="summary-band">
+    <div class="summary-chip">
+      <strong>Total Hearings</strong>
+      <span id="hearingCount">0</span>
+    </div>
+    <div class="summary-chip">
+      <strong>Scheduled</strong>
+      <span id="scheduledCount">0</span>
+    </div>
+    <div class="summary-chip">
+      <strong>Completed / Cancelled</strong>
+      <span id="closedCount">0</span>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Scheduled Hearings</h2>
+        <p class="muted">This schedule is limited to your own disciplinary record.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Case Number</th>
+            <th>Violation</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Location</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="hearingTable">
+          <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "student") {
+  alert("Access denied");
+  logout();
+}
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+async function loadHearings() {
+  const table = document.getElementById("hearingTable");
+  const res = await apiRequest("/hearing-view/my-hearings", "GET", null, true);
+
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="6">${res.message}</td></tr>`;
+    return;
+  }
+
+  const hearings = res.hearings || [];
+  document.getElementById("hearingCount").textContent = hearings.length;
+  document.getElementById("scheduledCount").textContent = hearings.filter(item => item.status === "scheduled").length;
+  document.getElementById("closedCount").textContent = hearings.filter(item => item.status !== "scheduled").length;
+
+  if (!hearings.length) {
+    table.innerHTML = `<tr><td colspan="6">No hearing schedule found.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = hearings.map(item => `
+    <tr>
+      <td><strong>${item.case_number}</strong></td>
+      <td>${item.violation_type}</td>
+      <td>${item.scheduled_date}</td>
+      <td>${item.scheduled_time}</td>
+      <td>${item.location || "-"}</td>
+      <td>${badge(item.status)}</td>
+    </tr>
+  `).join("");
+}
+
+loadHearings();
+</script>
+
+</body>
+</html>

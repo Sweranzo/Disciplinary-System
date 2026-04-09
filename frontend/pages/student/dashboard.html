@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student Dashboard</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Student Dashboard</h1>
+      <p class="muted" id="welcomeText">Loading your dashboard...</p>
+    </div>
+    <div class="action-row">
+      <a href="profile.html"><button class="secondary">My Profile</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <h3>My Cases</h3>
+      <div class="stat-value" id="caseCount">0</div>
+      <div class="muted">All disciplinary cases linked to your account</div>
+    </div>
+    <div class="stat-card">
+      <h3>Upcoming Hearings</h3>
+      <div class="stat-value" id="hearingCount">0</div>
+      <div class="muted">Scheduled hearings you may need to attend</div>
+    </div>
+    <div class="stat-card">
+      <h3>Active Sanctions</h3>
+      <div class="stat-value" id="sanctionCount">0</div>
+      <div class="muted">Current sanctions and follow-up items</div>
+    </div>
+    <div class="stat-card">
+      <h3>Appeals</h3>
+      <div class="stat-value" id="appealCount">0</div>
+      <div class="muted">Submitted appeal requests and outcomes</div>
+    </div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Quick Access</h2>
+          <p class="muted">Open the sections most often used during a case lifecycle.</p>
+        </div>
+      </div>
+      <div class="detail-list">
+        <div class="detail-item">
+          <p><strong><a href="cases.html">Case History</a></strong></p>
+          <p>Review your case statuses, violations, and recorded incident dates.</p>
+        </div>
+        <div class="detail-item">
+          <p><strong><a href="hearings.html">Hearings</a></strong></p>
+          <p>See scheduled hearings, dates, times, and locations.</p>
+        </div>
+        <div class="detail-item">
+          <p><strong><a href="sanctions.html">Sanctions</a></strong></p>
+          <p>Track active sanctions and whether they have been completed.</p>
+        </div>
+        <div class="detail-item">
+          <p><strong><a href="appeals.html">Appeals Board</a></strong></p>
+          <p>Submit and monitor appeals tied to your disciplinary cases.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Notifications and Profile</h2>
+          <p class="muted">Stay updated and verify the record attached to your account.</p>
+        </div>
+      </div>
+      <div class="detail-list">
+        <div class="detail-item">
+          <p><strong><a href="profile.html">My Student Profile</a></strong></p>
+          <p>View your academic record, linked parents, and full disciplinary history.</p>
+        </div>
+        <div class="detail-item">
+          <p><strong><a href="notifications.html">Notifications</a></strong></p>
+          <p>Check hearing notices, sanction updates, and other system alerts.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "student") {
+  alert("Access denied");
+  logout();
+}
+
+document.getElementById("welcomeText").textContent =
+  `Hello ${user.first_name}, this dashboard shows only records linked to your student account.`;
+
+async function loadSummary() {
+  const [cases, hearings, sanctions, appeals] = await Promise.all([
+    apiRequest("/cases/my-cases", "GET", null, true),
+    apiRequest("/hearing-view/my-hearings", "GET", null, true),
+    apiRequest("/sanctions/my", "GET", null, true),
+    apiRequest("/appeals/my", "GET", null, true)
+  ]);
+
+  document.getElementById("caseCount").textContent = cases.success ? cases.cases.length : 0;
+  document.getElementById("hearingCount").textContent = hearings.success ? hearings.hearings.filter(item => item.status === "scheduled").length : 0;
+  document.getElementById("sanctionCount").textContent = sanctions.success ? sanctions.sanctions.filter(item => item.status === "active").length : 0;
+  document.getElementById("appealCount").textContent = appeals.success ? appeals.appeals.length : 0;
+}
+
+loadSummary();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evidence Center</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Evidence Management Center</h1>
+      <p class="muted">Oversight view of uploaded files, review status, and evidence notes across the system.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Evidence Library</h2>
+        <p class="muted">Open the case oversight page from here when you need to inspect the full timeline around a file.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Case</th>
+            <th>Student</th>
+            <th>File</th>
+            <th>Uploaded</th>
+            <th>Status</th>
+            <th>Review</th>
+          </tr>
+        </thead>
+        <tbody id="evidenceTable">
+          <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+const user = getUser();
+if (!user || user.role !== "admin") {
+  alert("Access denied");
+  logout();
+}
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+async function loadEvidence() {
+  const res = await apiRequest("/evidence/all", "GET", null, true);
+  const table = document.getElementById("evidenceTable");
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="6">${res.message}</td></tr>`;
+    return;
+  }
+  if (!res.evidence.length) {
+    table.innerHTML = `<tr><td colspan="6">No evidence found.</td></tr>`;
+    return;
+  }
+  table.innerHTML = res.evidence.map(item => `
+    <tr>
+      <td><strong>${item.case_number}</strong><br><a href="case-details.html?id=${item.case_id}">Open Case</a></td>
+      <td>${item.first_name} ${item.last_name} (${item.student_number})</td>
+      <td><a href="http://localhost:5000${item.file_path}" target="_blank">${item.original_name || item.file_name}</a></td>
+      <td>${item.uploaded_at}</td>
+      <td>${badge(item.review_status)}</td>
+      <td>${item.review_notes || "-"}</td>
+    </tr>
+  `).join("");
+}
+loadEvidence();
+</script>
+</body>
+</html>

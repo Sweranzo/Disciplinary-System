@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Notifications</title>
+  <link rel="stylesheet" href="../../css/styles.css" />
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <h1>Notifications</h1>
+    <div>
+      <a href="dashboard.html"><button>Back</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Recent Notifications</h2>
+
+    <div id="notifContainer">
+      <p>Loading...</p>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "student") {
+  alert("Access denied");
+  logout();
+}
+
+async function loadNotifications() {
+  const container = document.getElementById("notifContainer");
+
+  try {
+    const res = await apiRequest("/auth/notifications", "GET", null, true);
+
+    if (!res.success) {
+      container.innerHTML = `<p>${res.message}</p>`;
+      return;
+    }
+
+    if (!res.notifications || res.notifications.length === 0) {
+      container.innerHTML = "<p>No notifications yet.</p>";
+      return;
+    }
+
+    container.innerHTML = res.notifications.map(n => `
+      <div class="update-item">
+        <p><strong>${n.title}</strong></p>
+        <p>${n.message}</p>
+        <p class="muted">${n.created_at}</p>
+      </div>
+    `).join("");
+
+  } catch (err) {
+    container.innerHTML = "<p>Failed to load notifications.</p>";
+  }
+}
+
+loadNotifications();
+</script>
+
+</body>
+</html>

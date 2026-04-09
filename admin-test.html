@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Route Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f7fb;
+      padding: 40px;
+    }
+
+    .card {
+      max-width: 700px;
+      margin: auto;
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    button {
+      padding: 10px 16px;
+      margin-right: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #1d4ed8;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1e40af;
+    }
+
+    pre {
+      margin-top: 20px;
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Admin Protected Route Test</h2>
+    <button id="testAdminBtn">Test Admin Route</button>
+    <button id="logoutBtn">Logout</button>
+    <pre id="output">Waiting...</pre>
+  </div>
+
+  <script>
+    const output = document.getElementById("output");
+    const testAdminBtn = document.getElementById("testAdminBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    testAdminBtn.addEventListener("click", async () => {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        output.textContent = "No token found. Please login first.";
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:5000/api/test/admin-only", {
+          method: "GET",
+          headers: {
+            "Authorization": "Bearer " + token
+          }
+        });
+
+        const data = await response.json();
+        output.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        output.textContent = "Request failed: " + error.message;
+      }
+    });
+
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      output.textContent = "Logged out. Token and user removed from localStorage.";
+    });
+  </script>
+</body>
+</html>

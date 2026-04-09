@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discipline Appeals Review</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <h1>Appeals Review Queue</h1>
+    <div>
+      <a href="dashboard.html"><button>Back</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <select id="statusFilter">
+        <option value="">All Appeals</option>
+        <option value="submitted">Submitted</option>
+        <option value="under_review">Under Review</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+      </select>
+      <button id="refreshBtn">Refresh</button>
+    </div>
+    <div id="appealsList">Loading...</div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+const user = getUser();
+if (!user || user.role !== "discipline_officer") { alert("Access denied"); logout(); }
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+async function loadAppeals() {
+  const status = document.getElementById("statusFilter").value;
+  const path = status ? `/appeals/all?status=${encodeURIComponent(status)}` : "/appeals/all";
+  const res = await apiRequest(path, "GET", null, true);
+  const list = document.getElementById("appealsList");
+
+  if (!res.success) {
+    list.innerHTML = `<p>${res.message}</p>`;
+    return;
+  }
+
+  if (!res.appeals.length) {
+    list.innerHTML = "<p>No appeals found.</p>";
+    return;
+  }
+
+  list.innerHTML = res.appeals.map(appeal => `
+    <div class="detail-item">
+      <p><strong>${appeal.case_number}</strong> | ${appeal.first_name} ${appeal.last_name} (${appeal.student_number}) ${badge(appeal.status)}</p>
+      <p>${appeal.reason}</p>
+      <textarea id="notes-${appeal.id}" placeholder="Decision notes">${appeal.decision_notes || ""}</textarea>
+      <div class="form-grid">
+        <select id="decision-${appeal.id}">
+          <option value="under_review">Under Review</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <button onclick="reviewAppeal(${appeal.id})">Save Decision</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function reviewAppeal(id) {
+  const res = await apiRequest(`/appeals/${id}/review`, "PUT", {
+    status: document.getElementById(`decision-${id}`).value,
+    decisionNotes: document.getElementById(`notes-${id}`).value
+  }, true);
+  if (res.success) loadAppeals();
+}
+
+document.getElementById("refreshBtn").addEventListener("click", loadAppeals);
+document.getElementById("statusFilter").addEventListener("change", loadAppeals);
+loadAppeals();
+</script>
+
+</body>
+</html>

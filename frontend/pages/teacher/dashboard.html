@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Teacher Dashboard</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Teacher Workspace</span>
+      <h1 style="margin-top:16px;">Teacher Dashboard</h1>
+      <p class="muted">Report incidents, follow submitted cases, and contribute supporting evidence when needed.</p>
+    </div>
+    <div class="action-row">
+      <a href="report-case.html"><button class="secondary">Report Incident</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <h3>Relevant Cases</h3>
+      <div class="stat-value" id="caseCount">0</div>
+      <div class="muted">Cases you reported or were assigned to</div>
+    </div>
+    <div class="stat-card">
+      <h3>Open Hearings</h3>
+      <div class="stat-value" id="hearingCount">0</div>
+      <div class="muted">Hearing records visible to you</div>
+    </div>
+    <div class="stat-card">
+      <h3>Quick Upload Path</h3>
+      <div class="stat-value">UI</div>
+      <div class="muted">Evidence can now be attached during case reporting or later in case detail</div>
+    </div>
+    <div class="stat-card">
+      <h3>Role Scope</h3>
+      <div class="stat-value">Scoped</div>
+      <div class="muted">Only your reported or assigned cases are visible</div>
+    </div>
+  </div>
+
+  <div class="hero-grid page-section">
+    <div class="hero-panel">
+      <div class="card-header">
+        <div>
+          <h2>Available Actions</h2>
+          <p class="muted">Start a report, then continue follow-up from the case list.</p>
+        </div>
+      </div>
+      <div class="quick-actions">
+        <a href="report-case.html"><button>Report Incident</button></a>
+        <a href="cases.html"><button class="secondary">Relevant Cases</button></a>
+      </div>
+    </div>
+
+    <div class="hero-panel">
+      <div class="card-header">
+        <div>
+          <h2>Welcome</h2>
+          <p class="muted" id="welcomeText"></p>
+        </div>
+      </div>
+      <div class="detail-list">
+        <div class="detail-item">
+          <p><strong>Case reporting</strong></p>
+          <p>File the incident details and optionally upload evidence in the same form.</p>
+        </div>
+        <div class="detail-item">
+          <p><strong>Follow-up visibility</strong></p>
+          <p>Open your relevant cases to check status changes, evidence review, hearings, and sanctions.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+
+if (!user || user.role !== "teacher") {
+  alert("Access denied");
+  logout();
+}
+
+document.getElementById("welcomeText").textContent =
+  `Hello ${user.first_name}, this workspace is limited to the cases you reported or were assigned to.`;
+
+async function loadSummary() {
+  const [cases, hearings] = await Promise.all([
+    apiRequest("/cases/all?page=1&limit=1", "GET", null, true),
+    apiRequest("/hearings/all", "GET", null, true)
+  ]);
+
+  document.getElementById("caseCount").textContent = cases.success ? cases.pagination.total : 0;
+  document.getElementById("hearingCount").textContent = hearings.success ? hearings.hearings.length : 0;
+}
+
+loadSummary();
+</script>
+
+</body>
+</html>

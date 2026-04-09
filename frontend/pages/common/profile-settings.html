@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile Settings</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Account Settings</span>
+      <h1 style="margin-top:16px;">Profile Settings</h1>
+      <p class="muted">Update your account details, upload a profile photo, and manage your password from one place.</p>
+    </div>
+    <div class="action-row action-row-tight">
+      <button id="backToDashboardBtn" class="secondary compact-btn" type="button">Back to Dashboard</button>
+    </div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Profile Overview</h2>
+          <p class="muted">This summary updates as soon as your profile details are saved.</p>
+        </div>
+      </div>
+      <div class="profile-settings-overview">
+        <div class="profile-settings-avatar" id="profileAvatarPreview">U</div>
+        <div class="profile-settings-summary">
+          <h3 id="profileDisplayName">Account User</h3>
+          <p id="profileRoleLabel">Role</p>
+          <div class="summary-band">
+            <div class="summary-chip"><strong>Username</strong><span id="summaryUsername">-</span></div>
+            <div class="summary-chip"><strong>Email</strong><span id="summaryEmail">-</span></div>
+            <div class="summary-chip"><strong>ID</strong><span id="summaryAccountId">-</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Profile Photo</h2>
+          <p class="muted">Upload a clear square photo or logo-based avatar for the top-right profile menu.</p>
+        </div>
+      </div>
+      <form id="avatarForm" class="profile-form">
+        <label for="avatarFile">Choose Avatar Image</label>
+        <input id="avatarFile" name="avatar" type="file" accept="image/*">
+        <div class="inline-note-compact">Recommended: JPG or PNG, up to 5 MB.</div>
+        <div class="action-row action-row-tight">
+          <button type="submit" class="compact-btn">Upload Photo</button>
+        </div>
+        <div class="inline-feedback" id="avatarFeedback"></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Basic Information</h2>
+          <p class="muted">Keep your account identity accurate across dashboards, hearings, sanctions, and notifications.</p>
+        </div>
+      </div>
+      <form id="profileForm" class="profile-form">
+        <div class="form-grid">
+          <div class="field-stack">
+            <label for="firstName">First Name</label>
+            <input id="firstName" name="first_name" type="text" required>
+          </div>
+          <div class="field-stack">
+            <label for="middleName">Middle Name</label>
+            <input id="middleName" name="middle_name" type="text">
+          </div>
+          <div class="field-stack">
+            <label for="lastName">Last Name</label>
+            <input id="lastName" name="last_name" type="text" required>
+          </div>
+          <div class="field-stack">
+            <label for="username">Username</label>
+            <input id="username" name="username" type="text" required>
+          </div>
+          <div class="field-stack">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" required>
+          </div>
+          <div class="field-stack">
+            <label for="roleReadOnly">Role</label>
+            <input id="roleReadOnly" type="text" disabled>
+          </div>
+          <div class="field-stack">
+            <label for="idReadOnly">Employee / Student ID</label>
+            <input id="idReadOnly" type="text" disabled>
+          </div>
+          <div class="field-stack">
+            <label for="statusReadOnly">Account Status</label>
+            <input id="statusReadOnly" type="text" disabled>
+          </div>
+        </div>
+        <div class="action-row action-row-tight">
+          <button type="submit" class="compact-btn">Save Profile</button>
+        </div>
+        <div class="inline-feedback" id="profileFeedback"></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Password</h2>
+          <p class="muted">Use a strong password and keep it private, especially for staff roles handling disciplinary actions.</p>
+        </div>
+      </div>
+      <form id="passwordForm" class="profile-form">
+        <div class="field-stack">
+          <label for="currentPassword">Current Password</label>
+          <input id="currentPassword" name="currentPassword" type="password" required>
+        </div>
+        <div class="field-stack">
+          <label for="newPassword">New Password</label>
+          <input id="newPassword" name="newPassword" type="password" minlength="6" required>
+        </div>
+        <div class="field-stack">
+          <label for="confirmPassword">Confirm New Password</label>
+          <input id="confirmPassword" name="confirmPassword" type="password" minlength="6" required>
+        </div>
+        <div class="action-row action-row-tight">
+          <button type="submit" class="compact-btn">Update Password</button>
+        </div>
+        <div class="inline-feedback" id="passwordFeedback"></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const backToDashboardBtn = document.getElementById("backToDashboardBtn");
+const avatarForm = document.getElementById("avatarForm");
+const profileForm = document.getElementById("profileForm");
+const passwordForm = document.getElementById("passwordForm");
+
+let currentUser = getUser();
+
+function setFeedback(id, message, type = "info") {
+  const target = document.getElementById(id);
+  target.className = `inline-feedback ${type}`;
+  target.textContent = message || "";
+}
+
+function renderAvatar(user) {
+  const preview = document.getElementById("profileAvatarPreview");
+  const avatarUrl = getAvatarUrl(user);
+  if (avatarUrl) {
+    preview.classList.add("has-image");
+    preview.innerHTML = `<img src="${avatarUrl}" alt="${getUserFullName(user)} avatar">`;
+  } else {
+    preview.classList.remove("has-image");
+    preview.textContent = (user.first_name?.[0] || user.username?.[0] || "U").toUpperCase();
+  }
+}
+
+function renderProfile(user) {
+  currentUser = user;
+  setUser(user);
+
+  document.getElementById("profileDisplayName").textContent = getUserFullName(user);
+  document.getElementById("profileRoleLabel").textContent = user.role_label || getRoleLabel(user.role);
+  document.getElementById("summaryUsername").textContent = user.username || "-";
+  document.getElementById("summaryEmail").textContent = user.email || "-";
+  document.getElementById("summaryAccountId").textContent = user.employee_or_student_id || "-";
+
+  document.getElementById("firstName").value = user.first_name || "";
+  document.getElementById("middleName").value = user.middle_name || "";
+  document.getElementById("lastName").value = user.last_name || "";
+  document.getElementById("username").value = user.username || "";
+  document.getElementById("email").value = user.email || "";
+  document.getElementById("roleReadOnly").value = user.role_label || getRoleLabel(user.role);
+  document.getElementById("idReadOnly").value = user.employee_or_student_id || "-";
+  document.getElementById("statusReadOnly").value = user.status || "-";
+
+  renderAvatar(user);
+  backToDashboardBtn.onclick = () => goToPage(getDashboardPath(user.role));
+}
+
+async function loadProfile() {
+  const response = await apiRequest("/auth/me", "GET", null, true);
+  if (!response.success || !response.user) {
+    setFeedback("profileFeedback", response.message || "Unable to load your profile.", "error");
+    return;
+  }
+
+  renderProfile(response.user);
+}
+
+profileForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  setFeedback("profileFeedback", "Saving profile...", "info");
+
+  const payload = {
+    first_name: document.getElementById("firstName").value.trim(),
+    middle_name: document.getElementById("middleName").value.trim(),
+    last_name: document.getElementById("lastName").value.trim(),
+    username: document.getElementById("username").value.trim(),
+    email: document.getElementById("email").value.trim()
+  };
+
+  const response = await apiRequest("/auth/profile", "PUT", payload, true);
+  if (!response.success) {
+    setFeedback("profileFeedback", response.message || "Profile update failed.", "error");
+    return;
+  }
+
+  renderProfile(response.user);
+  setFeedback("profileFeedback", response.message || "Profile updated successfully.", "success");
+});
+
+avatarForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const file = document.getElementById("avatarFile").files[0];
+
+  if (!file) {
+    setFeedback("avatarFeedback", "Choose an image file first.", "error");
+    return;
+  }
+
+  setFeedback("avatarFeedback", "Uploading profile photo...", "info");
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  const response = await apiRequest("/auth/avatar", "POST", formData, true);
+  if (!response.success) {
+    setFeedback("avatarFeedback", response.message || "Profile photo upload failed.", "error");
+    return;
+  }
+
+  renderProfile(response.user);
+  avatarForm.reset();
+  setFeedback("avatarFeedback", response.message || "Profile photo updated successfully.", "success");
+});
+
+passwordForm.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const currentPassword = document.getElementById("currentPassword").value;
+  const newPassword = document.getElementById("newPassword").value;
+  const confirmPassword = document.getElementById("confirmPassword").value;
+
+  if (newPassword !== confirmPassword) {
+    setFeedback("passwordFeedback", "New password and confirmation do not match.", "error");
+    return;
+  }
+
+  setFeedback("passwordFeedback", "Updating password...", "info");
+  const response = await apiRequest("/auth/password", "PUT", { currentPassword, newPassword }, true);
+  if (!response.success) {
+    setFeedback("passwordFeedback", response.message || "Password update failed.", "error");
+    return;
+  }
+
+  passwordForm.reset();
+  setFeedback("passwordFeedback", response.message || "Password updated successfully.", "success");
+});
+
+loadProfile();
+</script>
+
+</body>
+</html>

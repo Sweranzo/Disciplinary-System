@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Child Hearings</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Child Hearings</h1>
+      <p class="muted">Track hearing schedules and outcomes for your linked student records.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <a href="cases.html"><button>Cases</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Scheduled Hearings</h2>
+        <p class="muted">These entries are limited to students linked to your parent account.</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Case</th>
+            <th>Violation</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Location</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="hearingTable">
+          <tr><td colspan="7">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "parent") {
+  alert("Access denied");
+  logout();
+}
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+async function loadHearings() {
+  const table = document.getElementById("hearingTable");
+  const res = await apiRequest("/hearing-view/parent-child-hearings", "GET", null, true);
+
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="7">${res.message}</td></tr>`;
+    return;
+  }
+
+  if (!res.hearings || !res.hearings.length) {
+    table.innerHTML = `<tr><td colspan="7">No hearings found.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = res.hearings.map(item => `
+    <tr>
+      <td><strong>${item.first_name} ${item.last_name}</strong><br><span class="muted">${item.student_number}</span></td>
+      <td>${item.case_number}</td>
+      <td>${item.violation_type}</td>
+      <td>${item.scheduled_date}</td>
+      <td>${item.scheduled_time}</td>
+      <td>${item.location || "-"}</td>
+      <td>${badge(item.status)}</td>
+    </tr>
+  `).join("");
+}
+
+loadHearings();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Counselor Case Queue</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Counselor Case Queue</h1>
+      <p class="muted">Open cases where the counselor may need to review student history, interventions, or follow-up support.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Relevant Cases</h2>
+        <p class="muted">Includes assigned cases and unassigned cases visible to the counselor role.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Case</th>
+            <th>Student</th>
+            <th>Violation</th>
+            <th>Severity</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="casesTable">
+          <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "guidance_counselor") {
+  alert("Access denied");
+  logout();
+}
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+async function loadCases() {
+  const res = await apiRequest("/counselor/cases", "GET", null, true);
+  const table = document.getElementById("casesTable");
+
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="6">${res.message}</td></tr>`;
+    return;
+  }
+
+  if (!res.cases.length) {
+    table.innerHTML = `<tr><td colspan="6">No counselor-visible cases.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = res.cases.map(item => `
+    <tr>
+      <td><strong>${item.case_number}</strong></td>
+      <td>${item.first_name} ${item.last_name}<br><span class="muted">${item.student_number}</span></td>
+      <td>${item.violation_type}</td>
+      <td>${badge(item.severity_level)}</td>
+      <td>${badge(item.status)}</td>
+      <td><a href="case-details.html?id=${item.id}"><button type="button">Open Case</button></a></td>
+    </tr>
+  `).join("");
+}
+
+loadCases();
+</script>
+
+</body>
+</html>

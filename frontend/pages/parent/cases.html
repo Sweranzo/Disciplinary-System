@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Child Cases</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Child Disciplinary Cases</h1>
+      <p class="muted">Monitor only the case records connected to your linked student accounts.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <a href="hearings.html"><button>Hearings</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Case Records</h2>
+        <p class="muted">These records are limited to your linked children.</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Case Number</th>
+            <th>Violation</th>
+            <th>Severity</th>
+            <th>Status</th>
+            <th>Incident Date</th>
+            <th>Location</th>
+          </tr>
+        </thead>
+        <tbody id="casesTable">
+          <tr><td colspan="7">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "parent") {
+  alert("Access denied");
+  logout();
+}
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+async function loadChildCases() {
+  const table = document.getElementById("casesTable");
+  const res = await apiRequest("/cases/parent-child-cases", "GET", null, true);
+
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="7">${res.message}</td></tr>`;
+    return;
+  }
+
+  if (!res.cases || !res.cases.length) {
+    table.innerHTML = `<tr><td colspan="7">No child cases found.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = res.cases.map(item => `
+    <tr>
+      <td><strong>${item.first_name} ${item.last_name}</strong><br><span class="muted">${item.student_number}</span></td>
+      <td>${item.case_number}</td>
+      <td>${item.violation_type}</td>
+      <td>${badge(item.severity_level)}</td>
+      <td>${badge(item.status)}</td>
+      <td>${item.incident_date}</td>
+      <td>${item.location || "-"}</td>
+    </tr>
+  `).join("");
+}
+
+loadChildCases();
+</script>
+
+</body>
+</html>

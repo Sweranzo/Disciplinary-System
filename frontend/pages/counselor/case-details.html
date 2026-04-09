@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Counselor Case Detail</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Counselor Case Detail</h1>
+      <p class="muted">Review the case timeline, student context, hearings, sanctions, appeals, and counselor interventions.</p>
+    </div>
+    <div class="action-row">
+      <a href="cases.html"><button class="secondary">Back</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Case and Student Overview</h2>
+          <p class="muted" id="caseMeta">Loading...</p>
+        </div>
+      </div>
+      <div id="caseInfo">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Student Profile Access</h2>
+          <p class="muted">Open the linked student profile for a wider record view.</p>
+        </div>
+      </div>
+      <div id="studentProfileLink">Loading...</div>
+    </div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Behavior and Support Timeline</h2>
+          <p class="muted">Case updates and counselor notes combined in reverse chronological order.</p>
+        </div>
+      </div>
+      <div id="timelineContainer">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Add Counselor Note</h2>
+          <p class="muted">Use note types and follow-up status to keep intervention history structured.</p>
+        </div>
+      </div>
+      <select id="noteType">
+        <option value="intervention">Intervention</option>
+        <option value="behavior_note">Behavior Note</option>
+        <option value="recommendation">Recommendation</option>
+        <option value="follow_up">Follow-up</option>
+      </select>
+      <select id="noteStatus">
+        <option value="planned">Planned</option>
+        <option value="ongoing">Ongoing</option>
+        <option value="completed">Completed</option>
+      </select>
+      <input type="date" id="followUpDate">
+      <textarea id="note" placeholder="Counselor remark, intervention, or recommendation"></textarea>
+      <div class="action-row">
+        <button id="saveNoteBtn">Save Counselor Note</button>
+        <span id="noteResult" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Hearings and Sanctions</h2>
+          <p class="muted">Monitor upcoming hearings and sanction follow-up requirements.</p>
+        </div>
+      </div>
+      <div id="supportContainer">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Appeals</h2>
+          <p class="muted">See active and resolved appeal activity for this case.</p>
+        </div>
+      </div>
+      <div id="appealContainer">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "guidance_counselor") {
+  alert("Access denied");
+  logout();
+}
+
+const caseId = new URLSearchParams(window.location.search).get("id");
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+function renderList(items, emptyMessage, mapFn) {
+  if (!items || !items.length) {
+    return `<div class="empty-state">${emptyMessage}</div>`;
+  }
+  return `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
+}
+
+function formatDate(value) {
+  return value || "-";
+}
+
+async function loadCaseDetails() {
+  const [caseRes, interventionsRes] = await Promise.all([
+    apiRequest(`/cases/${caseId}`, "GET", null, true),
+    apiRequest(`/counselor/interventions?caseId=${caseId}`, "GET", null, true)
+  ]);
+
+  if (!caseRes.success) {
+    document.getElementById("caseInfo").innerHTML = `<div class="empty-state">${caseRes.message}</div>`;
+    document.getElementById("timelineContainer").innerHTML = "";
+    document.getElementById("supportContainer").innerHTML = "";
+    document.getElementById("appealContainer").innerHTML = "";
+    return;
+  }
+
+  const item = caseRes.case;
+  document.getElementById("caseMeta").innerHTML =
+    `${item.case_number} | ${badge(item.status)} | ${badge(item.severity_level)}`;
+
+  document.getElementById("caseInfo").innerHTML = `
+    <div class="info-grid">
+      <div><strong>Student</strong><span>${item.first_name} ${item.last_name} (${item.student_number})</span></div>
+      <div><strong>Violation</strong><span>${item.violation_type}</span></div>
+      <div><strong>Program / Section</strong><span>${item.program || "-"} / ${item.section || "-"}</span></div>
+      <div><strong>Incident Date</strong><span>${item.incident_date}</span></div>
+      <div><strong>Assigned To</strong><span>${item.assigned_to_first_name ? `${item.assigned_to_first_name} ${item.assigned_to_last_name}` : "Unassigned"}</span></div>
+      <div><strong>Location</strong><span>${item.location || "-"}</span></div>
+      <div><strong>Reported By</strong><span>${item.reported_by_first_name} ${item.reported_by_last_name}</span></div>
+      <div><strong>Description</strong><span>${item.description}</span></div>
+    </div>
+  `;
+
+  document.getElementById("studentProfileLink").innerHTML = `
+    <div class="detail-item">
+      <p><strong>${item.first_name} ${item.last_name}</strong> (${item.student_number})</p>
+      <p>${item.program || "-"} | ${item.year_level || "-"} | ${item.section || "-"}</p>
+      <div class="action-row">
+        <a href="student-profile.html?id=${item.student_id}"><button type="button">Open Linked Student Profile</button></a>
+      </div>
+    </div>
+  `;
+
+  const noteRows = interventionsRes.success ? interventionsRes.interventions : [];
+  const combinedTimeline = [
+    ...(caseRes.timeline.updates || []).map(entry => ({
+      type: "case_update",
+      label: entry.update_type,
+      body: entry.content,
+      date: entry.created_at,
+      footer: `${entry.first_name} ${entry.last_name} (${entry.role})`
+    })),
+    ...noteRows.map(entry => ({
+      type: "counselor_note",
+      id: entry.id,
+      label: entry.note_type,
+      body: entry.note,
+      date: entry.created_at,
+      status: entry.status,
+      followUpDate: entry.follow_up_date
+    }))
+  ].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+  document.getElementById("timelineContainer").innerHTML = renderList(
+    combinedTimeline,
+    "No timeline items or counselor notes yet.",
+    entry => entry.type === "counselor_note" ? `
+      <div class="detail-item">
+        <p><strong>${entry.label}</strong> ${badge(entry.status)}</p>
+        <textarea id="edit-note-${entry.id}">${entry.body}</textarea>
+        <div class="form-grid">
+          <select id="edit-type-${entry.id}">
+            <option value="intervention" ${entry.label === "intervention" ? "selected" : ""}>Intervention</option>
+            <option value="behavior_note" ${entry.label === "behavior_note" ? "selected" : ""}>Behavior Note</option>
+            <option value="recommendation" ${entry.label === "recommendation" ? "selected" : ""}>Recommendation</option>
+            <option value="follow_up" ${entry.label === "follow_up" ? "selected" : ""}>Follow-up</option>
+          </select>
+          <select id="edit-status-${entry.id}">
+            <option value="planned" ${entry.status === "planned" ? "selected" : ""}>Planned</option>
+            <option value="ongoing" ${entry.status === "ongoing" ? "selected" : ""}>Ongoing</option>
+            <option value="completed" ${entry.status === "completed" ? "selected" : ""}>Completed</option>
+          </select>
+          <input type="date" id="edit-followup-${entry.id}" value="${entry.followUpDate || ""}">
+        </div>
+        <p class="muted">Recorded on ${formatDate(entry.date)}</p>
+        <div class="action-row">
+          <button type="button" onclick="updateIntervention(${entry.id})">Update Note</button>
+        </div>
+      </div>
+    ` : `
+      <div class="detail-item">
+        <p><strong>${entry.label}</strong></p>
+        <p>${entry.body}</p>
+        <p class="muted">${entry.footer || ""}</p>
+        <p class="muted">${formatDate(entry.date)}</p>
+      </div>
+    `
+  );
+
+  const hearingHtml = renderList(
+    caseRes.timeline.hearings,
+    "No hearings scheduled for this case.",
+    hearing => `
+      <div class="detail-item">
+        <p><strong>Hearing</strong> ${badge(hearing.status)}</p>
+        <p>${hearing.scheduled_date} ${hearing.scheduled_time} at ${hearing.location || "-"}</p>
+        <p>${hearing.outcome || "No hearing outcome yet."}</p>
+      </div>
+    `
+  );
+
+  const sanctionHtml = renderList(
+    caseRes.timeline.sanctions,
+    "No sanctions assigned for this case.",
+    sanction => `
+      <div class="detail-item">
+        <p><strong>${sanction.sanction_type}</strong> ${badge(sanction.status)}</p>
+        <p>${sanction.description || "-"}</p>
+        <p>${sanction.start_date || "-"} to ${sanction.end_date || "-"}</p>
+      </div>
+    `
+  );
+
+  document.getElementById("supportContainer").innerHTML = hearingHtml + sanctionHtml;
+
+  document.getElementById("appealContainer").innerHTML = renderList(
+    caseRes.timeline.appeals,
+    "No appeals submitted for this case.",
+    appeal => `
+      <div class="detail-item">
+        <p><strong>${badge(appeal.status)}</strong></p>
+        <p>${appeal.reason}</p>
+        <p>${appeal.decision_notes || "No decision notes yet."}</p>
+      </div>
+    `
+  );
+}
+
+document.getElementById("saveNoteBtn").addEventListener("click", async () => {
+  const res = await apiRequest("/counselor/interventions", "POST", {
+    caseId,
+    noteType: document.getElementById("noteType").value,
+    note: document.getElementById("note").value.trim(),
+    status: document.getElementById("noteStatus").value,
+    followUpDate: document.getElementById("followUpDate").value
+  }, true);
+
+  document.getElementById("noteResult").textContent = res.success ? "Counselor note saved." : res.message;
+  if (res.success) {
+    document.getElementById("note").value = "";
+    document.getElementById("followUpDate").value = "";
+    loadCaseDetails();
+  }
+});
+
+async function updateIntervention(id) {
+  const res = await apiRequest(`/counselor/interventions/${id}`, "PUT", {
+    noteType: document.getElementById(`edit-type-${id}`).value,
+    note: document.getElementById(`edit-note-${id}`).value.trim(),
+    status: document.getElementById(`edit-status-${id}`).value,
+    followUpDate: document.getElementById(`edit-followup-${id}`).value
+  }, true);
+
+  document.getElementById("noteResult").textContent = res.success ? "Counselor note updated." : res.message;
+  if (res.success) {
+    loadCaseDetails();
+  }
+}
+
+loadCaseDetails();
+</script>
+
+</body>
+</html>

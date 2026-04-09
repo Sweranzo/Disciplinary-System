@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Administrator</span>
+      <h1 style="margin-top:16px;">Administrative Dashboard</h1>
+      <p class="muted">System-wide oversight for cases, students, hearings, sanctions, evidence, and appeals.</p>
+    </div>
+    <div class="topbar-user">
+      <div class="user-badge" id="userInitials">A</div>
+      <div class="user-meta">
+        <strong id="userName">Admin</strong>
+        <span>Administrator</span>
+      </div>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <h3>Total Cases</h3>
+      <div class="stat-value" id="totalCases">0</div>
+      <div class="muted">All tracked disciplinary cases</div>
+    </div>
+    <div class="stat-card">
+      <h3>Students</h3>
+      <div class="stat-value" id="totalStudents">0</div>
+      <div class="muted">Student records available in the system</div>
+    </div>
+    <div class="stat-card">
+      <h3>Appeals</h3>
+      <div class="stat-value" id="totalAppeals">0</div>
+      <div class="muted">Submitted appeals requiring oversight</div>
+    </div>
+    <div class="stat-card">
+      <h3>Hearings</h3>
+      <div class="stat-value" id="totalHearings">0</div>
+      <div class="muted">Hearing records and active schedules</div>
+    </div>
+  </div>
+
+  <div class="hero-grid page-section">
+    <div class="hero-panel">
+      <div class="card-header">
+        <div>
+          <h2>Administrative Actions</h2>
+          <p class="muted">Use the new sidebar navigation to move between core administrative workspaces.</p>
+        </div>
+      </div>
+      <div class="quick-actions quick-actions-muted">
+        <span class="quick-actions-note">Sidebar navigation is now the main workspace menu for admin pages.</span>
+      </div>
+    </div>
+
+    <div class="hero-panel">
+      <div class="card-header">
+        <div>
+          <h2>Administrator Information</h2>
+          <p class="muted">Current signed-in account details.</p>
+        </div>
+      </div>
+      <div class="info-grid">
+        <div><strong>Name</strong><span id="infoName">-</span></div>
+        <div><strong>Email</strong><span id="infoEmail">-</span></div>
+        <div><strong>Role</strong><span id="infoRole">-</span></div>
+        <div><strong>ID</strong><span id="infoId">-</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "admin") {
+  alert("Access denied.");
+  logout();
+}
+
+const fullName = `${user.first_name} ${user.last_name}`;
+document.getElementById("userName").textContent = fullName;
+document.getElementById("userInitials").textContent = `${user.first_name?.[0] || ""}${user.last_name?.[0] || ""}`.toUpperCase();
+document.getElementById("infoName").textContent = fullName;
+document.getElementById("infoEmail").textContent = user.email;
+document.getElementById("infoRole").textContent = user.role;
+document.getElementById("infoId").textContent = user.employee_or_student_id || "-";
+
+async function loadSummary() {
+  const [caseSummary, students, appeals, hearings] = await Promise.all([
+    apiRequest("/cases/summary", "GET", null, true),
+    apiRequest("/students/all?limit=1&page=1", "GET", null, true),
+    apiRequest("/appeals/all", "GET", null, true),
+    apiRequest("/hearings/all", "GET", null, true)
+  ]);
+
+  document.getElementById("totalCases").textContent = caseSummary.success ? caseSummary.totalCases : 0;
+  document.getElementById("totalStudents").textContent = students.success ? students.pagination.total : 0;
+  document.getElementById("totalAppeals").textContent = appeals.success ? appeals.appeals.length : 0;
+  document.getElementById("totalHearings").textContent = hearings.success ? hearings.hearings.length : 0;
+}
+
+loadSummary();
+</script>
+
+</body>
+</html>

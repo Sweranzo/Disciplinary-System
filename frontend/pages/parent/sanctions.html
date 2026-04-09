@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Child Sanctions</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Child Sanctions</h1>
+      <p class="muted">Monitor active, completed, due-soon, and overdue sanctions for your linked student records.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <a href="cases.html"><button>Cases</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Sanction Records</h2>
+        <p class="muted">These entries are limited to students linked to your account.</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Case</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Sanction Status</th>
+            <th>Case Status</th>
+            <th>Schedule</th>
+          </tr>
+        </thead>
+        <tbody id="sanctionTable">
+          <tr><td colspan="7">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "parent") {
+  alert("Access denied");
+  logout();
+}
+
+function badge(value) {
+  const normalized = String(value || "active").toLowerCase().replaceAll(" ", "_");
+  const labelMap = {
+    active: "Active",
+    due_soon: "Due Soon",
+    overdue: "Overdue",
+    fulfilled: "Completed",
+    completed: "Completed",
+    resolved: "Completed",
+    cancelled: "Cancelled"
+  };
+
+  return `<span class="badge ${normalized}">${labelMap[normalized] || String(value).replaceAll("_", " ")}</span>`;
+}
+
+function toDateOnly(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function getDisplayStatus(item) {
+  const value = item.display_status || item.status || "active";
+  return value === "fulfilled" ? "completed" : value;
+}
+
+function formatSchedule(item) {
+  const start = item.start_date ? new Date(item.start_date).toLocaleDateString() : "-";
+  const end = item.end_date ? new Date(item.end_date).toLocaleDateString() : "-";
+  return `${start} to ${end}`;
+}
+
+async function loadSanctions() {
+  const table = document.getElementById("sanctionTable");
+  const res = await apiRequest("/sanctions/parent", "GET", null, true);
+
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="7">${res.message}</td></tr>`;
+    return;
+  }
+
+  if (!res.sanctions || !res.sanctions.length) {
+    table.innerHTML = `<tr><td colspan="7">No sanctions found.</td></tr>`;
+    return;
+  }
+
+  const sanctions = res.sanctions.map(item => ({
+    ...item,
+    display_status: getDisplayStatus(item)
+  }));
+
+  table.innerHTML = sanctions.map(item => `
+    <tr>
+      <td><strong>${item.first_name} ${item.last_name}</strong><br><span class="muted">${item.student_number}</span></td>
+      <td>${item.case_number}</td>
+      <td>${item.sanction_type}</td>
+      <td>${item.description || "-"}</td>
+      <td>${badge(item.display_status)}</td>
+      <td>${badge(item.case_status || "resolved")}</td>
+      <td>${formatSchedule(item)}</td>
+    </tr>
+  `).join("");
+}
+
+loadSanctions();
+</script>
+
+</body>
+</html>

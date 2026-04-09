@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Case Detail</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Relevant Case Detail</h1>
+      <p class="muted">View the status of your reported or assigned case and upload supporting evidence when needed.</p>
+    </div>
+    <div class="action-row">
+      <a href="cases.html"><button class="secondary">Back</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="split-grid">
+    <div class="card">
+      <h2>Case Overview</h2>
+      <div id="caseInfo">Loading...</div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Upload Supporting Evidence</h2>
+          <p class="muted">Files are stored on the server and appear in the case evidence timeline after upload.</p>
+        </div>
+      </div>
+      <input type="file" id="evidenceFile">
+      <button id="uploadEvidenceBtn">Upload Evidence</button>
+      <p id="evidenceResult"></p>
+    </div>
+  </div>
+
+  <div class="split-grid">
+    <div class="card">
+      <h2>Timeline</h2>
+      <div id="timelineContainer">Loading...</div>
+    </div>
+    <div class="card">
+      <h2>Hearings and Sanctions</h2>
+      <div id="supportContainer">Loading...</div>
+    </div>
+  </div>
+
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "teacher") {
+  alert("Access denied");
+  logout();
+}
+
+const caseId = new URLSearchParams(window.location.search).get("id");
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+async function loadCaseDetails() {
+  const res = await apiRequest(`/cases/${caseId}`, "GET", null, true);
+
+  if (!res.success) {
+    document.getElementById("caseInfo").textContent = res.message;
+    return;
+  }
+
+  const c = res.case;
+  document.getElementById("caseInfo").innerHTML = `
+    <div class="info-grid">
+      <div><strong>Case</strong><span>${c.case_number}</span></div>
+      <div><strong>Status</strong><span>${badge(c.status)}</span></div>
+      <div><strong>Student</strong><span>${c.first_name} ${c.last_name} (${c.student_number})</span></div>
+      <div><strong>Violation</strong><span>${c.violation_type}</span></div>
+      <div><strong>Severity</strong><span>${badge(c.severity_level)}</span></div>
+      <div><strong>Description</strong><span>${c.description}</span></div>
+    </div>
+  `;
+
+  document.getElementById("timelineContainer").innerHTML = res.timeline.updates.length
+    ? res.timeline.updates.map(update => `
+        <div class="detail-item">
+          <p><strong>${update.update_type}</strong></p>
+          <p>${update.content}</p>
+          <p class="muted">${update.created_at}</p>
+        </div>
+      `).join("")
+    : "<p>No timeline updates yet.</p>";
+
+  const hearings = res.timeline.hearings.map(item => `
+    <div class="detail-item">
+      <p><strong>Hearing</strong> ${badge(item.status)}</p>
+      <p>${item.scheduled_date} ${item.scheduled_time} at ${item.location || "-"}</p>
+    </div>
+  `).join("");
+
+  const sanctions = res.timeline.sanctions.map(item => `
+    <div class="detail-item">
+      <p><strong>${item.sanction_type}</strong> ${badge(item.status)}</p>
+      <p>${item.description || "-"}</p>
+    </div>
+  `).join("");
+
+  const evidence = res.timeline.evidence.map(item => `
+    <div class="detail-item">
+      <p><strong>${item.original_name || item.file_name}</strong> ${badge(item.review_status || "pending")}</p>
+      <p>Uploaded: ${item.uploaded_at || "-"}</p>
+      <p>${item.review_notes || "No review notes yet."}</p>
+      <p><a href="http://localhost:5000${item.file_path}" target="_blank">Open File</a></p>
+    </div>
+  `).join("");
+
+  document.getElementById("supportContainer").innerHTML =
+    (hearings || "<p>No hearings scheduled.</p>") +
+    (sanctions || "<p>No sanctions assigned.</p>") +
+    (evidence || "<p>No evidence uploaded.</p>");
+}
+
+document.getElementById("uploadEvidenceBtn").addEventListener("click", async () => {
+  const file = document.getElementById("evidenceFile").files[0];
+  if (!file) {
+    document.getElementById("evidenceResult").textContent = "Select a file first.";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("caseId", caseId);
+  formData.append("file", file);
+
+  const res = await apiRequest("/evidence/upload", "POST", formData, true);
+
+  document.getElementById("evidenceResult").textContent = res.success ? "Evidence uploaded." : res.message;
+  if (res.success) {
+    document.getElementById("evidenceFile").value = "";
+    loadCaseDetails();
+  }
+});
+
+loadCaseDetails();
+</script>
+
+</body>
+</html>

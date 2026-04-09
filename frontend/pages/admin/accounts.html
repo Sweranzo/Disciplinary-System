@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accounts & Identity Management</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Admin Identity</span>
+      <h1 style="margin-top:16px;">Accounts & Identity Management</h1>
+      <p class="muted">Manage login accounts, parent records, parent-student links, and CSV imports from one workspace.</p>
+    </div>
+    <div class="action-row action-row-tight">
+      <a href="dashboard.html"><button class="secondary compact-btn">Back</button></a>
+      <a href="students.html"><button class="secondary compact-btn">Students</button></a>
+      <button id="openAccountModalBtn" class="compact-btn">Create Account</button>
+      <button onclick="logout()" class="compact-btn">Logout</button>
+    </div>
+  </div>
+
+  <div class="summary-band">
+    <div class="summary-chip"><strong>Total Accounts</strong><span id="totalAccounts">0</span></div>
+    <div class="summary-chip"><strong>Active Accounts</strong><span id="activeAccounts">0</span></div>
+    <div class="summary-chip"><strong>Parent Records</strong><span id="totalParents">0</span></div>
+    <div class="summary-chip"><strong>Profile-Only Parents</strong><span id="profileOnlyParents">0</span></div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Account Filters</h2>
+        <p class="muted">Search by name, username, email, or ID and narrow the list by role or status.</p>
+      </div>
+      <p class="muted" id="accountPaginationInfo">Loading...</p>
+    </div>
+    <div class="toolbar toolbar-compact">
+      <input type="text" id="accountSearch" placeholder="Search username, name, email, or ID">
+      <select id="accountRoleFilter">
+        <option value="">All Roles</option>
+        <option value="admin">Admin</option>
+        <option value="discipline_officer">Discipline Officer</option>
+        <option value="guidance_counselor">Guidance Counselor</option>
+        <option value="teacher">Teacher</option>
+        <option value="student">Student</option>
+        <option value="parent">Parent</option>
+      </select>
+      <select id="accountStatusFilter">
+        <option value="">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+      <button id="applyAccountFiltersBtn" class="compact-btn">Apply</button>
+      <button id="clearAccountFiltersBtn" class="secondary compact-btn">Clear</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>User Accounts</h2>
+        <p class="muted">Create and manage accounts for all supported roles, activate or deactivate them, and reset passwords.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Linked Profile</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="accountTable">
+          <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="action-row action-row-tight" style="margin-top:16px;">
+      <button id="accountPrevBtn" class="secondary compact-btn" type="button">Previous</button>
+      <button id="accountNextBtn" class="compact-btn" type="button">Next</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Parent & Guardian Management</h2>
+        <p class="muted">Create parent records with or without accounts, then link them to one or more students.</p>
+      </div>
+      <div class="action-row action-row-tight">
+        <button id="openParentModalBtn" type="button" class="compact-btn">Create Parent</button>
+        <button id="openLinkModalBtn" type="button" class="secondary compact-btn">Link Parent to Student</button>
+      </div>
+    </div>
+    <div class="toolbar toolbar-compact">
+      <input type="text" id="parentSearch" placeholder="Search parent name, email, or phone">
+      <select id="parentStatusFilter">
+        <option value="">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+      <button id="applyParentFiltersBtn" type="button" class="compact-btn">Apply</button>
+      <button id="clearParentFiltersBtn" type="button" class="secondary compact-btn">Clear</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Parent / Guardian</th>
+            <th>Contact</th>
+            <th>Linked Students</th>
+            <th>Account</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="parentTable">
+          <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Bulk Import</h2>
+        <p class="muted">Upload a CSV for preview, duplicate checking, and batch creation of students, staff, or parents.</p>
+      </div>
+    </div>
+    <div class="toolbar toolbar-compact toolbar-import">
+      <select id="importType">
+        <option value="students">Students</option>
+        <option value="teachers">Teachers</option>
+        <option value="discipline_officers">Discipline Officers</option>
+        <option value="guidance_counselors">Guidance Counselors</option>
+        <option value="parents">Parents</option>
+      </select>
+      <label class="inline-note inline-note-compact"><input type="checkbox" id="createLoginsCheckbox" checked> Create login accounts during import</label>
+      <input type="file" id="csvFileInput" accept=".csv,text/csv">
+      <button id="previewImportBtn" type="button" class="compact-btn">Preview CSV</button>
+      <button id="runImportBtn" type="button" class="secondary compact-btn">Run Import</button>
+    </div>
+    <div class="inline-note">
+      CSV examples:
+      `students`: `studentNumber,firstName,lastName,email,academicLevel,department,program,yearLevel,section,username,password,status`
+      `staff`: `employeeOrStudentId,firstName,lastName,email,username,password,status`
+      `parents`: `firstName,lastName,email,phoneNumber,address,username,password,status`
+    </div>
+    <div id="importPreview" class="import-preview" style="margin-top:16px;">No CSV preview loaded yet.</div>
+    <p id="importResult" class="muted"></p>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="accountModal">
+  <div class="modal-card">
+    <div class="card-header">
+      <div>
+        <h2 id="accountModalTitle">Create Account</h2>
+        <p class="muted">Use this form for staff accounts, or link a new login to an existing student or parent profile.</p>
+      </div>
+    </div>
+    <div class="inline-note" id="accountRoleNote">
+      Staff roles can be created directly here. Student and parent accounts must be linked to an existing student or parent profile.
+    </div>
+    <input type="hidden" id="accountEditId">
+    <div class="form-grid">
+      <select id="accountRole">
+        <option value="admin">Admin</option>
+        <option value="discipline_officer">Discipline Officer</option>
+        <option value="guidance_counselor">Guidance Counselor</option>
+        <option value="teacher">Teacher</option>
+        <option value="student">Student</option>
+        <option value="parent">Parent</option>
+      </select>
+      <input type="text" id="accountIdentifier" placeholder="Employee / Student ID">
+      <input type="text" id="accountUsername" placeholder="Username">
+      <input type="email" id="accountEmail" placeholder="Email">
+      <input type="password" id="accountPassword" placeholder="Password">
+      <input type="text" id="accountFirstName" placeholder="First Name">
+      <input type="text" id="accountMiddleName" placeholder="Middle Name">
+      <input type="text" id="accountLastName" placeholder="Last Name">
+      <select id="accountStatus">
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+      <select id="linkedStudentId"><option value="">Link to Existing Student (Optional)</option></select>
+      <select id="linkedParentId"><option value="">Link to Existing Parent (Optional)</option></select>
+    </div>
+    <p id="accountModalResult" class="muted"></p>
+    <div class="modal-actions">
+      <button class="secondary" type="button" onclick="closeModal('accountModal')">Cancel</button>
+      <button id="saveAccountBtn" type="button">Save Account</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="parentModal">
+  <div class="modal-card">
+    <div class="card-header">
+      <div>
+        <h2 id="parentModalTitle">Create Parent Record</h2>
+        <p class="muted">Parent records can exist with or without accounts and may be linked to multiple students.</p>
+      </div>
+    </div>
+    <input type="hidden" id="parentEditId">
+    <div class="form-grid">
+      <input type="text" id="parentFirstName" placeholder="First Name">
+      <input type="text" id="parentMiddleName" placeholder="Middle Name">
+      <input type="text" id="parentLastName" placeholder="Last Name">
+      <input type="email" id="parentEmail" placeholder="Email">
+      <input type="text" id="parentPhone" placeholder="Phone Number">
+      <input type="text" id="parentAddress" placeholder="Address">
+      <select id="parentRecordStatus">
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+      <label class="inline-note"><input type="checkbox" id="parentCreateAccountCheckbox"> Create account now</label>
+      <input type="text" id="parentUsername" placeholder="Username for new parent account">
+      <input type="password" id="parentPassword" placeholder="Password for new parent account">
+    </div>
+    <p id="parentModalResult" class="muted"></p>
+    <div class="modal-actions">
+      <button class="secondary" type="button" onclick="closeModal('parentModal')">Cancel</button>
+      <button id="saveParentBtn" type="button">Save Parent</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="linkModal">
+  <div class="modal-card">
+    <div class="card-header">
+      <div>
+        <h2>Link Parent to Student</h2>
+        <p class="muted">One parent may be linked to multiple students and a student can have more than one parent or guardian.</p>
+      </div>
+    </div>
+    <div class="form-grid">
+      <select id="linkParentSelect"><option value="">Select Parent</option></select>
+      <select id="linkStudentSelect"><option value="">Select Student</option></select>
+      <input type="text" id="linkRelationship" placeholder="Relationship">
+    </div>
+    <p id="linkModalResult" class="muted"></p>
+    <div class="modal-actions">
+      <button class="secondary" type="button" onclick="closeModal('linkModal')">Cancel</button>
+      <button id="saveLinkBtn" type="button">Save Link</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="resetPasswordModal">
+  <div class="modal-card">
+    <div class="card-header">
+      <div>
+        <h2>Reset Password</h2>
+        <p class="muted">Set a new password manually or leave it blank and let the system generate a temporary one.</p>
+      </div>
+    </div>
+    <input type="hidden" id="resetUserId">
+    <input type="password" id="resetPasswordInput" placeholder="New password (optional)">
+    <p id="resetPasswordResult" class="muted"></p>
+    <div class="modal-actions">
+      <button class="secondary" type="button" onclick="closeModal('resetPasswordModal')">Cancel</button>
+      <button id="saveResetPasswordBtn" type="button">Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="repairLinkModal">
+  <div class="modal-card">
+    <div class="card-header">
+      <div>
+        <h2>Repair Orphan Account</h2>
+        <p class="muted">Attach an existing student or parent login account to the correct profile record.</p>
+      </div>
+    </div>
+    <input type="hidden" id="repairUserId">
+    <div class="key-value">
+      <div class="key-value-row">
+        <strong>Selected Account</strong>
+        <span id="repairAccountLabel">No account selected</span>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-top:16px;">
+      <select id="repairStudentId" class="hidden">
+        <option value="">Select Student Profile</option>
+      </select>
+      <select id="repairParentId" class="hidden">
+        <option value="">Select Parent Profile</option>
+      </select>
+    </div>
+    <p id="repairResult" class="muted"></p>
+    <div class="modal-actions">
+      <button class="secondary" type="button" onclick="closeModal('repairLinkModal')">Cancel</button>
+      <button id="saveRepairBtn" type="button">Link Profile</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="confirmActionModal">
+  <div class="modal-card">
+    <div class="card-header">
+      <div>
+        <h2 id="confirmActionTitle">Confirm Action</h2>
+        <p class="muted" id="confirmActionMessage">Are you sure you want to continue?</p>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" type="button" onclick="closeModal('confirmActionModal')">Cancel</button>
+      <button id="confirmActionBtn" type="button">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="feedbackModal">
+  <div class="modal-card">
+    <div class="card-header">
+      <div>
+        <h2 id="feedbackTitle">Status</h2>
+        <p class="muted" id="feedbackMessage">Action completed.</p>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="closeFeedbackBtn" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "admin") {
+  alert("Access denied");
+  logout();
+}
+
+let accountPage = 1;
+let accountTotalPages = 1;
+let parentPage = 1;
+let importRows = [];
+let studentOptions = [];
+let parentOptions = [];
+let pendingAction = null;
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function badge(value) {
+  return `<span class="badge ${String(value || "").replaceAll(" ", "_")}">${String(value || "").replaceAll("_", " ")}</span>`;
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add("open");
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove("open");
+}
+
+function showFeedback(title, message) {
+  document.getElementById("feedbackTitle").textContent = title;
+  document.getElementById("feedbackMessage").textContent = message;
+  openModal("feedbackModal");
+}
+
+function openConfirmModal(title, message, action) {
+  pendingAction = action;
+  document.getElementById("confirmActionTitle").textContent = title;
+  document.getElementById("confirmActionMessage").textContent = message;
+  openModal("confirmActionModal");
+}
+
+function csvToRows(text) {
+  const lines = text.split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+
+  const parseLine = line => {
+    const values = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      const next = line[index + 1];
+
+      if (char === '"' && inQuotes && next === '"') {
+        current += '"';
+        index += 1;
+      } else if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === "," && !inQuotes) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+
+    values.push(current.trim());
+    return values;
+  };
+
+  const headers = parseLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const values = parseLine(line);
+    const row = {};
+    headers.forEach((header, index) => {
+      row[header] = values[index] || "";
+    });
+    return row;
+  });
+}
+
+async function loadOptions() {
+  const [studentsRes, parentsRes] = await Promise.all([
+    apiRequest("/admin/students/options", "GET", null, true),
+    apiRequest("/admin/parents/options", "GET", null, true)
+  ]);
+
+  studentOptions = studentsRes.success ? studentsRes.students : [];
+  parentOptions = parentsRes.success ? parentsRes.parents : [];
+
+  const studentSelectHtml = `<option value="">Link to Existing Student (Optional)</option>` + studentOptions.map(item => `
+    <option value="${item.id}">${escapeHtml(item.student_number)} - ${escapeHtml(item.first_name)} ${escapeHtml(item.last_name)}${item.user_id ? "" : " (Profile Only)"}</option>
+  `).join("");
+
+  document.getElementById("linkedStudentId").innerHTML = studentSelectHtml;
+  document.getElementById("linkStudentSelect").innerHTML = `<option value="">Select Student</option>` + studentOptions.map(item => `
+    <option value="${item.id}">${escapeHtml(item.student_number)} - ${escapeHtml(item.first_name)} ${escapeHtml(item.last_name)}</option>
+  `).join("");
+  document.getElementById("repairStudentId").innerHTML = `<option value="">Select Student Profile</option>` + studentOptions
+    .filter(item => !item.user_id)
+    .map(item => `
+      <option value="${item.id}">${escapeHtml(item.student_number)} - ${escapeHtml(item.first_name)} ${escapeHtml(item.last_name)}</option>
+    `).join("");
+
+  const parentSelectHtml = `<option value="">Link to Existing Parent (Optional)</option>` + parentOptions.map(item => `
+    <option value="${item.id}">${escapeHtml(item.first_name)} ${escapeHtml(item.last_name)}${item.email ? ` (${escapeHtml(item.email)})` : ""}</option>
+  `).join("");
+
+  document.getElementById("linkedParentId").innerHTML = parentSelectHtml;
+  document.getElementById("linkParentSelect").innerHTML = `<option value="">Select Parent</option>` + parentOptions.map(item => `
+    <option value="${item.id}">${escapeHtml(item.first_name)} ${escapeHtml(item.last_name)}${item.email ? ` (${escapeHtml(item.email)})` : ""}</option>
+  `).join("");
+  document.getElementById("repairParentId").innerHTML = `<option value="">Select Parent Profile</option>` + parentOptions.map(item => `
+    <option value="${item.id}">${escapeHtml(item.first_name)} ${escapeHtml(item.last_name)}${item.email ? ` (${escapeHtml(item.email)})` : ""}</option>
+  `).join("");
+}
+
+async function loadAccounts() {
+  const query = new URLSearchParams({
+    page: accountPage,
+    limit: 10,
+    search: document.getElementById("accountSearch").value.trim(),
+    role: document.getElementById("accountRoleFilter").value,
+    status: document.getElementById("accountStatusFilter").value
+  });
+
+  const res = await apiRequest(`/admin/users?${query.toString()}`, "GET", null, true);
+  const table = document.getElementById("accountTable");
+
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="6">${escapeHtml(res.message)}</td></tr>`;
+    return;
+  }
+
+  accountTotalPages = res.pagination.totalPages || 1;
+  document.getElementById("accountPaginationInfo").textContent = `Page ${res.pagination.page} of ${accountTotalPages} | ${res.pagination.total} accounts`;
+  document.getElementById("totalAccounts").textContent = res.pagination.total;
+  document.getElementById("activeAccounts").textContent = res.users.filter(item => item.status === "active").length;
+
+  if (!res.users.length) {
+    table.innerHTML = `<tr><td colspan="6">No accounts found.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = res.users.map(item => `
+    <tr>
+      <td>
+        <strong>${escapeHtml(item.first_name)} ${escapeHtml(item.last_name)}</strong><br>
+        <span class="muted">${escapeHtml(item.email)}</span>
+      </td>
+      <td>${escapeHtml(item.username)}<br><span class="muted">${escapeHtml(item.employee_or_student_id || "-")}</span></td>
+      <td>${badge(item.role)}</td>
+      <td>${item.linked_profile_type ? `${badge(item.linked_profile_type)} #${item.linked_profile_id}` : "-"}</td>
+      <td>${badge(item.status)}</td>
+      <td>
+        <div class="action-chip-group">
+          <button type="button" class="compact-btn" onclick="openEditAccount(${item.id})">Edit</button>
+          <button type="button" class="compact-btn secondary" onclick="toggleAccountStatus(${item.id}, '${item.status === "active" ? "inactive" : "active"}')">${item.status === "active" ? "Disable" : "Enable"}</button>
+          <button type="button" class="compact-btn secondary" onclick="openResetModal(${item.id})">Reset</button>
+          ${!item.linked_profile_type && (item.role === "student" || item.role === "parent") ? `<button type="button" class="compact-btn secondary" onclick="openRepairModal(${item.id})">Repair</button>` : ""}
+          <button type="button" class="compact-btn secondary icon-btn" title="Delete account" aria-label="Delete account" onclick="deleteAccount(${item.id}, '${escapeHtml(item.username).replaceAll("'", "\\'")}')">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm1 11h8a2 2 0 0 0 2-2V7H6v11a2 2 0 0 0 2 2z"/>
+            </svg>
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+
+  window.__accountRows = res.users;
+}
+
+async function loadParents() {
+  const query = new URLSearchParams({
+    page: parentPage,
+    limit: 10,
+    search: document.getElementById("parentSearch").value.trim(),
+    status: document.getElementById("parentStatusFilter").value
+  });
+
+  const res = await apiRequest(`/admin/parents?${query.toString()}`, "GET", null, true);
+  const table = document.getElementById("parentTable");
+
+  if (!res.success) {
+    table.innerHTML = `<tr><td colspan="6">${escapeHtml(res.message)}</td></tr>`;
+    return;
+  }
+
+  document.getElementById("totalParents").textContent = res.pagination.total;
+  document.getElementById("profileOnlyParents").textContent = res.parents.filter(item => !item.has_account).length;
+
+  if (!res.parents.length) {
+    table.innerHTML = `<tr><td colspan="6">No parent records found.</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = res.parents.map(item => `
+    <tr>
+      <td>
+        <strong>${escapeHtml(item.first_name)} ${escapeHtml(item.last_name)}</strong><br>
+        <span class="muted">${item.has_account ? "Linked account" : "Profile only"}</span>
+      </td>
+      <td>${escapeHtml(item.email || "-")}<br><span class="muted">${escapeHtml(item.phone_number || "-")}</span></td>
+      <td>${item.linked_students}</td>
+      <td>${item.has_account ? badge("linked") : "<span class='muted'>No account</span>"}</td>
+      <td>${badge(item.status)}</td>
+      <td>
+        <div class="action-chip-group action-chip-group-compact">
+          <button type="button" class="compact-btn" onclick="openEditParent(${item.id})">Edit</button>
+          ${!item.has_account ? `<button type="button" class="secondary compact-btn" onclick="openCreateLinkedParentAccount(${item.id})">Create Account</button>` : ""}
+        </div>
+      </td>
+    </tr>
+  `).join("");
+
+  window.__parentRows = res.parents;
+}
+
+function resetAccountModal() {
+  document.getElementById("accountEditId").value = "";
+  document.getElementById("accountModalTitle").textContent = "Create Account";
+  document.getElementById("accountRole").value = "admin";
+  document.getElementById("accountIdentifier").value = "";
+  document.getElementById("accountUsername").value = "";
+  document.getElementById("accountEmail").value = "";
+  document.getElementById("accountPassword").value = "";
+  document.getElementById("accountFirstName").value = "";
+  document.getElementById("accountMiddleName").value = "";
+  document.getElementById("accountLastName").value = "";
+  document.getElementById("accountStatus").value = "active";
+  document.getElementById("linkedStudentId").value = "";
+  document.getElementById("linkedParentId").value = "";
+  document.getElementById("accountModalResult").textContent = "";
+  updateAccountRoleState();
+}
+
+function openEditAccount(id) {
+  const item = (window.__accountRows || []).find(row => Number(row.id) === Number(id));
+  if (!item) return;
+
+  resetAccountModal();
+  document.getElementById("accountModalTitle").textContent = "Edit Account";
+  document.getElementById("accountEditId").value = item.id;
+  document.getElementById("accountRole").value = item.role;
+  document.getElementById("accountIdentifier").value = item.employee_or_student_id || "";
+  document.getElementById("accountUsername").value = item.username || "";
+  document.getElementById("accountEmail").value = item.email || "";
+  document.getElementById("accountFirstName").value = item.first_name || "";
+  document.getElementById("accountMiddleName").value = item.middle_name || "";
+  document.getElementById("accountLastName").value = item.last_name || "";
+  document.getElementById("accountStatus").value = item.status || "active";
+  updateAccountRoleState();
+  openModal("accountModal");
+}
+
+function openCreateLinkedParentAccount(parentId) {
+  const item = (window.__parentRows || []).find(row => Number(row.id) === Number(parentId));
+  resetAccountModal();
+  document.getElementById("accountRole").value = "parent";
+  document.getElementById("linkedParentId").value = String(parentId);
+  if (item) {
+    document.getElementById("accountEmail").value = item.email || "";
+    document.getElementById("accountFirstName").value = item.first_name || "";
+    document.getElementById("accountMiddleName").value = item.middle_name || "";
+    document.getElementById("accountLastName").value = item.last_name || "";
+    document.getElementById("accountStatus").value = item.status || "active";
+  }
+  updateAccountRoleState();
+  openModal("accountModal");
+}
+
+function updateAccountRoleState() {
+  const role = document.getElementById("accountRole").value;
+  const studentSelect = document.getElementById("linkedStudentId");
+  const parentSelect = document.getElementById("linkedParentId");
+  const note = document.getElementById("accountRoleNote");
+
+  studentSelect.classList.toggle("hidden", role !== "student");
+  parentSelect.classList.toggle("hidden", role !== "parent");
+
+  if (role === "student") {
+    note.textContent = "Student accounts must be linked to an existing student record. Use Student Records to create a new student profile first.";
+  } else if (role === "parent") {
+    note.textContent = "Parent accounts must be linked to an existing parent record. Create the parent record first if it does not exist yet.";
+  } else {
+    note.textContent = "Staff roles can be created directly here. Student and parent accounts must be linked to an existing student or parent profile.";
+  }
+}
+
+async function saveAccount() {
+  const editId = document.getElementById("accountEditId").value;
+  const payload = {
+    role: document.getElementById("accountRole").value,
+    employeeOrStudentId: document.getElementById("accountIdentifier").value.trim(),
+    username: document.getElementById("accountUsername").value.trim(),
+    email: document.getElementById("accountEmail").value.trim(),
+    password: document.getElementById("accountPassword").value,
+    firstName: document.getElementById("accountFirstName").value.trim(),
+    middleName: document.getElementById("accountMiddleName").value.trim(),
+    lastName: document.getElementById("accountLastName").value.trim(),
+    status: document.getElementById("accountStatus").value,
+    studentId: document.getElementById("linkedStudentId").value || null,
+    parentId: document.getElementById("linkedParentId").value || null
+  };
+
+  const result = document.getElementById("accountModalResult");
+  let res;
+
+  if (!editId && payload.role === "student" && !payload.studentId) {
+    result.textContent = "Pick an existing student record first. New student profiles must be created from Student Records.";
+    return;
+  }
+
+  if (!editId && payload.role === "parent" && !payload.parentId) {
+    result.textContent = "Pick an existing parent record first, or create the parent profile in Parent Management.";
+    return;
+  }
+
+  if (editId) {
+    delete payload.password;
+    res = await apiRequest(`/admin/users/${editId}`, "PUT", payload, true);
+  } else {
+    if (!payload.password) {
+      result.textContent = "Password is required for new accounts.";
+      return;
+    }
+    res = await apiRequest("/admin/users", "POST", payload, true);
+  }
+
+  result.textContent = res.success ? "Account saved successfully." : res.message;
+
+  if (res.success) {
+    await Promise.all([loadAccounts(), loadParents(), loadOptions()]);
+    closeModal("accountModal");
+    showFeedback(editId ? "Account Updated" : "Account Created", editId ? "The account details were saved successfully." : "The account was created successfully.");
+  }
+}
+
+async function toggleAccountStatus(id, status) {
+  openConfirmModal(
+    status === "inactive" ? "Deactivate Account" : "Activate Account",
+    status === "inactive"
+      ? "This will disable login access for the selected account. Continue?"
+      : "This will restore login access for the selected account. Continue?",
+    async () => {
+      const res = await apiRequest(`/admin/users/${id}/status`, "PUT", { status }, true);
+      if (!res.success) {
+        showFeedback("Action Failed", res.message);
+        return;
+      }
+
+      await Promise.all([loadAccounts(), loadParents()]);
+      showFeedback("Status Updated", "The account status was updated successfully.");
+    }
+  );
+}
+
+async function deleteAccount(id, username) {
+  openConfirmModal(
+    "Delete Account",
+    `Delete account "${username}"? Linked student or parent profiles will be kept when possible, but login access will be removed.`,
+    async () => {
+      const res = await apiRequest(`/admin/users/${id}`, "DELETE", null, true);
+      if (!res.success) {
+        showFeedback("Delete Failed", res.message);
+        return;
+      }
+
+      await loadOptions();
+      await Promise.all([loadAccounts(), loadParents()]);
+      showFeedback("Account Deleted", "The account was deleted successfully.");
+    }
+  );
+}
+
+function openResetModal(id) {
+  document.getElementById("resetUserId").value = id;
+  document.getElementById("resetPasswordInput").value = "";
+  document.getElementById("resetPasswordResult").textContent = "";
+  openModal("resetPasswordModal");
+}
+
+async function resetPassword() {
+  const userId = document.getElementById("resetUserId").value;
+  const res = await apiRequest(`/admin/users/${userId}/reset-password`, "PUT", {
+    password: document.getElementById("resetPasswordInput").value
+  }, true);
+
+  document.getElementById("resetPasswordResult").textContent = res.success
+    ? `Password reset successful.${res.temporaryPassword ? ` Temporary password: ${res.temporaryPassword}` : ""}`
+    : res.message;
+
+  if (res.success) {
+    closeModal("resetPasswordModal");
+    showFeedback(
+      "Password Reset",
+      res.temporaryPassword
+        ? `Password reset successful. Temporary password: ${res.temporaryPassword}`
+        : "Password reset successful."
+    );
+  }
+}
+
+function openRepairModal(id) {
+  const item = (window.__accountRows || []).find(row => Number(row.id) === Number(id));
+  if (!item) return;
+
+  document.getElementById("repairUserId").value = item.id;
+  document.getElementById("repairAccountLabel").textContent = `${item.first_name} ${item.last_name} | ${item.role} | ${item.username}`;
+  document.getElementById("repairStudentId").value = "";
+  document.getElementById("repairParentId").value = "";
+  document.getElementById("repairResult").textContent = "";
+  document.getElementById("repairStudentId").classList.toggle("hidden", item.role !== "student");
+  document.getElementById("repairParentId").classList.toggle("hidden", item.role !== "parent");
+  openModal("repairLinkModal");
+}
+
+async function saveRepairLink() {
+  const userId = document.getElementById("repairUserId").value;
+  const res = await apiRequest(`/admin/users/${userId}/link-profile`, "POST", {
+    studentId: document.getElementById("repairStudentId").value || null,
+    parentId: document.getElementById("repairParentId").value || null
+  }, true);
+
+  document.getElementById("repairResult").textContent = res.success ? "Account repaired successfully." : res.message;
+
+  if (res.success) {
+    await loadOptions();
+    await Promise.all([loadAccounts(), loadParents()]);
+    closeModal("repairLinkModal");
+    showFeedback("Account Repaired", "The account is now linked to the selected profile.");
+  }
+}
+
+function resetParentModal() {
+  document.getElementById("parentEditId").value = "";
+  document.getElementById("parentModalTitle").textContent = "Create Parent Record";
+  document.getElementById("parentFirstName").value = "";
+  document.getElementById("parentMiddleName").value = "";
+  document.getElementById("parentLastName").value = "";
+  document.getElementById("parentEmail").value = "";
+  document.getElementById("parentPhone").value = "";
+  document.getElementById("parentAddress").value = "";
+  document.getElementById("parentRecordStatus").value = "active";
+  document.getElementById("parentCreateAccountCheckbox").checked = false;
+  document.getElementById("parentUsername").value = "";
+  document.getElementById("parentPassword").value = "";
+  document.getElementById("parentModalResult").textContent = "";
+}
+
+function openEditParent(id) {
+  const item = (window.__parentRows || []).find(row => Number(row.id) === Number(id));
+  if (!item) return;
+
+  resetParentModal();
+  document.getElementById("parentModalTitle").textContent = "Edit Parent Record";
+  document.getElementById("parentEditId").value = item.id;
+  document.getElementById("parentFirstName").value = item.first_name || "";
+  document.getElementById("parentMiddleName").value = item.middle_name || "";
+  document.getElementById("parentLastName").value = item.last_name || "";
+  document.getElementById("parentEmail").value = item.email || "";
+  document.getElementById("parentPhone").value = item.phone_number || "";
+  document.getElementById("parentAddress").value = item.address || "";
+  document.getElementById("parentRecordStatus").value = item.status || "active";
+  openModal("parentModal");
+}
+
+async function saveParent() {
+  const editId = document.getElementById("parentEditId").value;
+  const payload = {
+    firstName: document.getElementById("parentFirstName").value.trim(),
+    middleName: document.getElementById("parentMiddleName").value.trim(),
+    lastName: document.getElementById("parentLastName").value.trim(),
+    email: document.getElementById("parentEmail").value.trim(),
+    phoneNumber: document.getElementById("parentPhone").value.trim(),
+    address: document.getElementById("parentAddress").value.trim(),
+    status: document.getElementById("parentRecordStatus").value
+  };
+
+  const result = document.getElementById("parentModalResult");
+  let res;
+
+  if (editId) {
+    res = await apiRequest(`/admin/parents/${editId}`, "PUT", payload, true);
+  } else {
+    payload.createAccount = document.getElementById("parentCreateAccountCheckbox").checked;
+    payload.username = document.getElementById("parentUsername").value.trim();
+    payload.password = document.getElementById("parentPassword").value;
+    res = await apiRequest("/admin/parents", "POST", payload, true);
+  }
+
+  result.textContent = res.success ? "Parent saved successfully." : res.message;
+
+  if (res.success) {
+    await Promise.all([loadParents(), loadOptions()]);
+    closeModal("parentModal");
+    showFeedback(editId ? "Parent Updated" : "Parent Created", editId ? "The parent record was updated successfully." : "The parent record was created successfully.");
+  }
+}
+
+async function saveLink() {
+  const res = await apiRequest("/admin/links/parent-student", "POST", {
+    parentId: document.getElementById("linkParentSelect").value,
+    studentId: document.getElementById("linkStudentSelect").value,
+    relationship: document.getElementById("linkRelationship").value.trim()
+  }, true);
+
+  document.getElementById("linkModalResult").textContent = res.success ? "Link saved successfully." : res.message;
+  if (res.success) {
+    await Promise.all([loadParents(), loadOptions()]);
+    closeModal("linkModal");
+    showFeedback("Link Saved", "The parent and student were linked successfully.");
+  }
+}
+
+function renderImportPreview() {
+  const preview = document.getElementById("importPreview");
+
+  if (!importRows.length) {
+    preview.textContent = "No CSV preview loaded yet.";
+    return;
+  }
+
+  const columns = Object.keys(importRows[0]);
+  preview.innerHTML = `
+    <table>
+      <thead><tr>${columns.map(column => `<th>${escapeHtml(column)}</th>`).join("")}</tr></thead>
+      <tbody>
+        ${importRows.slice(0, 8).map(row => `
+          <tr>${columns.map(column => `<td>${escapeHtml(row[column])}</td>`).join("")}</tr>
+        `).join("")}
+      </tbody>
+    </table>
+    ${importRows.length > 8 ? `<p class="muted" style="margin-top:12px;">Showing 8 of ${importRows.length} rows.</p>` : ""}
+  `;
+}
+
+async function previewImport() {
+  const file = document.getElementById("csvFileInput").files[0];
+
+  if (!file) {
+    document.getElementById("importResult").textContent = "Choose a CSV file first.";
+    return;
+  }
+
+  importRows = csvToRows(await file.text());
+  document.getElementById("importResult").textContent = importRows.length
+    ? `Preview loaded for ${importRows.length} row(s).`
+    : "No valid CSV rows were found.";
+  renderImportPreview();
+}
+
+async function runImport() {
+  if (!importRows.length) {
+    document.getElementById("importResult").textContent = "Preview a CSV first.";
+    return;
+  }
+
+  const res = await apiRequest("/admin/bulk-import", "POST", {
+    importType: document.getElementById("importType").value,
+    createLoginAccounts: document.getElementById("createLoginsCheckbox").checked,
+    rows: importRows
+  }, true);
+
+  document.getElementById("importResult").textContent = res.success
+    ? `Import finished. Created: ${res.summary.created}, Skipped: ${res.summary.skipped}.`
+    : res.message;
+
+  if (res.success && res.summary.errors.length) {
+    document.getElementById("importPreview").innerHTML = `
+      <div class="detail-list">
+        ${res.summary.errors.map(item => `
+          <div class="detail-item">
+            <p><strong>Row ${item.row}</strong></p>
+            <p>${escapeHtml(item.message)}</p>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  if (res.success) {
+    await Promise.all([loadAccounts(), loadParents(), loadOptions()]);
+    showFeedback("Import Completed", `Import finished. Created: ${res.summary.created}. Skipped: ${res.summary.skipped}.`);
+  }
+}
+
+document.getElementById("openAccountModalBtn").addEventListener("click", () => {
+  resetAccountModal();
+  openModal("accountModal");
+});
+document.getElementById("confirmActionBtn").addEventListener("click", async () => {
+  const action = pendingAction;
+  pendingAction = null;
+  closeModal("confirmActionModal");
+  if (action) {
+    await action();
+  }
+});
+document.getElementById("closeFeedbackBtn").addEventListener("click", () => closeModal("feedbackModal"));
+document.getElementById("accountRole").addEventListener("change", updateAccountRoleState);
+document.getElementById("saveAccountBtn").addEventListener("click", saveAccount);
+document.getElementById("applyAccountFiltersBtn").addEventListener("click", () => {
+  accountPage = 1;
+  loadAccounts();
+});
+document.getElementById("clearAccountFiltersBtn").addEventListener("click", () => {
+  document.getElementById("accountSearch").value = "";
+  document.getElementById("accountRoleFilter").value = "";
+  document.getElementById("accountStatusFilter").value = "";
+  accountPage = 1;
+  loadAccounts();
+});
+document.getElementById("accountPrevBtn").addEventListener("click", () => {
+  if (accountPage > 1) {
+    accountPage -= 1;
+    loadAccounts();
+  }
+});
+document.getElementById("accountNextBtn").addEventListener("click", () => {
+  if (accountPage < accountTotalPages) {
+    accountPage += 1;
+    loadAccounts();
+  }
+});
+document.getElementById("saveResetPasswordBtn").addEventListener("click", resetPassword);
+document.getElementById("saveRepairBtn").addEventListener("click", saveRepairLink);
+document.getElementById("openParentModalBtn").addEventListener("click", () => {
+  resetParentModal();
+  openModal("parentModal");
+});
+document.getElementById("saveParentBtn").addEventListener("click", saveParent);
+document.getElementById("openLinkModalBtn").addEventListener("click", () => {
+  document.getElementById("linkRelationship").value = "";
+  document.getElementById("linkModalResult").textContent = "";
+  openModal("linkModal");
+});
+document.getElementById("saveLinkBtn").addEventListener("click", saveLink);
+document.getElementById("applyParentFiltersBtn").addEventListener("click", () => {
+  parentPage = 1;
+  loadParents();
+});
+document.getElementById("clearParentFiltersBtn").addEventListener("click", () => {
+  document.getElementById("parentSearch").value = "";
+  document.getElementById("parentStatusFilter").value = "";
+  parentPage = 1;
+  loadParents();
+});
+document.getElementById("previewImportBtn").addEventListener("click", previewImport);
+document.getElementById("runImportBtn").addEventListener("click", runImport);
+
+loadOptions().then(() => {
+  updateAccountRoleState();
+  loadAccounts();
+  loadParents();
+});
+</script>
+
+</body>
+</html>
