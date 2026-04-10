@@ -239,6 +239,10 @@ async function createParentRecord(connection, payload) {
     throw new Error("Parent first name and last name are required.");
   }
 
+  if (!payload.phoneNumber || !String(payload.phoneNumber).trim()) {
+    throw new Error("Parent phone number is required for SMS notifications.");
+  }
+
   if (payload.email && !validateEmail(payload.email)) {
     throw new Error("A valid parent email address is required.");
   }

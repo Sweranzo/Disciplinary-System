@@ -42,8 +42,37 @@ function buildUserResponse(user) {
     role: user.role,
     role_label: formatRoleLabel(user.role),
     status: user.status,
+    phone_number: user.phone_number || null,
+    address: user.address || null,
     avatar_path: user.avatar_path || null,
     avatar_url: buildAvatarUrl(user.avatar_path)
+  };
+}
+
+async function enrichUserProfile(user) {
+  if (!user || user.role !== "parent") {
+    return user;
+  }
+
+  const [parentRows] = await pool.query(
+    `
+    SELECT id, phone_number, address
+    FROM parents
+    WHERE user_id = ?
+    LIMIT 1
+    `,
+    [user.id]
+  );
+
+  if (!parentRows.length) {
+    return user;
+  }
+
+  return {
+    ...user,
+    phone_number: parentRows[0].phone_number || null,
+    address: parentRows[0].address || null,
+    parent_record_id: parentRows[0].id
   };
 }
 
@@ -175,7 +204,7 @@ async function getMe(req, res) {
 
     return res.json({
       success: true,
-      user: buildUserResponse(rows[0])
+      user: buildUserResponse(await enrichUserProfile(rows[0]))
     });
   } catch (error) {
     console.error("Get me error:", error);
@@ -269,9 +298,64 @@ async function markAllNotificationsAsRead(req, res) {
   }
 }
 
+async function deleteNotification(req, res) {
+  try {
+    const { id } = req.params;
+
+    const [result] = await pool.query(
+      `
+      DELETE FROM notifications
+      WHERE id = ? AND user_id = ?
+      `,
+      [id, req.user.id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found."
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Notification deleted successfully."
+    });
+  } catch (error) {
+    console.error("Delete notification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while deleting notification."
+    });
+  }
+}
+
+async function clearMyNotifications(req, res) {
+  try {
+    await pool.query(
+      `
+      DELETE FROM notifications
+      WHERE user_id = ?
+      `,
+      [req.user.id]
+    );
+
+    return res.json({
+      success: true,
+      message: "Notification history cleared successfully."
+    });
+  } catch (error) {
+    console.error("Clear notifications error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while clearing notifications."
+    });
+  }
+}
+
 async function updateMyProfile(req, res) {
   try {
-    const { first_name, middle_name, last_name, email, username } = req.body;
+    const { first_name, middle_name, last_name, email, username, phone_number } = req.body;
 
     if (!first_name || !last_name || !email || !username) {
       return res.status(400).json({
@@ -282,6 +366,24 @@ async function updateMyProfile(req, res) {
 
     const trimmedEmail = String(email).trim().toLowerCase();
     const trimmedUsername = String(username).trim();
+    const trimmedPhoneNumber = phone_number ? String(phone_number).trim() : "";
+
+    const existingRows = await fetchUserById(req.user.id);
+    if (!existingRows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found."
+      });
+    }
+
+    const existingUser = existingRows[0];
+
+    if (existingUser.role === "parent" && !trimmedPhoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number is required for parent accounts."
+      });
+    }
 
     const [duplicateRows] = await pool.query(
       `
@@ -301,27 +403,61 @@ async function updateMyProfile(req, res) {
       });
     }
 
-    await pool.query(
-      `
-      UPDATE users
-      SET first_name = ?,
-          middle_name = ?,
-          last_name = ?,
-          email = ?,
-          username = ?
-      WHERE id = ?
-      `,
-      [
-        String(first_name).trim(),
-        middle_name ? String(middle_name).trim() : null,
-        String(last_name).trim(),
-        trimmedEmail,
-        trimmedUsername,
-        req.user.id
-      ]
-    );
+    const connection = await pool.getConnection();
+    let rows;
+    try {
+      await connection.beginTransaction();
 
-    const rows = await fetchUserById(req.user.id);
+      await connection.query(
+        `
+        UPDATE users
+        SET first_name = ?,
+            middle_name = ?,
+            last_name = ?,
+            email = ?,
+            username = ?
+        WHERE id = ?
+        `,
+        [
+          String(first_name).trim(),
+          middle_name ? String(middle_name).trim() : null,
+          String(last_name).trim(),
+          trimmedEmail,
+          trimmedUsername,
+          req.user.id
+        ]
+      );
+
+      if (existingUser.role === "parent") {
+        await connection.query(
+          `
+          UPDATE parents
+          SET first_name = ?,
+              middle_name = ?,
+              last_name = ?,
+              email = ?,
+              phone_number = ?
+          WHERE user_id = ?
+          `,
+          [
+            String(first_name).trim(),
+            middle_name ? String(middle_name).trim() : null,
+            String(last_name).trim(),
+            trimmedEmail,
+            trimmedPhoneNumber,
+            req.user.id
+          ]
+        );
+      }
+
+      await connection.commit();
+      rows = await fetchUserById(req.user.id);
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
 
     await logAudit({
       userId: req.user.id,
@@ -335,7 +471,7 @@ async function updateMyProfile(req, res) {
     return res.json({
       success: true,
       message: "Profile updated successfully.",
-      user: buildUserResponse(rows[0])
+      user: buildUserResponse(await enrichUserProfile(rows[0]))
     });
   } catch (error) {
     console.error("Update profile error:", error);
@@ -513,5 +649,7 @@ module.exports = {
   getMyNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
+  deleteNotification,
+  clearMyNotifications,
   getStaffOptions
 };

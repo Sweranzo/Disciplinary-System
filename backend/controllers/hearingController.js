@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const { logAudit } = require("../utils/auditLogger");
+const { sendSms } = require("../utils/smsService");
 const { getCaseForAccess, getCaseStatusRecord, isCaseClosed } = require("./caseController");
 
 function formatRoleLabel(role = "") {
@@ -18,6 +19,59 @@ async function createNotification(userId, title, message, type = "system") {
     `,
     [userId, title, message, type]
   );
+}
+
+async function notifyHearingStakeholders({
+  caseId,
+  parentTitle,
+  parentMessage,
+  studentTitle,
+  studentMessage,
+  smsMessage
+}) {
+  const notifiedStudentUsers = new Set();
+  const notifiedParentUsers = new Set();
+  const [recipientRows] = await pool.query(
+    `
+    SELECT
+      su.id AS student_user_id,
+      p.id AS parent_id,
+      p.phone_number,
+      pu.id AS parent_user_id,
+      COALESCE(pu.first_name, p.first_name) AS parent_first_name,
+      COALESCE(pu.last_name, p.last_name) AS parent_last_name
+    FROM cases c
+    JOIN students s ON c.student_id = s.id
+    LEFT JOIN users su ON s.user_id = su.id
+    LEFT JOIN student_parents sp ON sp.student_id = s.id
+    LEFT JOIN parents p ON sp.parent_id = p.id
+    LEFT JOIN users pu ON p.user_id = pu.id
+    WHERE c.id = ?
+    `,
+    [caseId]
+  );
+
+  for (const row of recipientRows) {
+    if (row.student_user_id && !notifiedStudentUsers.has(row.student_user_id) && studentTitle && studentMessage) {
+      await createNotification(row.student_user_id, studentTitle, studentMessage, "hearing");
+      notifiedStudentUsers.add(row.student_user_id);
+    }
+
+    if (row.parent_user_id && !notifiedParentUsers.has(row.parent_user_id) && parentTitle && parentMessage) {
+      await createNotification(row.parent_user_id, parentTitle, parentMessage, "hearing");
+      notifiedParentUsers.add(row.parent_user_id);
+    }
+
+    if (row.parent_id && row.phone_number && smsMessage) {
+      const parentName = `${row.parent_first_name || "Parent"} ${row.parent_last_name || ""}`.trim();
+      await sendSms({
+        caseId,
+        parentId: row.parent_id,
+        phoneNumber: row.phone_number,
+        message: `Dear ${parentName}, ${smsMessage}`
+      });
+    }
+  }
 }
 
 async function createHearing(req, res) {
@@ -72,44 +126,14 @@ async function createHearing(req, res) {
       ipAddress: req.ip
     });
 
-    const [recipientRows] = await pool.query(
-  `
-  SELECT 
-    su.id AS student_user_id,
-    pu.id AS parent_user_id
-  FROM cases c
-  JOIN students s ON c.student_id = s.id
-  LEFT JOIN users su ON s.user_id = su.id
-  LEFT JOIN student_parents sp ON sp.student_id = s.id
-  LEFT JOIN parents p ON sp.parent_id = p.id
-  LEFT JOIN users pu ON p.user_id = pu.id
-  WHERE c.id = ?
-  LIMIT 1
-  `,
-  [caseId]
-);
-
-if (recipientRows.length > 0) {
-  const row = recipientRows[0];
-
-  if (row.student_user_id) {
-    await createNotification(
-      row.student_user_id,
-      "Hearing Scheduled",
-      `A hearing has been scheduled for case ${caseItem.case_number} on ${scheduledDate} at ${scheduledTime}.`,
-      "hearing"
-    );
-  }
-
-  if (row.parent_user_id) {
-    await createNotification(
-      row.parent_user_id,
-      "Hearing Scheduled for Your Child",
-      `A hearing has been scheduled for case ${caseItem.case_number} on ${scheduledDate} at ${scheduledTime}.`,
-      "hearing"
-    );
-  }
-}
+    await notifyHearingStakeholders({
+      caseId,
+      studentTitle: "Hearing Scheduled",
+      studentMessage: `A hearing has been scheduled for case ${caseItem.case_number} on ${scheduledDate} at ${scheduledTime}.`,
+      parentTitle: "Hearing Scheduled for Your Child",
+      parentMessage: `A hearing has been scheduled for case ${caseItem.case_number} on ${scheduledDate} at ${scheduledTime}.`,
+      smsMessage: `PhilTech Hearing Notice: A hearing for case ${caseItem.case_number} is scheduled on ${scheduledDate} at ${scheduledTime}.${location ? ` Location: ${location}.` : ""} Please check the portal for details.`
+    });
 
     return res.status(201).json({
       success: true,
@@ -300,6 +324,15 @@ async function updateHearing(req, res) {
       targetId: Number(id),
       details: `Updated hearing for ${hearing.case_number} to status ${nextStatus}`,
       ipAddress: req.ip
+    });
+
+    await notifyHearingStakeholders({
+      caseId: hearing.case_id,
+      studentTitle: "Hearing Updated",
+      studentMessage: `Hearing details for case ${hearing.case_number} were updated. Current status: ${nextStatus}.`,
+      parentTitle: "Hearing Update for Your Child",
+      parentMessage: `Hearing details for case ${hearing.case_number} were updated. Current status: ${nextStatus}.`,
+      smsMessage: `PhilTech Hearing Update: Case ${hearing.case_number} hearing is now ${nextStatus}.${scheduledDate ? ` Date: ${scheduledDate}.` : ""}${scheduledTime ? ` Time: ${scheduledTime}.` : ""}${location ? ` Location: ${location}.` : ""}`
     });
 
     return res.json({

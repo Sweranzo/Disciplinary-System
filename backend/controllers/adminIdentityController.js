@@ -833,6 +833,14 @@ async function createParent(req, res) {
       status
     } = req.body;
 
+    if (!firstName || !lastName) {
+      throw new Error("Parent first name and last name are required.");
+    }
+
+    if (!phoneNumber || !String(phoneNumber).trim()) {
+      throw new Error("Parent phone number is required for SMS notifications.");
+    }
+
     await connection.beginTransaction();
 
     let userId = null;
@@ -898,6 +906,10 @@ async function updateParent(req, res) {
 
     if (email && !validateEmail(email)) {
       return res.status(400).json({ success: false, message: "A valid email address is required." });
+    }
+
+    if (!phoneNumber || !String(phoneNumber).trim()) {
+      return res.status(400).json({ success: false, message: "Parent phone number is required for SMS notifications." });
     }
 
     await connection.beginTransaction();
@@ -994,6 +1006,21 @@ async function createStudent(req, res) {
       relationship,
       newParent
     } = req.body;
+
+    if (parentLinkMode === "existing" && existingParentId) {
+      const existingParent = await getParentRecord(connection, existingParentId);
+      if (!existingParent) {
+        throw new Error("Selected parent record was not found.");
+      }
+
+      if (!existingParent.phone_number || !String(existingParent.phone_number).trim()) {
+        throw new Error("Selected parent must have a phone number before being linked for SMS notifications.");
+      }
+    }
+
+    if (parentLinkMode === "new" && newParent && (!newParent.phoneNumber || !String(newParent.phoneNumber).trim())) {
+      throw new Error("New parent phone number is required for SMS notifications.");
+    }
 
     await connection.beginTransaction();
 
@@ -1202,11 +1229,15 @@ async function linkParentToStudentAdmin(req, res) {
     const student = await getStudentRecord(connection, studentId);
     const parent = await getParentRecord(connection, parentId);
 
-    if (!student || !parent) {
-      return res.status(404).json({ success: false, message: "Student or parent record not found." });
-    }
+      if (!student || !parent) {
+        return res.status(404).json({ success: false, message: "Student or parent record not found." });
+      }
 
-    await linkParentStudent(connection, studentId, parentId, relationship);
+      if (!parent.phone_number || !String(parent.phone_number).trim()) {
+        return res.status(400).json({ success: false, message: "Parent phone number is required before linking for SMS notifications." });
+      }
+
+      await linkParentStudent(connection, studentId, parentId, relationship);
 
     return res.json({ success: true, message: "Parent linked successfully." });
   } catch (error) {
@@ -1479,12 +1510,174 @@ async function linkExistingUserToProfile(req, res) {
   }
 }
 
+async function listSmsLogs(req, res) {
+  try {
+    const { page, limit, offset } = getPageMeta(req);
+    const params = [];
+    let whereClause = "";
+
+    if (req.query.search) {
+      whereClause += `
+        WHERE (
+          sl.phone_number LIKE ?
+          OR sl.message LIKE ?
+          OR sl.delivery_status LIKE ?
+          OR c.case_number LIKE ?
+          OR COALESCE(pu.first_name, p.first_name) LIKE ?
+          OR COALESCE(pu.last_name, p.last_name) LIKE ?
+        )
+      `;
+      const pattern = escapeLike(req.query.search);
+      params.push(pattern, pattern, pattern, pattern, pattern, pattern);
+    }
+
+    if (req.query.status) {
+      whereClause += whereClause ? " AND sl.delivery_status = ?" : " WHERE sl.delivery_status = ?";
+      params.push(req.query.status);
+    }
+
+    const [countRows] = await pool.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM sms_logs sl
+      LEFT JOIN cases c ON sl.case_id = c.id
+      LEFT JOIN parents p ON sl.parent_id = p.id
+      LEFT JOIN users pu ON p.user_id = pu.id
+      ${whereClause}
+      `,
+      params
+    );
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        sl.id,
+        sl.case_id,
+        sl.parent_id,
+        sl.phone_number,
+        sl.message,
+        sl.delivery_status,
+        sl.failure_reason,
+        sl.sent_at,
+        sl.created_at,
+        c.case_number,
+        COALESCE(pu.first_name, p.first_name) AS parent_first_name,
+        COALESCE(pu.last_name, p.last_name) AS parent_last_name
+      FROM sms_logs sl
+      LEFT JOIN cases c ON sl.case_id = c.id
+      LEFT JOIN parents p ON sl.parent_id = p.id
+      LEFT JOIN users pu ON p.user_id = pu.id
+      ${whereClause}
+      ORDER BY COALESCE(sl.sent_at, sl.created_at) DESC, sl.id DESC
+      LIMIT ? OFFSET ?
+      `,
+      [...params, limit, offset]
+    );
+
+    const [statusRows] = await pool.query(
+      `
+      SELECT delivery_status, COUNT(*) AS total
+      FROM sms_logs
+      GROUP BY delivery_status
+      ORDER BY total DESC, delivery_status ASC
+      `
+    );
+
+    return res.json({
+      success: true,
+      logs: rows,
+      statusOptions: statusRows,
+      pagination: {
+        page,
+        limit,
+        total: countRows[0]?.total || 0,
+        totalPages: Math.max(1, Math.ceil((countRows[0]?.total || 0) / limit))
+      }
+    });
+  } catch (error) {
+    console.error("List SMS logs error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching SMS logs."
+    });
+  }
+}
+
+async function deleteSmsLog(req, res) {
+  try {
+    const { id } = req.params;
+    const [result] = await pool.query(
+      `
+      DELETE FROM sms_logs
+      WHERE id = ?
+      `,
+      [id]
+    );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({ success: false, message: "SMS log not found." });
+    }
+
+    return res.json({ success: true, message: "SMS log deleted successfully." });
+  } catch (error) {
+    console.error("Delete SMS log error:", error);
+    return res.status(500).json({ success: false, message: "Server error while deleting SMS log." });
+  }
+}
+
+async function clearSmsLogs(req, res) {
+  try {
+    await pool.query("DELETE FROM sms_logs");
+    return res.json({ success: true, message: "SMS history cleared successfully." });
+  } catch (error) {
+    console.error("Clear SMS logs error:", error);
+    return res.status(500).json({ success: false, message: "Server error while clearing SMS logs." });
+  }
+}
+
+async function deleteAuditLog(req, res) {
+  try {
+    const { id } = req.params;
+    const [result] = await pool.query(
+      `
+      DELETE FROM audit_logs
+      WHERE id = ?
+      `,
+      [id]
+    );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({ success: false, message: "Audit log not found." });
+    }
+
+    return res.json({ success: true, message: "Audit log deleted successfully." });
+  } catch (error) {
+    console.error("Delete audit log error:", error);
+    return res.status(500).json({ success: false, message: "Server error while deleting audit log." });
+  }
+}
+
+async function clearAuditLogs(req, res) {
+  try {
+    await pool.query("DELETE FROM audit_logs");
+    return res.json({ success: true, message: "Audit history cleared successfully." });
+  } catch (error) {
+    console.error("Clear audit logs error:", error);
+    return res.status(500).json({ success: false, message: "Server error while clearing audit logs." });
+  }
+}
+
 module.exports = {
   listUsers,
   createUser,
   updateUser,
   updateUserStatus,
   listAuditLogs,
+  deleteAuditLog,
+  clearAuditLogs,
+  listSmsLogs,
+  deleteSmsLog,
+  clearSmsLogs,
   deleteUser,
   resetPassword,
   listParents,

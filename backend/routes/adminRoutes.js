@@ -7,6 +7,11 @@ const {
   updateUser,
   updateUserStatus,
   listAuditLogs,
+  deleteAuditLog,
+  clearAuditLogs,
+  listSmsLogs,
+  deleteSmsLog,
+  clearSmsLogs,
   deleteUser,
   resetPassword,
   listParents,
@@ -47,5 +52,10 @@ router.post("/students/:id/create-account", createStudentAccount);
 router.post("/links/parent-student", linkParentToStudentAdmin);
 router.post("/bulk-import", bulkImport);
 router.get("/audit-logs", listAuditLogs);
+router.delete("/audit-logs/:id", deleteAuditLog);
+router.delete("/audit-logs", clearAuditLogs);
+router.get("/sms-logs", listSmsLogs);
+router.delete("/sms-logs/:id", deleteSmsLog);
+router.delete("/sms-logs", clearSmsLogs);
 
 module.exports = router;

@@ -9,6 +9,8 @@ const {
   getMyNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
+  deleteNotification,
+  clearMyNotifications,
   getStaffOptions
 } = require("../controllers/authController");
 const { verifyToken } = require("../middleware/authMiddleware");
@@ -24,5 +26,7 @@ router.get("/staff-options", verifyToken, allowRoles("admin", "discipline_office
 router.get("/notifications", verifyToken, getMyNotifications);
 router.put("/notifications/read-all", verifyToken, markAllNotificationsAsRead);
 router.put("/notifications/:id/read", verifyToken, markNotificationAsRead);
+router.delete("/notifications/:id", verifyToken, deleteNotification);
+router.delete("/notifications", verifyToken, clearMyNotifications);
 
 module.exports = router;

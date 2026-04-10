@@ -375,9 +375,18 @@ async function getLinkedChildrenOverview(req, res) {
   try {
     const [parentRows] = await pool.query(
       `
-      SELECT id
-      FROM parents
-      WHERE user_id = ?
+      SELECT
+        p.id,
+        COALESCE(u.first_name, p.first_name) AS first_name,
+        COALESCE(u.middle_name, p.middle_name) AS middle_name,
+        COALESCE(u.last_name, p.last_name) AS last_name,
+        COALESCE(u.email, p.email) AS email,
+        p.phone_number,
+        p.address,
+        COALESCE(u.status, p.record_status) AS status
+      FROM parents p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.user_id = ?
       LIMIT 1
       `,
       [req.user.id]
@@ -420,7 +429,20 @@ async function getLinkedChildrenOverview(req, res) {
       [parentRows[0].id]
     );
 
-    return res.json({ success: true, children: rows });
+    return res.json({
+      success: true,
+      parent: {
+        id: parentRows[0].id,
+        first_name: parentRows[0].first_name,
+        middle_name: parentRows[0].middle_name,
+        last_name: parentRows[0].last_name,
+        email: parentRows[0].email,
+        phone_number: parentRows[0].phone_number,
+        address: parentRows[0].address,
+        status: parentRows[0].status
+      },
+      children: rows
+    });
   } catch (error) {
     console.error("Get linked children overview error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
@@ -667,11 +689,15 @@ async function linkParentToStudent(req, res) {
     const student = await getStudentRecord(connection, id);
     const parent = await getParentRecord(connection, parentId);
 
-    if (!student || !parent) {
-      return res.status(404).json({ success: false, message: "Student or parent not found." });
-    }
+      if (!student || !parent) {
+        return res.status(404).json({ success: false, message: "Student or parent not found." });
+      }
 
-    await linkParentStudent(connection, id, parentId, relationship || "Parent/Guardian");
+      if (!parent.phone_number || !String(parent.phone_number).trim()) {
+        return res.status(400).json({ success: false, message: "Parent phone number is required before linking for SMS notifications." });
+      }
+
+      await linkParentStudent(connection, id, parentId, relationship || "Parent/Guardian");
 
     return res.json({ success: true, message: "Parent linked successfully." });
   } catch (error) {

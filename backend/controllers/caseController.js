@@ -52,9 +52,9 @@ async function notifyLinkedParentsAboutCase({
 
   for (const parent of parentRows) {
     const parentName = `${parent.account_first_name || parent.profile_first_name || "Parent"} ${parent.account_last_name || parent.profile_last_name || ""}`.trim();
-    const smsMessage =
-      `PTI Disciplinary Alert: A new case (${caseNumber}) was reported for ${studentName} regarding ${violation} on ${incidentDate}.`
-      + `${location ? ` Location: ${location}.` : ""} Please check the system or contact the school office for details.`;
+      const smsMessage =
+      `PhilTech Disciplinary Alert: A new case (${caseNumber}) was reported for ${studentName} regarding ${violation} on ${incidentDate}.`
+        + `${location ? ` Location: ${location}.` : ""} Please check the system or contact the school office for details.`;
 
     if (parent.parent_user_id) {
       await createNotification(
@@ -445,7 +445,8 @@ async function getAllCases(req, res) {
         reporter.first_name AS reported_by_first_name,
         reporter.last_name AS reported_by_last_name,
         assignee.first_name AS assigned_to_first_name,
-        assignee.last_name AS assigned_to_last_name
+        assignee.last_name AS assigned_to_last_name,
+        assignee.role AS assigned_to_role
       FROM cases c
       JOIN students s ON c.student_id = s.id
       LEFT JOIN users u ON s.user_id = u.id
@@ -462,7 +463,10 @@ async function getAllCases(req, res) {
 
     return res.json({
       success: true,
-      cases: rows,
+      cases: rows.map(item => ({
+        ...item,
+        assigned_to_role_label: formatRoleLabel(item.assigned_to_role)
+      })),
       pagination: {
         page,
         limit,

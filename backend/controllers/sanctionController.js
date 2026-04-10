@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const { logAudit } = require("../utils/auditLogger");
+const { sendSms } = require("../utils/smsService");
 const { getActorContext, getCaseForAccess, getCaseStatusRecord, isCaseClosed } = require("./caseController");
 
 function toDateOnly(value) {
@@ -36,6 +37,69 @@ function formatRoleLabel(role = "") {
     .filter(Boolean)
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+async function createNotification(userId, title, message, type = "system") {
+  await pool.query(
+    `
+    INSERT INTO notifications (user_id, title, message, type)
+    VALUES (?, ?, ?, ?)
+    `,
+    [userId, title, message, type]
+  );
+}
+
+async function notifySanctionStakeholders({
+  caseId,
+  parentTitle,
+  parentMessage,
+  studentTitle,
+  studentMessage,
+  smsMessage
+}) {
+  const notifiedStudentUsers = new Set();
+  const notifiedParentUsers = new Set();
+  const [recipientRows] = await pool.query(
+    `
+    SELECT
+      su.id AS student_user_id,
+      p.id AS parent_id,
+      p.phone_number,
+      pu.id AS parent_user_id,
+      COALESCE(pu.first_name, p.first_name) AS parent_first_name,
+      COALESCE(pu.last_name, p.last_name) AS parent_last_name
+    FROM cases c
+    JOIN students s ON c.student_id = s.id
+    LEFT JOIN users su ON s.user_id = su.id
+    LEFT JOIN student_parents sp ON sp.student_id = s.id
+    LEFT JOIN parents p ON sp.parent_id = p.id
+    LEFT JOIN users pu ON p.user_id = pu.id
+    WHERE c.id = ?
+    `,
+    [caseId]
+  );
+
+  for (const row of recipientRows) {
+    if (row.student_user_id && !notifiedStudentUsers.has(row.student_user_id) && studentTitle && studentMessage) {
+      await createNotification(row.student_user_id, studentTitle, studentMessage, "sanction");
+      notifiedStudentUsers.add(row.student_user_id);
+    }
+
+    if (row.parent_user_id && !notifiedParentUsers.has(row.parent_user_id) && parentTitle && parentMessage) {
+      await createNotification(row.parent_user_id, parentTitle, parentMessage, "sanction");
+      notifiedParentUsers.add(row.parent_user_id);
+    }
+
+    if (row.parent_id && row.phone_number && smsMessage) {
+      const parentName = `${row.parent_first_name || "Parent"} ${row.parent_last_name || ""}`.trim();
+      await sendSms({
+        caseId,
+        parentId: row.parent_id,
+        phoneNumber: row.phone_number,
+        message: `Dear ${parentName}, ${smsMessage}`
+      });
+    }
+  }
 }
 
 function decorateSanction(record) {
@@ -142,9 +206,18 @@ async function createSanction(req, res) {
       ipAddress: req.ip
     });
 
+    await notifySanctionStakeholders({
+      caseId,
+      studentTitle: "Sanction Assigned",
+      studentMessage: `A sanction was assigned for case ${caseItem.case_number}. Please review the sanction details in the portal.`,
+      parentTitle: "Sanction Assigned for Your Child",
+      parentMessage: `A sanction was assigned for case ${caseItem.case_number}. Please review the sanction details in the portal.`,
+      smsMessage: `PhilTech Sanction Notice: A ${String(sanctionType).replaceAll("_", " ")} sanction was assigned for case ${caseItem.case_number}.${startDate ? ` Start: ${startDate}.` : ""}${endDate ? ` End: ${endDate}.` : ""}`
+    });
+
     return res.json({
       success: true,
-      message: "Sanction assigned successfully."
+      message: "Sanction assigned successfully. The case decision is now resolved, and sanction completion can continue from the monitoring workspace."
     });
 
   } catch (error) {
@@ -393,10 +466,10 @@ async function updateSanction(req, res) {
     }
 
     const caseStatus = await getCaseStatusRecord(sanction.case_id);
-    if (caseStatus && isCaseClosed(caseStatus.status)) {
+    if (caseStatus && String(caseStatus.status || "").toLowerCase() === "dismissed") {
       return res.status(400).json({
         success: false,
-        message: "Resolved or dismissed cases are read-only."
+        message: "Dismissed cases are read-only."
       });
     }
 
@@ -430,6 +503,15 @@ async function updateSanction(req, res) {
       targetId: Number(id),
       details: `Updated sanction for ${sanction.case_number} to status ${nextStatus}`,
       ipAddress: req.ip
+    });
+
+    await notifySanctionStakeholders({
+      caseId: sanction.case_id,
+      studentTitle: "Sanction Updated",
+      studentMessage: `Sanction details for case ${sanction.case_number} were updated. Current status: ${nextStatus}.`,
+      parentTitle: "Sanction Update for Your Child",
+      parentMessage: `Sanction details for case ${sanction.case_number} were updated. Current status: ${nextStatus}.`,
+      smsMessage: `PhilTech Sanction Update: Case ${sanction.case_number} sanction is now ${nextStatus.replaceAll("_", " ")}.${startDate ? ` Start: ${startDate}.` : ""}${endDate ? ` End: ${endDate}.` : ""}`
     });
 
     return res.json({

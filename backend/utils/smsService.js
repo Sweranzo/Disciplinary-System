@@ -12,6 +12,56 @@ function sanitizePhoneNumber(phoneNumber = "") {
   return String(phoneNumber).replace(/[^\d+]/g, "").trim();
 }
 
+function normalizePhilippinesMobile(phoneNumber = "") {
+  const raw = sanitizePhoneNumber(phoneNumber);
+  if (!raw) {
+    return "";
+  }
+
+  if (raw.startsWith("+63")) {
+    return raw;
+  }
+
+  if (raw.startsWith("63")) {
+    return `+${raw}`;
+  }
+
+  if (raw.startsWith("09") && raw.length === 11) {
+    return `+63${raw.slice(1)}`;
+  }
+
+  if (raw.startsWith("9") && raw.length === 10) {
+    return `+63${raw}`;
+  }
+
+  return raw.startsWith("+") ? raw : `+${raw}`;
+}
+
+function normalizeTwilioPhoneNumber(phoneNumber = "") {
+  const raw = sanitizePhoneNumber(phoneNumber);
+  if (!raw) {
+    return "";
+  }
+
+  if (raw.startsWith("+")) {
+    return raw;
+  }
+
+  if (raw.startsWith("09") && raw.length === 11) {
+    return `+63${raw.slice(1)}`;
+  }
+
+  if (raw.startsWith("639") && raw.length === 12) {
+    return `+${raw}`;
+  }
+
+  if (raw.startsWith("9") && raw.length === 10) {
+    return `+63${raw}`;
+  }
+
+  return raw.startsWith("+") ? raw : `+${raw}`;
+}
+
 async function logSms({
   caseId = null,
   parentId = null,
@@ -74,8 +124,93 @@ async function sendViaSemaphore(phoneNumber, message) {
   return bodyText;
 }
 
+async function sendViaTwilio(phoneNumber, message) {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+
+  if (!accountSid || !authToken || !fromNumber) {
+    throw new Error("Twilio credentials are incomplete. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER.");
+  }
+
+  const to = normalizeTwilioPhoneNumber(phoneNumber);
+  const from = normalizeTwilioPhoneNumber(fromNumber);
+  const authHeader = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+  const payload = new URLSearchParams({
+    To: to,
+    From: from,
+    Body: message
+  });
+
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${authHeader}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: payload.toString()
+  });
+
+  const bodyText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(bodyText || `Twilio request failed with status ${response.status}`);
+  }
+
+  return bodyText;
+}
+
+async function sendViaPhilSms(phoneNumber, message) {
+  const apiToken = process.env.PHILSMS_API_TOKEN;
+  const senderId = process.env.PHILSMS_SENDER_ID || process.env.SMS_SENDER_NAME || "PTI";
+
+  if (!apiToken) {
+    throw new Error("PHILSMS_API_TOKEN is not configured.");
+  }
+
+  const recipient = normalizePhilippinesMobile(phoneNumber);
+  const response = await fetch("https://app.philsms.com/api/v3/sms/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiToken}`,
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      recipient,
+      sender_id: senderId,
+      type: "plain",
+      message
+    })
+  });
+
+  const bodyText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(bodyText || `PhilSMS request failed with status ${response.status}`);
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch (error) {
+    throw new Error(bodyText || "PhilSMS returned an unreadable response.");
+  }
+
+  if (String(parsed.status || "").toLowerCase() !== "success") {
+    throw new Error(parsed.message || bodyText || "PhilSMS did not accept the SMS request.");
+  }
+
+  return parsed;
+}
+
 async function sendSms({ caseId = null, parentId = null, phoneNumber, message }) {
-  const normalizedPhone = sanitizePhoneNumber(phoneNumber);
+  const provider = getSmsProvider();
+  const normalizedPhone = provider === "twilio"
+    ? normalizeTwilioPhoneNumber(phoneNumber)
+    : provider === "philsms"
+      ? normalizePhilippinesMobile(phoneNumber)
+      : sanitizePhoneNumber(phoneNumber);
 
   if (!normalizedPhone) {
     await logSms({
@@ -112,10 +247,17 @@ async function sendSms({ caseId = null, parentId = null, phoneNumber, message })
   }
 
   try {
-    switch (getSmsProvider()) {
+    let providerResponse = null;
+    switch (provider) {
+      case "philsms":
+        providerResponse = await sendViaPhilSms(normalizedPhone, message);
+        break;
+      case "twilio":
+        providerResponse = await sendViaTwilio(normalizedPhone, message);
+        break;
       case "semaphore":
       default:
-        await sendViaSemaphore(normalizedPhone, message);
+        providerResponse = await sendViaSemaphore(normalizedPhone, message);
         break;
     }
 
@@ -130,7 +272,8 @@ async function sendSms({ caseId = null, parentId = null, phoneNumber, message })
 
     return {
       success: true,
-      status: "sent"
+      status: "sent",
+      providerResponse
     };
   } catch (error) {
     await logSms({
