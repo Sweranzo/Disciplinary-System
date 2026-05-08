@@ -239,8 +239,8 @@ async function getAllEvidence(req, res) {
         ce.reviewed_at,
         ce.uploaded_at,
         c.case_number,
-        student_user.first_name,
-        student_user.last_name,
+        COALESCE(student_user.first_name, s.first_name) AS first_name,
+        COALESCE(student_user.last_name, s.last_name) AS last_name,
         s.student_number,
         uploader.first_name AS uploaded_by_first_name,
         uploader.last_name AS uploaded_by_last_name,
@@ -248,7 +248,7 @@ async function getAllEvidence(req, res) {
       FROM case_evidence ce
       JOIN cases c ON ce.case_id = c.id
       JOIN students s ON c.student_id = s.id
-      JOIN users student_user ON s.user_id = student_user.id
+      LEFT JOIN users student_user ON s.user_id = student_user.id
       JOIN users uploader ON ce.uploaded_by_user_id = uploader.id
       ORDER BY ce.uploaded_at DESC
       `

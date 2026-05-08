@@ -10,16 +10,33 @@
 
 <div class="dashboard-container">
   <div class="topbar">
-    <h1>Hearing Support Visibility</h1>
     <div>
-      <a href="dashboard.html"><button>Back</button></a>
+      <h1>Hearing Support Visibility</h1>
+      <p class="muted">Track scheduled, completed, and cancelled hearings tied to counselor support work.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
       <button onclick="logout()">Logout</button>
     </div>
   </div>
 
-  <div class="card">
-    <h2>Hearings</h2>
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Hearings</h2>
+        <p class="muted">Open a case to add counselor notes or review student history.</p>
+      </div>
+    </div>
     <div class="table-wrap">
+      <div class="toolbar">
+        <input type="search" id="hearingSearch" placeholder="Search case, student, violation, location">
+        <select id="statusFilter">
+          <option value="">All Statuses</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
       <table>
         <thead>
           <tr>
@@ -30,10 +47,11 @@
             <th>Time</th>
             <th>Location</th>
             <th>Status</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="hearingTable">
-          <tr><td colspan="7">Loading...</td></tr>
+          <tr><td colspan="8">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -47,21 +65,34 @@ requireAuth();
 const user = getUser();
 if (!user || user.role !== "guidance_counselor") { alert("Access denied"); logout(); }
 
+function badge(value) {
+  return `<span class="badge ${value}">${String(value || "-").replaceAll("_", " ")}</span>`;
+}
+
 async function loadHearings() {
   const res = await apiRequest("/hearings/all", "GET", null, true);
   const table = document.getElementById("hearingTable");
 
   if (!res.success) {
-    table.innerHTML = `<tr><td colspan="7">${res.message}</td></tr>`;
+    table.innerHTML = `<tr><td colspan="8">${res.message}</td></tr>`;
     return;
   }
 
-  if (!res.hearings.length) {
-    table.innerHTML = `<tr><td colspan="7">No hearings found.</td></tr>`;
+  allHearings = res.hearings || [];
+  applyFilters();
+}
+
+let allHearings = [];
+
+function renderHearings(items) {
+  const table = document.getElementById("hearingTable");
+
+  if (!items.length) {
+    table.innerHTML = `<tr><td colspan="8">No hearings found.</td></tr>`;
     return;
   }
 
-  table.innerHTML = res.hearings.map(h => `
+  table.innerHTML = items.map(h => `
     <tr>
       <td>${h.case_number}</td>
       <td>${h.first_name} ${h.last_name} (${h.student_number})</td>
@@ -69,11 +100,34 @@ async function loadHearings() {
       <td>${h.scheduled_date}</td>
       <td>${h.scheduled_time}</td>
       <td>${h.location || "-"}</td>
-      <td>${h.status}</td>
+      <td>${badge(h.status)}</td>
+      <td><a href="case-details.html?id=${h.case_id}"><button type="button">Open Case</button></a></td>
     </tr>
   `).join("");
 }
 
+function applyFilters() {
+  const search = document.getElementById("hearingSearch").value.trim().toLowerCase();
+  const status = document.getElementById("statusFilter").value;
+
+  renderHearings(allHearings.filter(h => {
+    const matchesStatus = !status || h.status === status;
+    const matchesSearch = !search || [
+      h.case_number,
+      h.first_name,
+      h.last_name,
+      h.student_number,
+      h.violation_type,
+      h.location,
+      h.status
+    ].some(value => String(value || "").toLowerCase().includes(search));
+
+    return matchesStatus && matchesSearch;
+  }));
+}
+
+document.getElementById("hearingSearch").addEventListener("input", applyFilters);
+document.getElementById("statusFilter").addEventListener("change", applyFilters);
 loadHearings();
 </script>
 

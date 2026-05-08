@@ -132,7 +132,7 @@ async function createHearing(req, res) {
       studentMessage: `A hearing has been scheduled for case ${caseItem.case_number} on ${scheduledDate} at ${scheduledTime}.`,
       parentTitle: "Hearing Scheduled for Your Child",
       parentMessage: `A hearing has been scheduled for case ${caseItem.case_number} on ${scheduledDate} at ${scheduledTime}.`,
-      smsMessage: `PhilTech Hearing Notice: A hearing for case ${caseItem.case_number} is scheduled on ${scheduledDate} at ${scheduledTime}.${location ? ` Location: ${location}.` : ""} Please check the portal for details.`
+      smsMessage: `Philtech-GMA Hearing Notice: A hearing for case ${caseItem.case_number} is scheduled on ${scheduledDate} at ${scheduledTime}.${location ? ` Location: ${location}.` : ""} Please check the portal for details.`
     });
 
     return res.status(201).json({
@@ -332,7 +332,7 @@ async function updateHearing(req, res) {
       studentMessage: `Hearing details for case ${hearing.case_number} were updated. Current status: ${nextStatus}.`,
       parentTitle: "Hearing Update for Your Child",
       parentMessage: `Hearing details for case ${hearing.case_number} were updated. Current status: ${nextStatus}.`,
-      smsMessage: `PhilTech Hearing Update: Case ${hearing.case_number} hearing is now ${nextStatus}.${scheduledDate ? ` Date: ${scheduledDate}.` : ""}${scheduledTime ? ` Time: ${scheduledTime}.` : ""}${location ? ` Location: ${location}.` : ""}`
+      smsMessage: `Philtech-GMA Hearing Update: Case ${hearing.case_number} hearing is now ${nextStatus}.${scheduledDate ? ` Date: ${scheduledDate}.` : ""}${scheduledTime ? ` Time: ${scheduledTime}.` : ""}${location ? ` Location: ${location}.` : ""}`
     });
 
     return res.json({

@@ -103,6 +103,7 @@ async function getMyAppeals(req, res) {
       SELECT
         a.id,
         a.case_id,
+        a.student_id,
         a.reason,
         a.status,
         a.decision_notes,
@@ -158,6 +159,7 @@ async function getAllAppeals(req, res) {
       SELECT
         a.id,
         a.case_id,
+        a.student_id,
         a.reason,
         a.status,
         a.decision_notes,
@@ -166,15 +168,15 @@ async function getAllAppeals(req, res) {
         c.case_number,
         c.violation_type,
         s.student_number,
-        student_user.first_name,
-        student_user.last_name,
+        COALESCE(student_user.first_name, s.first_name) AS first_name,
+        COALESCE(student_user.last_name, s.last_name) AS last_name,
         reviewer.first_name AS reviewed_by_first_name,
         reviewer.last_name AS reviewed_by_last_name,
         reviewer.role AS reviewed_by_role
       FROM appeals a
       JOIN cases c ON a.case_id = c.id
       JOIN students s ON a.student_id = s.id
-      JOIN users student_user ON s.user_id = student_user.id
+      LEFT JOIN users student_user ON s.user_id = student_user.id
       LEFT JOIN users reviewer ON a.reviewed_by_user_id = reviewer.id
       ${whereClause}
       ORDER BY a.created_at DESC
@@ -213,7 +215,7 @@ async function reviewAppeal(req, res) {
 
     const [rows] = await pool.query(
       `
-      SELECT a.id, c.case_number
+      SELECT a.id, a.case_id, c.case_number
       FROM appeals a
       JOIN cases c ON a.case_id = c.id
       WHERE a.id = ?

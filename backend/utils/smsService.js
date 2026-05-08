@@ -162,7 +162,7 @@ async function sendViaTwilio(phoneNumber, message) {
 
 async function sendViaPhilSms(phoneNumber, message) {
   const apiToken = process.env.PHILSMS_API_TOKEN;
-  const senderId = process.env.PHILSMS_SENDER_ID || process.env.SMS_SENDER_NAME || "PTI";
+  const senderId = process.env.PHILSMS_SENDER_ID || process.env.SMS_SENDER_NAME || "PhiltechGMA";
 
   if (!apiToken) {
     throw new Error("PHILSMS_API_TOKEN is not configured.");

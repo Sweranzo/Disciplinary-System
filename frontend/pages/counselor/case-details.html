@@ -101,6 +101,16 @@
       <div id="appealContainer">Loading...</div>
     </div>
   </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Evidence</h2>
+        <p class="muted">Uploaded files and review status for this case.</p>
+      </div>
+    </div>
+    <div id="evidenceContainer">Loading...</div>
+  </div>
 </div>
 
 <script src="../../js/core/api.js"></script>
@@ -132,9 +142,19 @@ function formatDate(value) {
 }
 
 async function loadCaseDetails() {
-  const [caseRes, interventionsRes] = await Promise.all([
+  if (!caseId) {
+    document.getElementById("caseInfo").innerHTML = `<div class="empty-state">No case was selected.</div>`;
+    document.getElementById("timelineContainer").innerHTML = "";
+    document.getElementById("supportContainer").innerHTML = "";
+    document.getElementById("appealContainer").innerHTML = "";
+    document.getElementById("evidenceContainer").innerHTML = "";
+    return;
+  }
+
+  const [caseRes, interventionsRes, evidenceRes] = await Promise.all([
     apiRequest(`/cases/${caseId}`, "GET", null, true),
-    apiRequest(`/counselor/interventions?caseId=${caseId}`, "GET", null, true)
+    apiRequest(`/counselor/interventions?caseId=${caseId}`, "GET", null, true),
+    apiRequest(`/evidence/case/${caseId}`, "GET", null, true)
   ]);
 
   if (!caseRes.success) {
@@ -142,6 +162,7 @@ async function loadCaseDetails() {
     document.getElementById("timelineContainer").innerHTML = "";
     document.getElementById("supportContainer").innerHTML = "";
     document.getElementById("appealContainer").innerHTML = "";
+    document.getElementById("evidenceContainer").innerHTML = "";
     return;
   }
 
@@ -262,6 +283,21 @@ async function loadCaseDetails() {
         <p><strong>${badge(appeal.status)}</strong></p>
         <p>${appeal.reason}</p>
         <p>${appeal.decision_notes || "No decision notes yet."}</p>
+      </div>
+    `
+  );
+
+  document.getElementById("evidenceContainer").innerHTML = renderList(
+    evidenceRes.success ? evidenceRes.evidence : [],
+    "No evidence has been uploaded for this case.",
+    evidence => `
+      <div class="detail-item">
+        <p><strong>${evidence.original_name || evidence.file_name}</strong> ${badge(evidence.review_status)}</p>
+        <p>Uploaded by ${evidence.uploaded_by_first_name || "-"} ${evidence.uploaded_by_last_name || ""} (${evidence.uploaded_by_role_label || "staff"})</p>
+        <p class="muted">${evidence.review_notes || "No review notes yet."}</p>
+        <div class="action-row">
+          <a href="http://localhost:5000${evidence.file_path}" target="_blank"><button type="button">Open Evidence</button></a>
+        </div>
       </div>
     `
   );

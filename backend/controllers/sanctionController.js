@@ -212,7 +212,7 @@ async function createSanction(req, res) {
       studentMessage: `A sanction was assigned for case ${caseItem.case_number}. Please review the sanction details in the portal.`,
       parentTitle: "Sanction Assigned for Your Child",
       parentMessage: `A sanction was assigned for case ${caseItem.case_number}. Please review the sanction details in the portal.`,
-      smsMessage: `PhilTech Sanction Notice: A ${String(sanctionType).replaceAll("_", " ")} sanction was assigned for case ${caseItem.case_number}.${startDate ? ` Start: ${startDate}.` : ""}${endDate ? ` End: ${endDate}.` : ""}`
+      smsMessage: `Philtech-GMA Sanction Notice: A ${String(sanctionType).replaceAll("_", " ")} sanction was assigned for case ${caseItem.case_number}.${startDate ? ` Start: ${startDate}.` : ""}${endDate ? ` End: ${endDate}.` : ""}`
     });
 
     return res.json({
@@ -511,7 +511,7 @@ async function updateSanction(req, res) {
       studentMessage: `Sanction details for case ${sanction.case_number} were updated. Current status: ${nextStatus}.`,
       parentTitle: "Sanction Update for Your Child",
       parentMessage: `Sanction details for case ${sanction.case_number} were updated. Current status: ${nextStatus}.`,
-      smsMessage: `PhilTech Sanction Update: Case ${sanction.case_number} sanction is now ${nextStatus.replaceAll("_", " ")}.${startDate ? ` Start: ${startDate}.` : ""}${endDate ? ` End: ${endDate}.` : ""}`
+      smsMessage: `Philtech-GMA Sanction Update: Case ${sanction.case_number} sanction is now ${nextStatus.replaceAll("_", " ")}.${startDate ? ` Start: ${startDate}.` : ""}${endDate ? ` End: ${endDate}.` : ""}`
     });
 
     return res.json({

@@ -6,49 +6,82 @@
   <title>Login</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body class="no-app-sidebar">
+<body class="no-app-sidebar auth-page">
 
-<div class="dashboard-container" style="padding-top:48px; padding-bottom:48px;">
-  <div class="hero-grid">
-    <div class="topbar" style="min-height: 100%;">
-      <div>
-        <span class="eyebrow">Disciplinary System</span>
-        <h1 style="margin-top:16px;">Secure case handling for schools, staff, students, and families.</h1>
-        <p class="muted">Access case management, hearings, sanctions, evidence review, student records, and role-based dashboards from one connected system.</p>
-      </div>
-    </div>
-
-    <div class="login-container" style="margin:0;">
-      <div class="card-header">
+<main class="auth-shell">
+  <section class="auth-hero" aria-label="System overview">
+    <div class="auth-hero-content">
+      <div class="auth-brand-row">
+        <img src="../../Philtech-logo.png" alt="Philtech-GMA logo" class="auth-crest">
         <div>
-          <h2>Sign In</h2>
-          <p class="muted">Use your assigned account to open the correct dashboard for your role.</p>
+          <span class="auth-kicker">Disciplinary System</span>
+          <p>Philtech-GMA Student Support</p>
         </div>
       </div>
 
-      <input type="text" id="usernameOrEmail" placeholder="Username or Email" value="admin1">
-      <input type="password" id="password" placeholder="Password" value="123456">
-
-      <button id="loginBtn" class="full-width">Login</button>
-
-      <div class="detail-item" style="margin-top:16px;">
-        <p><strong>Demo access</strong></p>
-        <p class="muted">The seeded credentials above are still available for quick local testing.</p>
+      <div>
+        <h1>Case handling that feels organized, secure, and ready for school teams.</h1>
+        <p class="auth-lead">Manage reports, hearings, sanctions, evidence, appeals, and role-based dashboards from one connected workspace.</p>
       </div>
 
-      <p id="error" style="color:#b03a3a; margin-top:16px;"></p>
+      <div class="auth-feature-grid" aria-label="System highlights">
+        <div>
+          <span>01</span>
+          <strong>Role dashboards</strong>
+          <p>Admin, discipline, teacher, counselor, student, and parent views.</p>
+        </div>
+        <div>
+          <span>02</span>
+          <strong>Clear records</strong>
+          <p>Structured case history with evidence and hearing details.</p>
+        </div>
+        <div>
+          <span>03</span>
+          <strong>Fast access</strong>
+          <p>Seeded local accounts stay available for quick testing.</p>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
+  </section>
+
+  <section class="auth-panel" aria-label="Login form">
+    <div class="auth-card">
+      <div class="auth-card-header">
+        <span class="auth-status">Secure portal</span>
+        <h2>Welcome back</h2>
+        <p>Sign in with your assigned account to open the correct dashboard.</p>
+      </div>
+
+      <form class="auth-form" id="loginForm">
+        <label for="usernameOrEmail">Username or Email</label>
+        <input type="text" id="usernameOrEmail" placeholder="Enter username or email" value="admin" autocomplete="username">
+
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter password" value="123456" autocomplete="current-password">
+
+        <button id="loginBtn" class="full-width" type="submit">Sign in</button>
+      </form>
+
+      <div class="auth-demo-note">
+        <strong>Demo access</strong>
+        <p>The seeded credentials above are ready for local testing.</p>
+      </div>
+
+      <p id="error" class="auth-error" role="alert"></p>
+    </div>
+  </section>
+</main>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
 
 <script>
-const loginBtn = document.getElementById("loginBtn");
+const loginForm = document.getElementById("loginForm");
 const errorEl = document.getElementById("error");
 
-loginBtn.addEventListener("click", async () => {
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
   const usernameOrEmail = document.getElementById("usernameOrEmail").value;
   const password = document.getElementById("password").value;
 

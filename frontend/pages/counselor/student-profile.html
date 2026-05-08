@@ -8,40 +8,78 @@
 </head>
 <body>
 
-<div class="dashboard-container">
+  <div class="dashboard-container">
   <div class="topbar">
-    <h1>Student History and Profile</h1>
     <div>
-      <a href="cases.html"><button>Back</button></a>
+      <h1>Student History and Profile</h1>
+      <p class="muted">Review student identity, QR record, family links, case history, and counselor notes.</p>
+    </div>
+    <div class="action-row">
+      <a href="cases.html"><button class="secondary">Back</button></a>
       <button onclick="logout()">Logout</button>
     </div>
   </div>
 
-  <div class="card">
-    <h2>Student Overview</h2>
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2 id="primaryCardTitle">Student Overview</h2>
+        <p class="muted" id="profileMeta">Loading student record...</p>
+      </div>
+    </div>
     <div id="studentInfo">Loading...</div>
   </div>
 
-  <div class="split-grid">
+  <div class="split-grid page-section profile-detail-section">
     <div class="card">
-      <h2>Parents / Guardians</h2>
+      <div class="card-header">
+        <div>
+          <h2>Parents / Guardians</h2>
+          <p class="muted">Linked family contacts for follow-up coordination.</p>
+        </div>
+      </div>
       <div id="parentsInfo">Loading...</div>
     </div>
     <div class="card">
-      <h2>Recent Cases and Sanctions</h2>
+      <div class="card-header">
+        <div>
+          <h2>Recent Cases and Sanctions</h2>
+          <p class="muted">Case context and sanction monitoring for guidance support.</p>
+        </div>
+      </div>
       <div id="historyInfo">Loading...</div>
     </div>
   </div>
 
-  <div class="split-grid">
+  <div class="split-grid page-section profile-detail-section">
     <div class="card">
-      <h2>Hearings</h2>
+      <div class="card-header">
+        <div>
+          <h2>Hearings</h2>
+          <p class="muted">Scheduled and completed hearing activity.</p>
+        </div>
+      </div>
       <div id="hearingsInfo">Loading...</div>
     </div>
     <div class="card">
-      <h2>Appeals</h2>
+      <div class="card-header">
+        <div>
+          <h2>Appeals</h2>
+          <p class="muted">Appeal submissions and decisions tied to this student.</p>
+        </div>
+      </div>
       <div id="appealsInfo">Loading...</div>
     </div>
+  </div>
+
+  <div class="card page-section profile-detail-section">
+    <div class="card-header">
+      <div>
+        <h2>Counselor Notes</h2>
+        <p class="muted">Interventions, behavior notes, recommendations, and follow-up records you have entered.</p>
+      </div>
+    </div>
+    <div id="interventionsInfo">Loading...</div>
   </div>
 </div>
 
@@ -57,46 +95,256 @@ if (!user || user.role !== "guidance_counselor") {
 }
 
 const studentId = new URLSearchParams(window.location.search).get("id");
+let allStudents = [];
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value || "-").replaceAll("_", " ")}</span>`;
+}
+
+function renderList(items, emptyMessage, mapFn) {
+  if (!items || !items.length) {
+    return `<div class="empty-state">${emptyMessage}</div>`;
+  }
+
+  return `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
+}
+
+function getStudentFullName(student) {
+  return [student.first_name, student.middle_name, student.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim() || student.student_number || "Student";
+}
+
+function getInitials(student) {
+  const first = student.first_name?.[0] || student.student_number?.[0] || "S";
+  const last = student.last_name?.[0] || "";
+  return `${first}${last}`.toUpperCase();
+}
+
+function studentAvatarMarkup(student) {
+  const fullName = getStudentFullName(student);
+  if (student.avatar_url) {
+    return `<span class="student-avatar student-profile-avatar has-image"><img src="${student.avatar_url}" alt="${fullName} avatar"></span>`;
+  }
+
+  return `<span class="student-avatar student-profile-avatar student-avatar-fallback" aria-label="${fullName} avatar placeholder">${getInitials(student)}</span>`;
+}
+
+function setDetailSectionsVisible(isVisible) {
+  document.querySelectorAll(".profile-detail-section").forEach(section => {
+    section.style.display = isVisible ? "" : "none";
+  });
+}
+
+function compactStudentAvatarMarkup(student) {
+  const fullName = getStudentFullName(student);
+  if (student.avatar_url) {
+    return `<span class="student-avatar has-image"><img src="${student.avatar_url}" alt="${fullName} avatar"></span>`;
+  }
+
+  return `<span class="student-avatar student-avatar-fallback" aria-label="${fullName} avatar placeholder">${getInitials(student)}</span>`;
+}
+
+function renderStudentDirectory(students) {
+  const studentInfo = document.getElementById("studentInfo");
+
+  if (!students.length) {
+    studentInfo.innerHTML = `<div class="empty-state">No students matched your search.</div>`;
+    return;
+  }
+
+  studentInfo.innerHTML = `
+    <div class="toolbar">
+      <input type="search" id="studentSearch" placeholder="Search name, student number, program, section, or status">
+      <select id="studentStatusFilter">
+        <option value="">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </div>
+    <div class="table-wrap" style="margin-top:16px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Student Number</th>
+            <th>Program</th>
+            <th>Year / Section</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="studentDirectoryRows"></tbody>
+      </table>
+    </div>
+  `;
+
+  document.getElementById("studentSearch").addEventListener("input", applyStudentFilters);
+  document.getElementById("studentStatusFilter").addEventListener("change", applyStudentFilters);
+  renderStudentRows(students);
+}
+
+function renderStudentRows(students) {
+  const rows = document.getElementById("studentDirectoryRows");
+
+  if (!rows) {
+    return;
+  }
+
+  if (!students.length) {
+    rows.innerHTML = `<tr><td colspan="6">No students matched your search.</td></tr>`;
+    return;
+  }
+
+  rows.innerHTML = students.map(student => {
+    const fullName = getStudentFullName(student);
+    return `
+      <tr>
+        <td>
+          <div class="student-cell">
+            ${compactStudentAvatarMarkup(student)}
+            <div>
+              <strong>${fullName}</strong><br>
+              <span class="muted">${student.email || "No email"}</span>
+            </div>
+          </div>
+        </td>
+        <td>${student.student_number}</td>
+        <td>${student.program || "-"}</td>
+        <td>${student.year_level || "-"} / ${student.section || "-"}</td>
+        <td>${badge(student.status)}</td>
+        <td><a href="student-profile.html?id=${student.id}"><button type="button">Open Profile</button></a></td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function applyStudentFilters() {
+  const search = document.getElementById("studentSearch")?.value.trim().toLowerCase() || "";
+  const status = document.getElementById("studentStatusFilter")?.value || "";
+
+  const filtered = allStudents.filter(student => {
+    const matchesStatus = !status || student.status === status;
+    const matchesSearch = !search || [
+      student.student_number,
+      student.first_name,
+      student.middle_name,
+      student.last_name,
+      student.email,
+      student.department,
+      student.program,
+      student.year_level,
+      student.section,
+      student.status
+    ].some(value => String(value || "").toLowerCase().includes(search));
+
+    return matchesStatus && matchesSearch;
+  });
+
+  renderStudentRows(filtered);
+}
+
+async function loadStudentDirectory() {
+  setDetailSectionsVisible(false);
+  document.getElementById("primaryCardTitle").textContent = "Student Profiles";
+  document.getElementById("profileMeta").textContent = "Select a student to open the full guidance profile.";
+  document.getElementById("studentInfo").innerHTML = "Loading students...";
+
+  const res = await apiRequest("/students/all?limit=50", "GET", null, true);
+
+  if (!res.success) {
+    document.getElementById("studentInfo").innerHTML = `<div class="empty-state">${res.message}</div>`;
+    return;
+  }
+
+  allStudents = res.students || [];
+  renderStudentDirectory(allStudents);
+}
 
 async function loadProfile() {
-  const res = await apiRequest(`/students/${studentId}`, "GET", null, true);
+  if (!studentId) {
+    return loadStudentDirectory();
+  }
+
+  setDetailSectionsVisible(true);
+
+  const [res, interventionsRes] = await Promise.all([
+    apiRequest(`/students/${studentId}`, "GET", null, true),
+    apiRequest(`/counselor/interventions?studentId=${studentId}`, "GET", null, true)
+  ]);
+
   if (!res.success) {
-    document.getElementById("studentInfo").textContent = res.message;
+    document.getElementById("studentInfo").innerHTML = `<div class="empty-state">${res.message}</div>`;
+    document.getElementById("interventionsInfo").innerHTML = "";
     return;
   }
 
   const student = res.student;
+  const fullName = getStudentFullName(student);
+  document.getElementById("profileMeta").innerHTML =
+    `${fullName} | ${student.student_number} | ${badge(student.status)}`;
+
   document.getElementById("studentInfo").innerHTML = `
-    <div class="info-grid">
-      <div><strong>Name</strong><span>${student.first_name} ${student.last_name}</span></div>
-      <div><strong>Student #</strong><span>${student.student_number}</span></div>
-      <div><strong>Program</strong><span>${student.program || "-"}</span></div>
-      <div><strong>Year / Section</strong><span>${student.year_level || "-"} / ${student.section || "-"}</span></div>
-      <div><strong>Academic Level</strong><span>${student.academic_level || "-"}</span></div>
-      <div><strong>Status</strong><span>${student.status}</span></div>
+    <div class="student-profile-shell">
+      <div class="student-profile-hero">
+        <div class="student-profile-identity">
+          ${studentAvatarMarkup(student)}
+          <div class="student-profile-copy">
+            <span class="eyebrow">Student Identity</span>
+            <h2>${fullName}</h2>
+            <p>${student.student_number} | ${student.program || "No program"} | ${student.section || "No section"}</p>
+            <div class="student-profile-meta">
+              <span>${student.has_account ? "Linked account" : "Profile only"}</span>
+              ${badge(student.status)}
+            </div>
+          </div>
+        </div>
+        <div class="student-qr-panel">
+          ${student.qr_code_data_url ? `<img class="student-qr-thumb" src="${student.qr_code_data_url}" alt="QR for ${student.student_number}">` : `<div class="empty-state">QR not generated</div>`}
+          <div>
+            <strong>QR Code</strong>
+            <p class="muted">${student.qr_token || "No QR token"}</p>
+          </div>
+        </div>
+      </div>
+      <div class="student-profile-grid">
+        <div class="student-profile-stat"><strong>Email</strong><span>${student.email || "-"}</span></div>
+        <div class="student-profile-stat"><strong>Department</strong><span>${student.department || "-"}</span></div>
+        <div class="student-profile-stat"><strong>Program</strong><span>${student.program || "-"}</span></div>
+        <div class="student-profile-stat"><strong>Year / Section</strong><span>${student.year_level || "-"} / ${student.section || "-"}</span></div>
+        <div class="student-profile-stat"><strong>Academic Level</strong><span>${student.academic_level || "-"}</span></div>
+        <div class="student-profile-stat"><strong>Account Mode</strong><span>${student.has_account ? "Linked account" : "Profile only"}</span></div>
+      </div>
     </div>
   `;
 
-  document.getElementById("parentsInfo").innerHTML = res.parents.length
-    ? res.parents.map(parent => `
+  document.getElementById("parentsInfo").innerHTML = renderList(
+    res.parents,
+    "No linked parents found.",
+    parent => `
         <div class="detail-item">
-          <p><strong>${parent.first_name} ${parent.last_name}</strong> (${parent.relationship || "Not set"})</p>
-          <p>${parent.email}</p>
-          <p>${parent.phone_number || "-"}</p>
+          <p><strong>${parent.first_name} ${parent.last_name}</strong> ${badge(parent.relationship || "linked")}</p>
+          <p>Email: ${parent.email || "-"}</p>
+          <p>Phone: ${parent.phone_number || "-"}</p>
         </div>
-      `).join("")
-    : "<p>No linked parents found.</p>";
+      `
+  );
 
   const cases = res.recentCases.map(item => `
     <div class="detail-item">
-      <p><strong>${item.case_number}</strong></p>
-      <p>${item.violation_type} | ${item.status}</p>
+      <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
+      <p>${item.violation_type} | ${badge(item.severity_level)}</p>
+      <div class="action-row">
+        <a href="case-details.html?id=${item.id}"><button type="button">Open Case</button></a>
+      </div>
     </div>
   `).join("");
 
   const sanctions = res.sanctions.map(item => `
     <div class="detail-item">
-      <p><strong>${item.sanction_type}</strong> (${item.status})</p>
+      <p><strong>${item.sanction_type}</strong> ${badge(item.status)}</p>
       <p>${item.start_date || "-"} to ${item.end_date || "-"}</p>
     </div>
   `).join("");
@@ -106,7 +354,7 @@ async function loadProfile() {
   document.getElementById("hearingsInfo").innerHTML = res.hearings.length
     ? res.hearings.map(item => `
         <div class="detail-item">
-          <p><strong>${item.case_number}</strong> (${item.status})</p>
+          <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
           <p>${item.scheduled_date} ${item.scheduled_time} at ${item.location || "-"}</p>
         </div>
       `).join("")
@@ -115,12 +363,27 @@ async function loadProfile() {
   document.getElementById("appealsInfo").innerHTML = res.appeals.length
     ? res.appeals.map(item => `
         <div class="detail-item">
-          <p><strong>${item.case_number}</strong> (${item.status})</p>
+          <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
           <p>${item.reason}</p>
           <p>${item.decision_notes || "No decision notes yet."}</p>
         </div>
       `).join("")
     : "<p>No appeals found.</p>";
+
+  document.getElementById("interventionsInfo").innerHTML = renderList(
+    interventionsRes.success ? interventionsRes.interventions : [],
+    "No counselor notes have been recorded for this student yet.",
+    note => `
+      <div class="detail-item">
+        <p><strong>${note.case_number}</strong> ${badge(note.status)}</p>
+        <p>${String(note.note_type).replaceAll("_", " ")}: ${note.note}</p>
+        <p class="muted">Follow-up: ${note.follow_up_date || "-"} | Recorded ${note.created_at || "-"}</p>
+        <div class="action-row">
+          <a href="case-details.html?id=${note.case_id}"><button type="button">Open Case Notes</button></a>
+        </div>
+      </div>
+    `
+  );
 }
 
 loadProfile();

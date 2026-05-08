@@ -30,7 +30,7 @@ router.get(
 router.get(
   "/all",
   verifyToken,
-  allowRoles("admin", "discipline_officer"),
+  allowRoles("admin", "discipline_officer", "guidance_counselor"),
   getAllEvidence
 );
 

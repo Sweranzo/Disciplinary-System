@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Counselor Appeal Visibility</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <h1>Appeal Visibility</h1>
+      <p class="muted">Review appeal activity connected to student support and counselor-visible case context.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Appeals</h2>
+        <p class="muted">Counselors can view appeal status and decisions without changing board outcomes.</p>
+      </div>
+    </div>
+    <div class="toolbar">
+      <input type="search" id="appealSearch" placeholder="Search case, student, reason, decision notes">
+      <select id="statusFilter">
+        <option value="">All Appeals</option>
+        <option value="submitted">Submitted</option>
+        <option value="under_review">Under Review</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+      </select>
+      <button id="refreshBtn">Refresh</button>
+    </div>
+    <div id="appealsList">Loading...</div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+const user = getUser();
+if (!user || user.role !== "guidance_counselor") {
+  alert("Access denied");
+  logout();
+}
+
+function badge(value) {
+  return `<span class="badge ${value}">${String(value || "-").replaceAll("_", " ")}</span>`;
+}
+
+let allAppeals = [];
+
+async function loadAppeals() {
+  const status = document.getElementById("statusFilter").value;
+  const path = status ? `/appeals/all?status=${encodeURIComponent(status)}` : "/appeals/all";
+  const res = await apiRequest(path, "GET", null, true);
+  const list = document.getElementById("appealsList");
+
+  if (!res.success) {
+    list.innerHTML = `<div class="empty-state">${res.message}</div>`;
+    return;
+  }
+
+  allAppeals = res.appeals || [];
+  applySearch();
+}
+
+function renderAppeals(items) {
+  const list = document.getElementById("appealsList");
+
+  if (!items.length) {
+    list.innerHTML = `<div class="empty-state">No appeals found.</div>`;
+    return;
+  }
+
+  list.innerHTML = `<div class="detail-list">${items.map(appeal => `
+    <div class="detail-item">
+      <p><strong>${appeal.case_number}</strong> ${badge(appeal.status)}</p>
+      <p>${appeal.first_name} ${appeal.last_name} (${appeal.student_number})</p>
+      <p>${appeal.reason}</p>
+      <p class="muted">${appeal.decision_notes || "No decision notes yet."}</p>
+      <div class="action-row">
+        <a href="case-details.html?id=${appeal.case_id}"><button type="button">Open Case</button></a>
+        <a href="student-profile.html?id=${appeal.student_id || ""}"><button type="button" class="secondary">Student Profile</button></a>
+      </div>
+    </div>
+  `).join("")}</div>`;
+}
+
+function applySearch() {
+  const search = document.getElementById("appealSearch").value.trim().toLowerCase();
+  renderAppeals(allAppeals.filter(appeal => !search || [
+    appeal.case_number,
+    appeal.first_name,
+    appeal.last_name,
+    appeal.student_number,
+    appeal.violation_type,
+    appeal.reason,
+    appeal.decision_notes,
+    appeal.status
+  ].some(value => String(value || "").toLowerCase().includes(search))));
+}
+
+document.getElementById("refreshBtn").addEventListener("click", loadAppeals);
+document.getElementById("statusFilter").addEventListener("change", loadAppeals);
+document.getElementById("appealSearch").addEventListener("input", applySearch);
+loadAppeals();
+</script>
+
+</body>
+</html>

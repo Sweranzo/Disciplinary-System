@@ -10,16 +10,35 @@
 
 <div class="dashboard-container">
   <div class="topbar">
-    <h1>Sanction Follow-Up Visibility</h1>
     <div>
-      <a href="dashboard.html"><button>Back</button></a>
+      <h1>Sanction Follow-Up Visibility</h1>
+      <p class="muted">Monitor sanctions that may require guidance follow-up or student support planning.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button class="secondary">Back</button></a>
       <button onclick="logout()">Logout</button>
     </div>
   </div>
 
-  <div class="card">
-    <h2>Sanctions</h2>
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Sanctions</h2>
+        <p class="muted">Open the case or student profile to record intervention notes.</p>
+      </div>
+    </div>
     <div class="table-wrap">
+      <div class="toolbar">
+        <input type="search" id="sanctionSearch" placeholder="Search case, student, sanction, violation">
+        <select id="statusFilter">
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="due_soon">Due Soon</option>
+          <option value="overdue">Overdue</option>
+          <option value="fulfilled">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
       <table>
         <thead>
           <tr>
@@ -28,10 +47,11 @@
             <th>Type</th>
             <th>Status</th>
             <th>Schedule</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="sanctionTable">
-          <tr><td colspan="5">Loading...</td></tr>
+          <tr><td colspan="6">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -45,31 +65,73 @@ requireAuth();
 const user = getUser();
 if (!user || user.role !== "guidance_counselor") { alert("Access denied"); logout(); }
 
+function badge(value) {
+  return `<span class="badge ${value}">${String(value || "-").replaceAll("_", " ")}</span>`;
+}
+
 async function loadSanctions() {
   const res = await apiRequest("/sanctions/all", "GET", null, true);
   const table = document.getElementById("sanctionTable");
 
   if (!res.success) {
-    table.innerHTML = `<tr><td colspan="5">${res.message}</td></tr>`;
+    table.innerHTML = `<tr><td colspan="6">${res.message}</td></tr>`;
     return;
   }
 
-  if (!res.sanctions.length) {
-    table.innerHTML = `<tr><td colspan="5">No sanctions found.</td></tr>`;
+  allSanctions = res.sanctions || [];
+  applyFilters();
+}
+
+let allSanctions = [];
+
+function renderSanctions(items) {
+  const table = document.getElementById("sanctionTable");
+
+  if (!items.length) {
+    table.innerHTML = `<tr><td colspan="6">No sanctions found.</td></tr>`;
     return;
   }
 
-  table.innerHTML = res.sanctions.map(s => `
+  table.innerHTML = items.map(s => `
     <tr>
       <td>${s.case_number}</td>
       <td>${s.first_name} ${s.last_name} (${s.student_number})</td>
       <td>${s.sanction_type}</td>
-      <td>${s.status}</td>
+      <td>${badge(s.display_status || s.status)}</td>
       <td>${s.start_date || "-"} to ${s.end_date || "-"}</td>
+      <td>
+        <div class="action-row">
+          <a href="case-details.html?id=${s.case_id}"><button type="button">Open Case</button></a>
+          <a href="student-profile.html?id=${s.student_id}"><button type="button" class="secondary">Student</button></a>
+        </div>
+      </td>
     </tr>
   `).join("");
 }
 
+function applyFilters() {
+  const search = document.getElementById("sanctionSearch").value.trim().toLowerCase();
+  const status = document.getElementById("statusFilter").value;
+
+  renderSanctions(allSanctions.filter(s => {
+    const displayStatus = s.display_status || s.status;
+    const matchesStatus = !status || displayStatus === status || s.status === status;
+    const matchesSearch = !search || [
+      s.case_number,
+      s.first_name,
+      s.last_name,
+      s.student_number,
+      s.sanction_type,
+      s.violation_type,
+      displayStatus
+    ].some(value => String(value || "").toLowerCase().includes(search));
+
+    return matchesStatus && matchesSearch;
+  }));
+}
+
+document.getElementById("sanctionSearch").addEventListener("input", applyFilters);
+document.getElementById("statusFilter").addEventListener("change", applyFilters);
 loadSanctions();
 </script>
 

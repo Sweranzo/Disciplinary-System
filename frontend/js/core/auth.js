@@ -62,9 +62,9 @@ function ensureTransitionVeil() {
   veil.className = "page-transition-veil";
   veil.innerHTML = `
     <div class="page-transition-card">
-      <img src="${getBrandAssetUrl()}" alt="Philippine Technological Institute crest">
+      <img src="${getBrandAssetUrl()}" alt="Philtech-GMA logo">
       <div class="page-transition-copy">
-        <strong>PTI Disciplinary System</strong>
+        <strong>Philtech-GMA Disciplinary System</strong>
         <span>Loading workspace...</span>
       </div>
       <div class="page-transition-spinner" aria-hidden="true"></div>
@@ -103,13 +103,13 @@ function getBrandAssetUrl() {
     .find(link => (link.getAttribute("href") || "").includes("styles.css"));
 
   if (!stylesheet) {
-    return "../../assets/pti-crest.svg";
+    return "../../Philtech-logo.png";
   }
 
   try {
-    return new URL("../assets/pti-crest.svg", stylesheet.href).href;
+    return new URL("../Philtech-logo.png", stylesheet.href).href;
   } catch (error) {
-    return "../../assets/pti-crest.svg";
+    return "../../Philtech-logo.png";
   }
 }
 
@@ -222,6 +222,8 @@ function getRoleNavItems(role) {
         { label: "Cases", path: "counselor/cases.html" },
         { label: "Hearings", path: "counselor/hearings.html" },
         { label: "Sanctions", path: "counselor/sanctions.html" },
+        { label: "Appeals", path: "counselor/appeals.html" },
+        { label: "Evidence", path: "counselor/evidence.html" },
         { label: "Student Profiles", path: "counselor/student-profile.html" },
         { label: "Notifications", path: "common/notifications.html" }
       ];
@@ -302,9 +304,9 @@ function injectBranding() {
     const brand = document.createElement("div");
     brand.className = "brand-lockup";
     brand.innerHTML = `
-      <img src="${brandAssetUrl}" alt="Philippine Technological Institute crest">
+      <img src="${brandAssetUrl}" alt="Philtech-GMA logo">
       <div class="brand-copy">
-        <strong>Philippine Technological Institute</strong>
+        <strong>Philtech-GMA</strong>
         <span>College / SHS Disciplinary System</span>
       </div>
     `;
@@ -572,9 +574,9 @@ function injectSidebar(user) {
   aside.className = "app-sidebar";
   aside.innerHTML = `
     <div class="app-sidebar-brand">
-      <img src="${getBrandAssetUrl()}" alt="Philippine Technological Institute crest">
+      <img src="${getBrandAssetUrl()}" alt="Philtech-GMA logo">
       <div class="app-sidebar-brand-copy">
-        <strong>PTI Disciplinary System</strong>
+        <strong>Philtech-GMA</strong>
         <span>${user.role_label || getRoleLabel(user.role)}</span>
       </div>
     </div>

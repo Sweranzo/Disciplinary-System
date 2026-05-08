@@ -533,7 +533,7 @@ body.no-app-sidebar .app-sidebar {
   height: 170px;
   left: -18px;
   bottom: -48px;
-  background: url("../assets/pti-crest.svg") center/contain no-repeat;
+  background: url("../Philtech-logo.png") center/contain no-repeat;
   opacity: 0.11;
   pointer-events: none;
   filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.16));
@@ -2153,5 +2153,312 @@ tbody tr:hover {
 
   .calendar-day {
     min-height: 160px;
+  }
+}
+
+/* Auth login */
+body.auth-page {
+  min-height: 100vh;
+  padding-left: 0;
+  background:
+    linear-gradient(135deg, rgba(54, 36, 43, 0.92), rgba(111, 23, 48, 0.86)),
+    linear-gradient(90deg, #f6efe7 0%, #fdfaf4 48%, #e9f2f0 100%);
+  color: #fffaf4;
+  overflow-x: hidden;
+}
+
+body.auth-page::before,
+body.auth-page::after {
+  display: none;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(390px, 0.75fr);
+  isolation: isolate;
+}
+
+.auth-hero {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+  padding: clamp(28px, 5vw, 70px);
+  overflow: hidden;
+}
+
+.auth-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(115deg, rgba(28, 22, 29, 0.28), rgba(111, 23, 48, 0.3)),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 34px);
+  z-index: -2;
+}
+
+.auth-hero::after {
+  content: "";
+  position: absolute;
+  right: -9vw;
+  bottom: -18vh;
+  width: 58vw;
+  height: 58vw;
+  background:
+    linear-gradient(135deg, rgba(250, 205, 117, 0.22), transparent 48%),
+    linear-gradient(45deg, rgba(44, 130, 121, 0.24), transparent 58%);
+  clip-path: polygon(22% 0, 100% 18%, 76% 100%, 0 78%);
+  z-index: -1;
+}
+
+.auth-hero-content {
+  width: min(780px, 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 42px;
+}
+
+.auth-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.auth-crest {
+  width: 58px;
+  height: 58px;
+  padding: 8px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.18);
+}
+
+.auth-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: #fde6a2;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.auth-brand-row p,
+.auth-lead,
+.auth-feature-grid p,
+.auth-card-header p,
+.auth-demo-note p {
+  margin: 0;
+}
+
+.auth-brand-row p {
+  color: rgba(255, 250, 244, 0.76);
+  font-size: 14px;
+}
+
+.auth-hero h1 {
+  width: min(720px, 100%);
+  margin: 0 0 18px;
+  color: #fffaf4;
+  font-size: 64px;
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.auth-lead {
+  width: min(620px, 100%);
+  color: rgba(255, 250, 244, 0.78);
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+.auth-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.auth-feature-grid div {
+  min-height: 142px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+}
+
+.auth-feature-grid span {
+  display: block;
+  margin-bottom: 18px;
+  color: #fde6a2;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.auth-feature-grid strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #ffffff;
+}
+
+.auth-feature-grid p {
+  color: rgba(255, 250, 244, 0.7);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.auth-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 34px;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 248, 0.94), rgba(239, 247, 245, 0.9)),
+    #fffaf4;
+}
+
+.auth-card {
+  width: min(440px, 100%);
+  padding: 34px;
+  border: 1px solid rgba(54, 36, 43, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 30px 70px rgba(54, 36, 43, 0.2);
+  color: var(--text);
+}
+
+.auth-card-header {
+  margin-bottom: 26px;
+}
+
+.auth-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: #2b7a72;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.auth-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2b7a72;
+  box-shadow: 0 0 0 5px rgba(43, 122, 114, 0.13);
+}
+
+.auth-card h2 {
+  margin: 0 0 8px;
+  color: #251b21;
+  font-size: 34px;
+  line-height: 1.1;
+}
+
+.auth-card-header p,
+.auth-demo-note p {
+  color: #75636c;
+  line-height: 1.55;
+}
+
+.auth-form label {
+  display: block;
+  margin: 0 0 7px;
+  color: #4b3942;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.auth-form input {
+  height: 50px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  border-color: rgba(54, 36, 43, 0.14);
+  background: #fbfbf9;
+  font-size: 15px;
+}
+
+.auth-form input:focus {
+  border-color: rgba(43, 122, 114, 0.58);
+  box-shadow: 0 0 0 4px rgba(43, 122, 114, 0.12);
+}
+
+.auth-form button {
+  height: 50px;
+  margin-top: 2px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6f1730 0%, #8d213f 52%, #2b7a72 100%);
+  box-shadow: 0 16px 24px rgba(111, 23, 48, 0.2);
+}
+
+.auth-demo-note {
+  margin-top: 20px;
+  padding: 16px;
+  border-left: 4px solid #f0bc55;
+  border-radius: 8px;
+  background: #fff8e8;
+}
+
+.auth-demo-note strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #4b3942;
+}
+
+.auth-error {
+  min-height: 22px;
+  margin: 14px 0 0;
+  color: var(--danger);
+  font-weight: 700;
+}
+
+@media (max-width: 980px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-hero,
+  .auth-panel {
+    min-height: auto;
+  }
+
+  .auth-hero {
+    padding-bottom: 34px;
+  }
+
+  .auth-hero h1 {
+    font-size: 48px;
+  }
+
+  .auth-panel {
+    padding-top: 0;
+    background: #fffaf4;
+  }
+
+  .auth-feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .auth-hero,
+  .auth-panel {
+    padding: 22px;
+  }
+
+  .auth-hero h1 {
+    font-size: 36px;
+  }
+
+  .auth-card {
+    padding: 24px;
   }
 }

@@ -53,7 +53,7 @@ async function notifyLinkedParentsAboutCase({
   for (const parent of parentRows) {
     const parentName = `${parent.account_first_name || parent.profile_first_name || "Parent"} ${parent.account_last_name || parent.profile_last_name || ""}`.trim();
       const smsMessage =
-      `PhilTech Disciplinary Alert: A new case (${caseNumber}) was reported for ${studentName} regarding ${violation} on ${incidentDate}.`
+      `Philtech-GMA Disciplinary Alert: A new case (${caseNumber}) was reported for ${studentName} regarding ${violation} on ${incidentDate}.`
         + `${location ? ` Location: ${location}.` : ""} Please check the system or contact the school office for details.`;
 
     if (parent.parent_user_id) {
@@ -500,6 +500,7 @@ async function getCaseById(req, res) {
       `
       SELECT 
         c.id,
+        c.student_id,
         c.case_number,
         c.violation_type,
         c.severity_level,

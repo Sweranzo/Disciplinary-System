@@ -12,11 +12,11 @@ function formatRoleLabel(role = "") {
 
 async function getCounselorDashboard(req, res) {
   try {
-    const [assignedCases] = await pool.query(
+    const [visibleCases] = await pool.query(
       `
       SELECT COUNT(*) AS total
       FROM cases
-      WHERE assigned_to_user_id = ?
+      WHERE assigned_to_user_id = ? OR assigned_to_user_id IS NULL
       `,
       [req.user.id]
     );
@@ -36,7 +36,7 @@ async function getCounselorDashboard(req, res) {
       SELECT COUNT(*) AS total
       FROM hearings h
       JOIN cases c ON h.case_id = c.id
-      WHERE c.assigned_to_user_id = ?
+      WHERE (c.assigned_to_user_id = ? OR c.assigned_to_user_id IS NULL)
         AND h.status = 'scheduled'
       `,
       [req.user.id]
@@ -52,8 +52,8 @@ async function getCounselorDashboard(req, res) {
         ci.follow_up_date,
         ci.created_at,
         c.case_number,
-        u.first_name,
-        u.last_name,
+        COALESCE(u.first_name, s.first_name) AS first_name,
+        COALESCE(u.last_name, s.last_name) AS last_name,
         ci.counselor_user_id,
         counselor.first_name AS counselor_first_name,
         counselor.last_name AS counselor_last_name,
@@ -62,7 +62,7 @@ async function getCounselorDashboard(req, res) {
       FROM counselor_interventions ci
       JOIN cases c ON ci.case_id = c.id
       JOIN students s ON ci.student_id = s.id
-      JOIN users u ON s.user_id = u.id
+      LEFT JOIN users u ON s.user_id = u.id
       JOIN users counselor ON ci.counselor_user_id = counselor.id
       WHERE ci.counselor_user_id = ?
       ORDER BY ci.created_at DESC
@@ -74,7 +74,8 @@ async function getCounselorDashboard(req, res) {
     return res.json({
       success: true,
       summary: {
-        assignedCases: assignedCases[0].total,
+        visibleCases: visibleCases[0].total,
+        assignedCases: visibleCases[0].total,
         activeFollowUps: followUps[0].total,
         scheduledHearings: hearings[0].total
       },
@@ -104,11 +105,12 @@ async function getCounselorCases(req, res) {
         c.status,
         c.incident_date,
         s.student_number,
-        u.first_name,
-        u.last_name
+        COALESCE(u.first_name, s.first_name) AS first_name,
+        COALESCE(u.last_name, s.last_name) AS last_name,
+        s.id AS student_id
       FROM cases c
       JOIN students s ON c.student_id = s.id
-      JOIN users u ON s.user_id = u.id
+      LEFT JOIN users u ON s.user_id = u.id
       WHERE c.assigned_to_user_id = ? OR c.assigned_to_user_id IS NULL
       ORDER BY c.created_at DESC
       `,
@@ -131,12 +133,18 @@ async function getCounselorCases(req, res) {
 async function getCounselorInterventions(req, res) {
   try {
     const caseId = req.query.caseId || null;
+    const studentId = req.query.studentId || null;
     const params = [req.user.id];
     let whereClause = "WHERE ci.counselor_user_id = ?";
 
     if (caseId) {
       whereClause += " AND ci.case_id = ?";
       params.push(caseId);
+    }
+
+    if (studentId) {
+      whereClause += " AND ci.student_id = ?";
+      params.push(studentId);
     }
 
     const [rows] = await pool.query(
@@ -151,8 +159,8 @@ async function getCounselorInterventions(req, res) {
         ci.follow_up_date,
         ci.created_at,
         c.case_number,
-        u.first_name,
-        u.last_name,
+        COALESCE(u.first_name, s.first_name) AS first_name,
+        COALESCE(u.last_name, s.last_name) AS last_name,
         counselor.first_name AS counselor_first_name,
         counselor.last_name AS counselor_last_name,
         counselor.role AS counselor_role,
@@ -160,7 +168,7 @@ async function getCounselorInterventions(req, res) {
       FROM counselor_interventions ci
       JOIN cases c ON ci.case_id = c.id
       JOIN students s ON ci.student_id = s.id
-      JOIN users u ON s.user_id = u.id
+      LEFT JOIN users u ON s.user_id = u.id
       JOIN users counselor ON ci.counselor_user_id = counselor.id
       ${whereClause}
       ORDER BY ci.created_at DESC
@@ -197,7 +205,7 @@ async function createCounselorIntervention(req, res) {
 
     const [caseRows] = await pool.query(
       `
-      SELECT id, case_number, student_id
+      SELECT id, case_number, student_id, status
       FROM cases
       WHERE id = ?
       LIMIT 1

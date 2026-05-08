@@ -153,6 +153,29 @@ function renderList(items, emptyMessage, mapFn) {
   return `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
 }
 
+function getStudentFullName(student) {
+  return [student.first_name, student.middle_name, student.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim() || student.student_number || "Student";
+}
+
+function getInitials(student) {
+  const first = student.first_name?.[0] || student.student_number?.[0] || "S";
+  const last = student.last_name?.[0] || "";
+  return `${first}${last}`.toUpperCase();
+}
+
+function studentAvatarMarkup(student) {
+  const fullName = getStudentFullName(student);
+  if (student.avatar_url) {
+    return `<span class="student-avatar student-profile-avatar has-image"><img src="${student.avatar_url}" alt="${fullName} avatar"></span>`;
+  }
+
+  return `<span class="student-avatar student-profile-avatar student-avatar-fallback" aria-label="${fullName} avatar placeholder">${getInitials(student)}</span>`;
+}
+
 async function loadParentOptions() {
   const res = await apiRequest("/students/parent-options", "GET", null, true);
   const select = document.getElementById("linkParentId");
@@ -182,24 +205,43 @@ async function loadProfile() {
   }
 
   const student = res.student;
+  const fullName = getStudentFullName(student);
+  studentInfo.dataset.accountBannerApplied = "no";
   document.getElementById("profileMeta").innerHTML =
-    `${student.first_name} ${student.last_name} | ${student.student_number} | ${badge(student.status)}`;
+    `${fullName} | ${student.student_number} | ${badge(student.status)}`;
 
   studentInfo.innerHTML = `
-    <div class="info-grid">
-      <div><strong>Name</strong><span>${student.first_name} ${student.last_name}</span></div>
-      <div><strong>Student Number</strong><span>${student.student_number}</span></div>
-      <div><strong>Email</strong><span>${student.email}</span></div>
-      <div><strong>Status</strong><span>${badge(student.status)}</span></div>
-      <div><strong>Department</strong><span>${student.department || "-"}</span></div>
-      <div><strong>Program</strong><span>${student.program || "-"}</span></div>
-      <div><strong>Year Level</strong><span>${student.year_level || "-"}</span></div>
-      <div><strong>Section</strong><span>${student.section || "-"}</span></div>
-      <div><strong>Academic Level</strong><span>${student.academic_level || "-"}</span></div>
-      <div><strong>QR Token</strong><span>${student.qr_token || "Not generated"}</span></div>
-      <div><strong>Account Mode</strong><span>${student.has_account ? "Linked account" : "Profile only"}</span></div>
+    <div class="student-profile-shell">
+      <div class="student-profile-hero">
+        <div class="student-profile-identity">
+          ${studentAvatarMarkup(student)}
+          <div class="student-profile-copy">
+            <span class="eyebrow">Student Identity</span>
+            <h2>${fullName}</h2>
+            <p>${student.student_number} | ${student.program || "No program"} | ${student.section || "No section"}</p>
+            <div class="student-profile-meta">
+              <span>${student.has_account ? "Linked account" : "Profile only"}</span>
+              ${badge(student.status)}
+            </div>
+          </div>
+        </div>
+        <div class="student-qr-panel">
+          ${student.qr_code_data_url ? `<img class="student-qr-thumb" src="${student.qr_code_data_url}" alt="QR for ${student.student_number}">` : `<div class="empty-state">QR not generated</div>`}
+          <div>
+            <strong>QR Code</strong>
+            <p class="muted">${student.qr_token || "No QR token"}</p>
+          </div>
+        </div>
+      </div>
+      <div class="student-profile-grid">
+        <div class="student-profile-stat"><strong>Email</strong><span>${student.email || "-"}</span></div>
+        <div class="student-profile-stat"><strong>Department</strong><span>${student.department || "-"}</span></div>
+        <div class="student-profile-stat"><strong>Program</strong><span>${student.program || "-"}</span></div>
+        <div class="student-profile-stat"><strong>Year Level</strong><span>${student.year_level || "-"}</span></div>
+        <div class="student-profile-stat"><strong>Section</strong><span>${student.section || "-"}</span></div>
+        <div class="student-profile-stat"><strong>Academic Level</strong><span>${student.academic_level || "-"}</span></div>
+      </div>
     </div>
-    ${student.qr_code_data_url ? `<div style="margin-top:16px;"><img class="qr-thumb large" src="${student.qr_code_data_url}" alt="QR for ${student.student_number}"></div>` : ""}
   `;
 
   document.getElementById("firstName").value = student.first_name || "";
@@ -213,13 +255,12 @@ async function loadProfile() {
   document.getElementById("academicLevel").value = student.academic_level || "";
   document.getElementById("status").value = student.status || "active";
 
-  if (studentInfo.dataset.accountBannerApplied !== "yes" && !student.has_account) {
+  if (!student.has_account) {
     const banner = document.createElement("div");
     banner.className = "inline-note";
     banner.style.marginTop = "16px";
     banner.innerHTML = `This student currently has no login account. Create one later from <a href="accounts.html">Accounts & Identity</a> or the <a href="students.html">student list</a>.`;
     studentInfo.appendChild(banner);
-    studentInfo.dataset.accountBannerApplied = "yes";
   }
 
   document.getElementById("parentsInfo").innerHTML = renderList(
