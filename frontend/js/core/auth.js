@@ -1,8 +1,43 @@
 const DEFAULT_API_ORIGIN = "http://localhost:5000";
 
+const LucideIcons = (() => {
+  const attrs = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"';
+  const paths = {
+    "layout-dashboard": '<rect width="7" height="9" x="3" y="3" rx="1"></rect><rect width="7" height="5" x="14" y="3" rx="1"></rect><rect width="7" height="9" x="14" y="12" rx="1"></rect><rect width="7" height="5" x="3" y="16" rx="1"></rect>',
+    scale: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="M7 21h10"></path><path d="M12 3v18"></path><path d="M3 7h2c2 0 5-1 7-3 2 2 5 3 7 3h2"></path>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
+    "calendar-days": '<path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path>',
+    "file-warning": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path>',
+    "folder-open": '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6A2 2 0 0 1 18.46 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"></path>',
+    bell: '<path d="M10.27 21a2 2 0 0 0 3.46 0"></path><path d="M3.26 15.33A2 2 0 0 0 5 18h14a2 2 0 0 0 1.74-2.67C20.22 13.98 19 13 19 10a7 7 0 1 0-14 0c0 3-1.22 3.98-1.74 5.33Z"></path>',
+    settings: '<path d="M9.67 2.93a2.25 2.25 0 0 1 4.66 0 2.25 2.25 0 0 0 3.38 1.46 2.25 2.25 0 0 1 2.33 4.04 2.25 2.25 0 0 0 0 3.9 2.25 2.25 0 0 1-2.33 4.04 2.25 2.25 0 0 0-3.38 1.46 2.25 2.25 0 0 1-4.66 0 2.25 2.25 0 0 0-3.38-1.46 2.25 2.25 0 0 1-2.33-4.04 2.25 2.25 0 0 0 0-3.9 2.25 2.25 0 0 1 2.33-4.04 2.25 2.25 0 0 0 3.38-1.46Z"></path><circle cx="12" cy="12" r="3"></circle>',
+    menu: '<line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="18" y2="18"></line>',
+    search: '<circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path>',
+    "user-round": '<circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 0 0-16 0"></path>',
+    "shield-check": '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1Z"></path><path d="m9 12 2 2 4-4"></path>',
+    "clipboard-list": '<rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path>',
+    "file-text": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path>',
+    "life-buoy": '<circle cx="12" cy="12" r="10"></circle><path d="m4.93 4.93 4.24 4.24"></path><path d="m14.83 9.17 4.24-4.24"></path><path d="m14.83 14.83 4.24 4.24"></path><path d="m9.17 14.83-4.24 4.24"></path><circle cx="12" cy="12" r="4"></circle>',
+    chevronDown: '<path d="m6 9 6 6 6-6"></path>',
+    chevronLeft: '<path d="m15 18-6-6 6-6"></path>',
+    chevronRight: '<path d="m9 18 6-6-6-6"></path>',
+    "book-open": '<path d="M12 7v14"></path><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path>'
+  };
+
+  function svg(name, className = "") {
+    const body = paths[name] || paths["layout-dashboard"];
+    return `<svg class="lucide-icon ${className}" ${attrs}>${body}</svg>`;
+  }
+
+  return { svg };
+})();
+
+window.LucideIcons = LucideIcons;
+
 function saveAuth(data) {
   localStorage.setItem("token", data.token);
   localStorage.setItem("user", JSON.stringify(data.user));
+  localStorage.setItem("lastLoginAt", new Date().toISOString());
 }
 
 function setUser(user) {
@@ -133,6 +168,28 @@ function getPrimaryTopbars() {
   });
 
   return results;
+}
+
+function getPageTitleText() {
+  const path = window.location.pathname.replace(/\\/g, "/");
+  if (path.endsWith("/dashboard.html")) {
+    return "Dashboard";
+  }
+
+  return document.querySelector(".dashboard-container > .topbar h1")?.textContent?.trim()
+    || document.querySelector("h1")?.textContent?.trim()
+    || document.title.replace(/\s*\|\s*.*/, "").trim()
+    || "Workspace";
+}
+
+function getPageSubtitleText(user) {
+  const path = window.location.pathname.replace(/\\/g, "/");
+  if (path.endsWith("/dashboard.html")) {
+    return `Welcome back, ${getUserFullName(user)}. Here's what's happening today.`;
+  }
+
+  return document.querySelector(".dashboard-container > .topbar p")?.textContent?.trim()
+    || "Manage records, activity, and student support workflows.";
 }
 
 function getAvatarUrl(user) {
@@ -289,6 +346,10 @@ function redirectByRole(user) {
 }
 
 function injectBranding() {
+  if (document.querySelector(".app-top-header") || isSharedAppPage()) {
+    return;
+  }
+
   const brandAssetUrl = getBrandAssetUrl();
 
   getPrimaryTopbars().forEach(topbar => {
@@ -331,6 +392,20 @@ function closeAllProfileMenus() {
   document.querySelectorAll(".profile-trigger[aria-expanded='true']").forEach(trigger => trigger.setAttribute("aria-expanded", "false"));
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function closeAllNotificationMenus() {
+  document.querySelectorAll(".notification-menu.is-open").forEach(menu => menu.classList.remove("is-open"));
+  document.querySelectorAll(".notification-trigger[aria-expanded='true']").forEach(trigger => trigger.setAttribute("aria-expanded", "false"));
+}
+
 function createProfileTrigger(user) {
   const trigger = document.createElement("button");
   trigger.type = "button";
@@ -348,7 +423,7 @@ function createProfileTrigger(user) {
       <strong>${getUserFullName(user)}</strong>
       <span>${user.role_label || getRoleLabel(user.role)}</span>
     </span>
-    <span class="profile-caret">&#9662;</span>
+    <span class="profile-caret">${LucideIcons.svg("chevronDown")}</span>
   `;
 
   return trigger;
@@ -393,20 +468,293 @@ function createProfileMenu(user) {
 }
 
 function createNotificationsButton(user) {
-  const link = document.createElement("button");
-  link.type = "button";
-  link.className = "notification-trigger";
-  link.setAttribute("aria-label", "Open notifications");
-  link.innerHTML = `
-    <span class="notification-icon">&#128276;</span>
-    <span class="notification-count hidden" id="globalNotificationCount">0</span>
+  const wrapper = document.createElement("div");
+  wrapper.className = "notification-menu-wrap";
+
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "notification-trigger";
+  trigger.setAttribute("aria-label", "Open notifications");
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.innerHTML = `
+    <span class="notification-icon">${LucideIcons.svg("bell")}</span>
+    <span class="notification-count hidden" data-notification-count>0</span>
   `;
 
-  link.addEventListener("click", () => {
-    goToPage("common/notifications.html");
+  const menu = document.createElement("div");
+  menu.className = "notification-menu";
+  menu.innerHTML = `
+    <div class="notification-menu-card">
+      <div class="notification-menu-head">
+        <div>
+          <strong>Notifications</strong>
+          <span data-notification-subtitle>Latest updates</span>
+        </div>
+        <button type="button" class="notification-menu-link" data-notification-read-all>Mark all read</button>
+      </div>
+      <div class="notification-menu-list" data-notification-list>
+        <div class="notification-menu-empty">Loading notifications...</div>
+      </div>
+      <div class="notification-menu-foot">
+        <button type="button" class="notification-menu-link danger" data-notification-clear>Clear all</button>
+        <button type="button" class="notification-menu-link" data-notification-center>Open center</button>
+      </div>
+    </div>
+  `;
+
+  trigger.addEventListener("click", event => {
+    event.stopPropagation();
+    const isOpen = menu.classList.contains("is-open");
+    closeAllProfileMenus();
+    closeAllNotificationMenus();
+    if (!isOpen) {
+      menu.classList.add("is-open");
+      trigger.setAttribute("aria-expanded", "true");
+      loadNotificationMenu(menu);
+    }
   });
 
-  return link;
+  menu.addEventListener("click", event => {
+    event.stopPropagation();
+    handleNotificationMenuAction(event, menu);
+  });
+
+  wrapper.appendChild(trigger);
+  wrapper.appendChild(menu);
+  return wrapper;
+}
+
+function formatNotificationTime(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function updateNotificationCounts(unreadCount = 0) {
+  document.querySelectorAll("[data-notification-count], #globalNotificationCount").forEach(countNode => {
+    countNode.textContent = String(unreadCount);
+    countNode.classList.toggle("hidden", Number(unreadCount) <= 0);
+  });
+}
+
+function renderNotificationMenu(menu, notifications = []) {
+  const list = menu.querySelector("[data-notification-list]");
+  const subtitle = menu.querySelector("[data-notification-subtitle]");
+  const unreadCount = notifications.filter(item => !Number(item.is_read)).length;
+
+  updateNotificationCounts(unreadCount);
+  if (subtitle) {
+    subtitle.textContent = unreadCount ? `${unreadCount} unread` : "You're all caught up";
+  }
+
+  if (!list) {
+    return;
+  }
+
+  if (!notifications.length) {
+    list.innerHTML = `<div class="notification-menu-empty">No notifications yet.</div>`;
+    return;
+  }
+
+  list.innerHTML = notifications.map(item => {
+    const unread = !Number(item.is_read);
+    return `
+      <article class="notification-menu-item ${unread ? "unread" : ""}" data-notification-id="${item.id}">
+        <div class="notification-menu-dot" aria-hidden="true"></div>
+        <div class="notification-menu-body">
+          <div class="notification-menu-title-row">
+            <strong>${escapeHtml(item.title || "Notification")}</strong>
+            <span>${formatNotificationTime(item.created_at)}</span>
+          </div>
+          <p>${escapeHtml(item.message || "")}</p>
+          <div class="notification-menu-actions">
+            ${unread ? `<button type="button" data-notification-read="${item.id}">Mark as read</button>` : `<span>Read</span>`}
+            <button type="button" class="danger" data-notification-delete="${item.id}">Delete</button>
+          </div>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+async function loadNotificationMenu(menu) {
+  const list = menu.querySelector("[data-notification-list]");
+  if (list) {
+    list.innerHTML = `<div class="notification-menu-empty">Loading notifications...</div>`;
+  }
+
+  try {
+    const response = await fetch(`${getApiOrigin()}/api/auth/notifications`, {
+      headers: {
+        Authorization: `Bearer ${getToken()}`
+      }
+    });
+    const data = await response.json();
+    if (!data.success) {
+      if (list) list.innerHTML = `<div class="notification-menu-empty">${data.message || "Unable to load notifications."}</div>`;
+      return;
+    }
+    renderNotificationMenu(menu, data.notifications || []);
+  } catch (error) {
+    console.error("Unable to load notifications:", error);
+    if (list) list.innerHTML = `<div class="notification-menu-empty">Unable to load notifications.</div>`;
+  }
+}
+
+async function notificationRequest(endpoint, method = "GET") {
+  const response = await fetch(`${getApiOrigin()}${endpoint}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${getToken()}`
+    }
+  });
+  return response.json();
+}
+
+async function handleNotificationMenuAction(event, menu) {
+  const readButton = event.target.closest("[data-notification-read]");
+  const deleteButton = event.target.closest("[data-notification-delete]");
+  const readAllButton = event.target.closest("[data-notification-read-all]");
+  const clearButton = event.target.closest("[data-notification-clear]");
+  const centerButton = event.target.closest("[data-notification-center]");
+
+  if (readButton) {
+    const result = await notificationRequest(`/api/auth/notifications/${readButton.dataset.notificationRead}/read`, "PUT");
+    if (result.success) await loadNotificationMenu(menu);
+    return;
+  }
+
+  if (deleteButton) {
+    const result = await notificationRequest(`/api/auth/notifications/${deleteButton.dataset.notificationDelete}`, "DELETE");
+    if (result.success) await loadNotificationMenu(menu);
+    return;
+  }
+
+  if (readAllButton) {
+    const result = await notificationRequest("/api/auth/notifications/read-all", "PUT");
+    if (result.success) await loadNotificationMenu(menu);
+    return;
+  }
+
+  if (clearButton) {
+    const result = await notificationRequest("/api/auth/notifications", "DELETE");
+    if (result.success) await loadNotificationMenu(menu);
+    return;
+  }
+
+  if (centerButton) {
+    goToPage("common/notifications.html");
+  }
+}
+
+function formatSessionDate(value) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function injectAppHeader(user) {
+  if (!user || document.querySelector(".app-top-header") || !isSharedAppPage()) {
+    return;
+  }
+
+  const header = document.createElement("header");
+  header.className = "app-top-header";
+  header.innerHTML = `
+    <div class="app-top-title">
+      <button type="button" class="app-menu-button" aria-label="Menu">${LucideIcons.svg("menu")}</button>
+      <div>
+        <h1>${getPageTitleText()}</h1>
+        <p>${getPageSubtitleText(user)}</p>
+      </div>
+    </div>
+    <label class="app-search" aria-label="Search workspace">
+      <span>${LucideIcons.svg("search")}</span>
+      <input type="search" placeholder="Search cases, students, hearings...">
+    </label>
+    <div class="app-top-actions"></div>
+  `;
+
+  const actions = header.querySelector(".app-top-actions");
+  const notificationsButton = createNotificationsButton(user);
+  const trigger = createProfileTrigger(user);
+  const menu = createProfileMenu(user);
+  const wrapper = document.createElement("div");
+  wrapper.className = "profile-menu-wrap";
+  wrapper.appendChild(trigger);
+  wrapper.appendChild(menu);
+  actions.appendChild(notificationsButton);
+  actions.appendChild(wrapper);
+
+  trigger.addEventListener("click", event => {
+    event.stopPropagation();
+    const isOpen = menu.classList.contains("is-open");
+    closeAllProfileMenus();
+    if (!isOpen) {
+      menu.classList.add("is-open");
+      trigger.setAttribute("aria-expanded", "true");
+    }
+  });
+
+  const sidebar = document.querySelector(".app-sidebar");
+  if (sidebar) {
+    sidebar.insertAdjacentElement("afterend", header);
+  } else {
+    document.body.prepend(header);
+  }
+}
+
+function getNavIconName(item) {
+  const value = `${item.label || ""} ${item.path || ""}`.toLowerCase();
+  if (value.includes("dashboard")) return "layout-dashboard";
+  if (value.includes("case")) return "scale";
+  if (value.includes("student") || value.includes("account") || value.includes("users")) return "users";
+  if (value.includes("hearing")) return "calendar-days";
+  if (value.includes("appeal")) return "file-warning";
+  if (value.includes("evidence")) return "folder-open";
+  if (value.includes("notification")) return "bell";
+  if (value.includes("setting")) return "settings";
+  if (value.includes("audit")) return "clipboard-list";
+  if (value.includes("sanction")) return "shield-check";
+  if (value.includes("report")) return "file-text";
+  if (value.includes("profile")) return "user-round";
+  return "layout-dashboard";
+}
+
+function getMetricIconName(metric) {
+  const value = `${metric.icon || ""} ${metric.label || ""}`.toLowerCase();
+  if (value.includes("student") || value.includes("st")) return "users";
+  if (value.includes("hearing") || value.includes("meeting") || value.includes("calendar") || value.includes("mt")) return "calendar-days";
+  if (value.includes("appeal") || value.includes("ap")) return "file-warning";
+  if (value.includes("sanction")) return "shield-check";
+  if (value.includes("evidence")) return "folder-open";
+  if (value.includes("case") || value.includes("cs")) return "scale";
+  return "layout-dashboard";
 }
 
 function enhanceTopbarUser(topbar, user) {
@@ -479,6 +827,61 @@ function enhanceTopbarUser(topbar, user) {
   });
 
   topbar.dataset.profileInjected = "true";
+}
+
+function stripTopbarLogout(topbar) {
+  const actionRow = topbar?.querySelector(".action-row");
+  if (!actionRow) {
+    return;
+  }
+
+  Array.from(actionRow.children).forEach(node => {
+    const text = (node.textContent || "").trim();
+    const isLogoutButton = node.matches?.("button") && /logout/i.test(text);
+    const isLogoutLink = node.matches?.("a") && /logout/i.test(text);
+    if (isLogoutButton || isLogoutLink) {
+      node.remove();
+    }
+  });
+}
+
+function enhanceDashboardProfile(user) {
+  const card = document.querySelector(".dash-profile-card");
+  if (!card || !user || card.dataset.profileInjected === "true" || document.querySelector(".app-top-header")) {
+    return;
+  }
+
+  const legacyProfileRow = card.querySelector(".dash-profile-row");
+  if (legacyProfileRow) {
+    legacyProfileRow.remove();
+  }
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "dash-profile-tools";
+
+  const notificationsButton = createNotificationsButton(user);
+  const trigger = createProfileTrigger(user);
+  const menu = createProfileMenu(user);
+  const wrapper = document.createElement("div");
+  wrapper.className = "profile-menu-wrap";
+  wrapper.appendChild(trigger);
+  wrapper.appendChild(menu);
+
+  toolbar.appendChild(notificationsButton);
+  toolbar.appendChild(wrapper);
+  card.prepend(toolbar);
+
+  trigger.addEventListener("click", event => {
+    event.stopPropagation();
+    const isOpen = menu.classList.contains("is-open");
+    closeAllProfileMenus();
+    if (!isOpen) {
+      menu.classList.add("is-open");
+      trigger.setAttribute("aria-expanded", "true");
+    }
+  });
+
+  card.dataset.profileInjected = "true";
 }
 
 function moveTopbarActionsBelow(topbar) {
@@ -570,6 +973,18 @@ function injectSidebar(user) {
 
   document.body.classList.add("has-app-sidebar");
 
+  const groupedNav = user.role === "admin"
+    ? navItems.map((item, index) => {
+        const labels = {
+          0: "Main",
+          1: "Case Management",
+          5: "Administration",
+          9: "System"
+        };
+        return { ...item, groupLabel: labels[index] || "" };
+      })
+    : navItems.map((item, index) => ({ ...item, groupLabel: index === 0 ? "Main" : "" }));
+
   const aside = document.createElement("aside");
   aside.className = "app-sidebar";
   aside.innerHTML = `
@@ -581,12 +996,14 @@ function injectSidebar(user) {
       </div>
     </div>
     <nav class="app-sidebar-nav">
-      ${navItems.map(item => {
+      ${groupedNav.map(item => {
         const href = buildFrontendPageUrl(item.path);
         const isActive = pathname.endsWith(item.path);
-        return `<a href="${href}" class="app-sidebar-link${isActive ? " active" : ""}">${item.label}</a>`;
+        const groupLabel = item.groupLabel ? `<div class="app-sidebar-group-label">${item.groupLabel}</div>` : "";
+        return `${groupLabel}<a href="${href}" class="app-sidebar-link${isActive ? " active" : ""}">${LucideIcons.svg(getNavIconName(item))}<span>${item.label}</span></a>`;
       }).join("")}
     </nav>
+    <div class="app-sidebar-support">${LucideIcons.svg("life-buoy")}<span>Help & Support</span></div>
   `;
 
   document.body.prepend(aside);
@@ -712,8 +1129,7 @@ async function refreshCurrentUser() {
 
 async function refreshNotificationBadge() {
   const token = getToken();
-  const countNode = document.getElementById("globalNotificationCount");
-  if (!token || !countNode) {
+  if (!token) {
     return;
   }
 
@@ -730,8 +1146,7 @@ async function refreshNotificationBadge() {
     }
 
     const unreadCount = Number(data.unreadCount || 0);
-    countNode.textContent = String(unreadCount);
-    countNode.classList.toggle("hidden", unreadCount <= 0);
+    updateNotificationCounts(unreadCount);
   } catch (error) {
     console.error("Unable to refresh notification badge:", error);
   }
@@ -743,9 +1158,14 @@ async function initializeSharedTopbar() {
 
   if (cachedUser) {
     injectSidebar(cachedUser);
+    injectAppHeader(cachedUser);
+    enhanceDashboardProfile(cachedUser);
 
     getPrimaryTopbars().forEach(topbar => {
-      enhanceTopbarUser(topbar, cachedUser);
+      stripTopbarLogout(topbar);
+      if (!document.querySelector(".app-top-header")) {
+        enhanceTopbarUser(topbar, cachedUser);
+      }
       moveTopbarActionsBelow(topbar);
     });
   }
@@ -753,9 +1173,14 @@ async function initializeSharedTopbar() {
   const refreshedUser = await refreshCurrentUser();
   if (!cachedUser && refreshedUser) {
     injectSidebar(refreshedUser);
+    injectAppHeader(refreshedUser);
+    enhanceDashboardProfile(refreshedUser);
 
     getPrimaryTopbars().forEach(topbar => {
-      enhanceTopbarUser(topbar, refreshedUser);
+      stripTopbarLogout(topbar);
+      if (!document.querySelector(".app-top-header")) {
+        enhanceTopbarUser(topbar, refreshedUser);
+      }
       moveTopbarActionsBelow(topbar);
     });
   }
@@ -819,6 +1244,10 @@ document.addEventListener("click", event => {
   if (!event.target.closest(".profile-menu-wrap")) {
     closeAllProfileMenus();
   }
+
+  if (!event.target.closest(".notification-menu-wrap")) {
+    closeAllNotificationMenus();
+  }
 });
 
 primeSharedLayoutShell();
@@ -833,7 +1262,11 @@ window.requireAuth = requireAuth;
 window.redirectByRole = redirectByRole;
 window.goToPage = goToPage;
 window.injectBranding = injectBranding;
+window.injectAppHeader = injectAppHeader;
+window.enhanceDashboardProfile = enhanceDashboardProfile;
+window.getMetricIconName = getMetricIconName;
 window.getRoleLabel = getRoleLabel;
 window.getDashboardPath = getDashboardPath;
 window.getAvatarUrl = getAvatarUrl;
 window.getUserFullName = getUserFullName;
+window.formatSessionDate = formatSessionDate;

@@ -2,108 +2,170 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Teacher Dashboard</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
 <body>
 
-<div class="dashboard-container">
-  <div class="topbar">
-    <div>
+<div class="dashboard-container dash-shell">
+  <div class="dash-hero">
+    <section class="dash-welcome">
       <span class="eyebrow">Teacher Workspace</span>
-      <h1 style="margin-top:16px;">Teacher Dashboard</h1>
-      <p class="muted">Report incidents, follow submitted cases, and contribute supporting evidence when needed.</p>
-    </div>
-    <div class="action-row">
-      <a href="report-case.html"><button class="secondary">Report Incident</button></a>
-      <button onclick="logout()">Logout</button>
-    </div>
-  </div>
-
-  <div class="stats-grid">
-    <div class="stat-card">
-      <h3>Relevant Cases</h3>
-      <div class="stat-value" id="caseCount">0</div>
-      <div class="muted">Cases you reported or were assigned to</div>
-    </div>
-    <div class="stat-card">
-      <h3>Open Hearings</h3>
-      <div class="stat-value" id="hearingCount">0</div>
-      <div class="muted">Hearing records visible to you</div>
-    </div>
-    <div class="stat-card">
-      <h3>Quick Upload Path</h3>
-      <div class="stat-value">UI</div>
-      <div class="muted">Evidence can now be attached during case reporting or later in case detail</div>
-    </div>
-    <div class="stat-card">
-      <h3>Role Scope</h3>
-      <div class="stat-value">Scoped</div>
-      <div class="muted">Only your reported or assigned cases are visible</div>
-    </div>
-  </div>
-
-  <div class="hero-grid page-section">
-    <div class="hero-panel">
-      <div class="card-header">
-        <div>
-          <h2>Available Actions</h2>
-          <p class="muted">Start a report, then continue follow-up from the case list.</p>
-        </div>
-      </div>
-      <div class="quick-actions">
+      <h1>Welcome back, <span id="teacherName">Teacher</span></h1>
+      <p>Report incidents, monitor students you reported, track meeting dates, and follow case progress from one working dashboard.</p>
+      <div class="dash-actions" style="margin-top:22px;">
         <a href="report-case.html"><button>Report Incident</button></a>
-        <a href="cases.html"><button class="secondary">Relevant Cases</button></a>
+        <a href="cases.html"><button class="secondary">Open My Cases</button></a>
       </div>
-    </div>
+    </section>
 
-    <div class="hero-panel">
-      <div class="card-header">
+    <aside class="dash-profile-card">
+      <div class="dash-profile-row">
+        <div class="dash-avatar" id="teacherInitials">T</div>
         <div>
-          <h2>Welcome</h2>
-          <p class="muted" id="welcomeText"></p>
+          <strong id="teacherFullName">Teacher</strong>
+          <span>Teacher</span>
         </div>
       </div>
-      <div class="detail-list">
-        <div class="detail-item">
-          <p><strong>Case reporting</strong></p>
-          <p>File the incident details and optionally upload evidence in the same form.</p>
-        </div>
-        <div class="detail-item">
-          <p><strong>Follow-up visibility</strong></p>
-          <p>Open your relevant cases to check status changes, evidence review, hearings, and sanctions.</p>
-        </div>
+      <div class="info-grid">
+        <div><strong>Scope</strong><span>Reported or assigned cases</span></div>
+        <div><strong>Calendar</strong><span>Student meetings and hearings</span></div>
       </div>
-    </div>
+    </aside>
+  </div>
+
+  <section class="dash-metrics" id="teacherMetrics"></section>
+
+  <div class="dash-grid-main">
+    <main class="dash-stack">
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div>
+            <h2>Case Overview</h2>
+            <p class="muted">Status and severity distribution for cases visible to you.</p>
+          </div>
+        </div>
+        <div class="dash-chart-grid">
+          <div id="statusChart"></div>
+          <div id="severityChart"></div>
+        </div>
+      </section>
+
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div>
+            <h2>Recent Student Cases</h2>
+            <p class="muted">Students connected to reports or assignments in your workspace.</p>
+          </div>
+          <a href="cases.html"><button class="secondary">View All</button></a>
+        </div>
+        <div id="recentCases">Loading...</div>
+      </section>
+    </main>
+
+    <aside class="dash-stack">
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div>
+            <h2>Meeting Calendar</h2>
+            <p class="muted">Pending meetings and hearings for reported students.</p>
+          </div>
+        </div>
+        <div id="meetingCalendar"></div>
+      </section>
+
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div>
+            <h2>Upcoming Meetings</h2>
+            <p class="muted">Dates related to your reported or assigned cases.</p>
+          </div>
+        </div>
+        <div id="meetingCalendarList">Loading...</div>
+      </section>
+    </aside>
   </div>
 </div>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
+<script src="../../js/core/dashboard-widgets.js"></script>
 <script>
 requireAuth();
 
 const user = getUser();
-
 if (!user || user.role !== "teacher") {
   alert("Access denied");
   logout();
 }
 
-document.getElementById("welcomeText").textContent =
-  `Hello ${user.first_name}, this workspace is limited to the cases you reported or were assigned to.`;
+const W = DashboardWidgets;
+const teacherFullName = W.escapeHtml(getUserFullName(user));
+document.getElementById("teacherName").textContent = user.first_name || "Teacher";
+document.getElementById("teacherFullName").textContent = getUserFullName(user);
+document.getElementById("teacherInitials").textContent = `${user.first_name?.[0] || "T"}${user.last_name?.[0] || ""}`.toUpperCase();
 
-async function loadSummary() {
-  const [cases, hearings] = await Promise.all([
-    apiRequest("/cases/all?page=1&limit=1", "GET", null, true),
-    apiRequest("/hearings/all", "GET", null, true)
-  ]);
-
-  document.getElementById("caseCount").textContent = cases.success ? cases.pagination.total : 0;
-  document.getElementById("hearingCount").textContent = hearings.success ? hearings.hearings.length : 0;
+function hearingToEvent(item) {
+  return {
+    date: item.scheduled_date,
+    time: item.scheduled_time,
+    title: `${item.case_number} hearing`,
+    meta: `${item.first_name || ""} ${item.last_name || ""} (${item.student_number || "student"})`,
+    url: `cases.html`
+  };
 }
 
-loadSummary();
+function renderTeacherDashboard({ cases, hearings, sanctions }) {
+  const activeCases = cases.filter(item => W.isOpenStatus(item.status));
+  const scheduledHearings = hearings.filter(item => item.status === "scheduled");
+  const activeSanctions = sanctions.filter(item => item.status === "active");
+  const uniqueStudents = new Set(cases.map(item => item.student_number).filter(Boolean));
+  const events = scheduledHearings.map(hearingToEvent);
+
+  W.renderMetrics("teacherMetrics", [
+    { icon: "CS", label: "Relevant Cases", value: cases.length, help: "Reported or assigned to you" },
+    { icon: "AC", label: "Active Cases", value: activeCases.length, help: "Still pending action or follow-up" },
+    { icon: "MT", label: "Pending Meetings", value: scheduledHearings.length, help: "Upcoming hearings on your calendar" },
+    { icon: "ST", label: "Students Involved", value: uniqueStudents.size, help: "Distinct students in your scope" }
+  ]);
+
+  W.renderDonut("statusChart", W.toSegments(W.groupBy(cases, "status"), ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"]), "No cases yet");
+  W.renderBars("severityChart", W.toSegments(W.groupBy(cases, "severity_level"), ["minor", "major", "grave"]), "No severity data yet");
+  W.renderCalendar("meetingCalendar", events);
+  W.renderUpcoming("meetingCalendarList", events, "No pending student meetings or hearings");
+
+  W.renderList(
+    "recentCases",
+    cases.slice(0, 6),
+    "No student cases found.",
+    item => `
+      <a class="dash-case-row" href="cases.html">
+        <span class="badge ${item.status}">${W.labelize(item.status)}</span>
+        <div>
+          <strong>${W.escapeHtml(item.case_number)} | ${W.escapeHtml(item.first_name)} ${W.escapeHtml(item.last_name)}</strong>
+          <p>${W.escapeHtml(item.violation_type)} | ${W.labelize(item.severity_level)} | ${W.formatDate(item.incident_date)}</p>
+        </div>
+      </a>
+    `
+  );
+}
+
+async function loadDashboard() {
+  const [caseRes, hearingRes, sanctionRes] = await Promise.all([
+    apiRequest("/cases/all?page=1&limit=50", "GET", null, true),
+    apiRequest("/hearings/all", "GET", null, true),
+    apiRequest("/sanctions/all", "GET", null, true)
+  ]);
+
+  renderTeacherDashboard({
+    cases: caseRes.success ? caseRes.cases : [],
+    hearings: hearingRes.success ? hearingRes.hearings : [],
+    sanctions: sanctionRes.success ? sanctionRes.sanctions : []
+  });
+}
+
+loadDashboard();
 </script>
 
 </body>

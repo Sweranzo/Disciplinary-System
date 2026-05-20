@@ -2,97 +2,95 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Student Dashboard</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
 <body>
 
-<div class="dashboard-container">
-  <div class="topbar">
-    <div>
-      <h1>Student Dashboard</h1>
-      <p class="muted" id="welcomeText">Loading your dashboard...</p>
-    </div>
-    <div class="action-row">
-      <a href="profile.html"><button class="secondary">My Profile</button></a>
-      <button onclick="logout()">Logout</button>
-    </div>
+<div class="dashboard-container dash-shell">
+  <div class="dash-hero">
+    <section class="dash-welcome">
+      <span class="eyebrow">Student Workspace</span>
+      <h1>My Discipline Record</h1>
+      <p>Track your cases, hearings, sanctions, appeals, and upcoming required meetings in one place.</p>
+      <div class="dash-actions" style="margin-top:22px;">
+        <a href="profile.html"><button>My Profile</button></a>
+        <a href="cases.html"><button class="secondary">Case History</button></a>
+      </div>
+    </section>
+
+    <aside class="dash-profile-card">
+      <div class="dash-profile-row">
+        <div class="dash-avatar" id="studentInitials">S</div>
+        <div>
+          <strong id="studentName">Student</strong>
+          <span>Student</span>
+        </div>
+      </div>
+      <div class="info-grid">
+        <div><strong>Scope</strong><span>Your linked records only</span></div>
+        <div><strong>Calendar</strong><span>Hearings and sanction dates</span></div>
+      </div>
+    </aside>
   </div>
 
-  <div class="stats-grid">
-    <div class="stat-card">
-      <h3>My Cases</h3>
-      <div class="stat-value" id="caseCount">0</div>
-      <div class="muted">All disciplinary cases linked to your account</div>
-    </div>
-    <div class="stat-card">
-      <h3>Upcoming Hearings</h3>
-      <div class="stat-value" id="hearingCount">0</div>
-      <div class="muted">Scheduled hearings you may need to attend</div>
-    </div>
-    <div class="stat-card">
-      <h3>Active Sanctions</h3>
-      <div class="stat-value" id="sanctionCount">0</div>
-      <div class="muted">Current sanctions and follow-up items</div>
-    </div>
-    <div class="stat-card">
-      <h3>Appeals</h3>
-      <div class="stat-value" id="appealCount">0</div>
-      <div class="muted">Submitted appeal requests and outcomes</div>
-    </div>
-  </div>
+  <section class="dash-metrics" id="studentMetrics"></section>
 
-  <div class="split-grid page-section">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Quick Access</h2>
-          <p class="muted">Open the sections most often used during a case lifecycle.</p>
+  <div class="dash-grid-main">
+    <main class="dash-stack">
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div>
+            <h2>My Case Analytics</h2>
+            <p class="muted">Status and severity of records linked to your account.</p>
+          </div>
         </div>
-      </div>
-      <div class="detail-list">
-        <div class="detail-item">
-          <p><strong><a href="cases.html">Case History</a></strong></p>
-          <p>Review your case statuses, violations, and recorded incident dates.</p>
+        <div class="dash-chart-grid">
+          <div id="statusChart"></div>
+          <div id="severityChart"></div>
         </div>
-        <div class="detail-item">
-          <p><strong><a href="hearings.html">Hearings</a></strong></p>
-          <p>See scheduled hearings, dates, times, and locations.</p>
-        </div>
-        <div class="detail-item">
-          <p><strong><a href="sanctions.html">Sanctions</a></strong></p>
-          <p>Track active sanctions and whether they have been completed.</p>
-        </div>
-        <div class="detail-item">
-          <p><strong><a href="appeals.html">Appeals Board</a></strong></p>
-          <p>Submit and monitor appeals tied to your disciplinary cases.</p>
-        </div>
-      </div>
-    </div>
+      </section>
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Notifications and Profile</h2>
-          <p class="muted">Stay updated and verify the record attached to your account.</p>
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div>
+            <h2>Recent Case History</h2>
+            <p class="muted">Latest records and incident dates.</p>
+          </div>
+          <a href="cases.html"><button class="secondary">View Cases</button></a>
         </div>
-      </div>
-      <div class="detail-list">
-        <div class="detail-item">
-          <p><strong><a href="profile.html">My Student Profile</a></strong></p>
-          <p>View your academic record, linked parents, and full disciplinary history.</p>
+        <div id="recentCases">Loading...</div>
+      </section>
+    </main>
+
+    <aside class="dash-stack">
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div>
+            <h2>My Calendar</h2>
+            <p class="muted">Upcoming hearings and sanction-related dates.</p>
+          </div>
         </div>
-        <div class="detail-item">
-          <p><strong><a href="notifications.html">Notifications</a></strong></p>
-          <p>Check hearing notices, sanction updates, and other system alerts.</p>
+        <div id="meetingCalendar"></div>
+      </section>
+
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div>
+            <h2>Upcoming Items</h2>
+            <p class="muted">Dates connected to your records.</p>
+          </div>
         </div>
-      </div>
-    </div>
+        <div id="meetingCalendarList">Loading...</div>
+      </section>
+    </aside>
   </div>
 </div>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
+<script src="../../js/core/dashboard-widgets.js"></script>
 <script>
 requireAuth();
 
@@ -102,10 +100,60 @@ if (!user || user.role !== "student") {
   logout();
 }
 
-document.getElementById("welcomeText").textContent =
-  `Hello ${user.first_name}, this dashboard shows only records linked to your student account.`;
+const W = DashboardWidgets;
+document.getElementById("studentName").textContent = getUserFullName(user);
+document.getElementById("studentInitials").textContent = `${user.first_name?.[0] || "S"}${user.last_name?.[0] || ""}`.toUpperCase();
 
-async function loadSummary() {
+function hearingToEvent(item) {
+  return {
+    date: item.scheduled_date,
+    time: item.scheduled_time,
+    title: `${item.case_number} hearing`,
+    meta: `${item.violation_type || "Case hearing"} at ${item.location || "TBA"}`,
+    url: "hearings.html"
+  };
+}
+
+function sanctionToEvent(item) {
+  return {
+    date: item.end_date || item.start_date,
+    time: "",
+    title: `${W.labelize(item.sanction_type)} due`,
+    meta: `${item.case_number || "Sanction"} | ${W.labelize(item.status)}`,
+    url: "sanctions.html"
+  };
+}
+
+function renderDashboard({ cases, hearings, sanctions, appeals }) {
+  const upcomingHearings = hearings.filter(item => item.status === "scheduled");
+  const activeSanctions = sanctions.filter(item => item.status === "active");
+  const openAppeals = appeals.filter(item => ["submitted", "under_review"].includes(item.status));
+  const events = [...upcomingHearings.map(hearingToEvent), ...activeSanctions.map(sanctionToEvent).filter(item => item.date)];
+
+  W.renderMetrics("studentMetrics", [
+    { icon: "CS", label: "My Cases", value: cases.length, help: "All cases linked to you" },
+    { icon: "MT", label: "Upcoming Hearings", value: upcomingHearings.length, help: "Meetings you may need to attend" },
+    { icon: "SN", label: "Active Sanctions", value: activeSanctions.length, help: "Current sanction follow-up" },
+    { icon: "AP", label: "Open Appeals", value: openAppeals.length, help: "Submitted or under review" }
+  ]);
+
+  W.renderDonut("statusChart", W.toSegments(W.groupBy(cases, "status"), ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"]), "No cases yet");
+  W.renderBars("severityChart", W.toSegments(W.groupBy(cases, "severity_level"), ["minor", "major", "grave"]), "No severity data yet");
+  W.renderCalendar("meetingCalendar", events);
+  W.renderUpcoming("meetingCalendarList", events, "No upcoming hearings or sanction dates");
+
+  W.renderList("recentCases", cases.slice(0, 6), "No case history found.", item => `
+    <a class="dash-case-row" href="cases.html">
+      <span class="badge ${item.status}">${W.labelize(item.status)}</span>
+      <div>
+        <strong>${W.escapeHtml(item.case_number)}</strong>
+        <p>${W.escapeHtml(item.violation_type)} | ${W.labelize(item.severity_level)} | ${W.formatDate(item.incident_date)}</p>
+      </div>
+    </a>
+  `);
+}
+
+async function loadDashboard() {
   const [cases, hearings, sanctions, appeals] = await Promise.all([
     apiRequest("/cases/my-cases", "GET", null, true),
     apiRequest("/hearing-view/my-hearings", "GET", null, true),
@@ -113,13 +161,15 @@ async function loadSummary() {
     apiRequest("/appeals/my", "GET", null, true)
   ]);
 
-  document.getElementById("caseCount").textContent = cases.success ? cases.cases.length : 0;
-  document.getElementById("hearingCount").textContent = hearings.success ? hearings.hearings.filter(item => item.status === "scheduled").length : 0;
-  document.getElementById("sanctionCount").textContent = sanctions.success ? sanctions.sanctions.filter(item => item.status === "active").length : 0;
-  document.getElementById("appealCount").textContent = appeals.success ? appeals.appeals.length : 0;
+  renderDashboard({
+    cases: cases.success ? cases.cases : [],
+    hearings: hearings.success ? hearings.hearings : [],
+    sanctions: sanctions.success ? sanctions.sanctions : [],
+    appeals: appeals.success ? appeals.appeals : []
+  });
 }
 
-loadSummary();
+loadDashboard();
 </script>
 
 </body>

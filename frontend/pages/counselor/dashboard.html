@@ -8,111 +8,89 @@
 </head>
 <body>
 
-<div class="dashboard-container">
-  <div class="topbar">
-    <div>
-      <h1>Guidance Counselor Workspace</h1>
-      <p class="muted">Review relevant cases, intervention notes, hearing support, and follow-up work from one dashboard.</p>
-    </div>
-    <div class="action-row">
-      <a href="cases.html"><button class="secondary">Case Queue</button></a>
-      <a href="hearings.html"><button>Hearings</button></a>
-      <a href="evidence.html"><button class="secondary">Evidence</button></a>
-      <button onclick="logout()">Logout</button>
-    </div>
+<div class="dashboard-container dash-shell">
+  <div class="dash-hero">
+    <section class="dash-welcome">
+      <span class="eyebrow">Guidance Counselor Workspace</span>
+      <h1>Student Support Dashboard</h1>
+      <p>Review visible cases, intervention notes, follow-up schedules, and hearings that may need guidance support.</p>
+      <div class="dash-actions" style="margin-top:22px;">
+        <a href="cases.html"><button>Case Queue</button></a>
+        <a href="student-profile.html"><button class="secondary">Student Profiles</button></a>
+      </div>
+    </section>
+
+    <aside class="dash-profile-card">
+      <div class="dash-profile-row">
+        <div class="dash-avatar" id="counselorInitials">GC</div>
+        <div>
+          <strong id="counselorName">Counselor</strong>
+          <span>Guidance Counselor</span>
+        </div>
+      </div>
+      <div class="info-grid">
+        <div><strong>Focus</strong><span>Interventions and follow-ups</span></div>
+        <div><strong>Calendar</strong><span>Hearings and follow-up dates</span></div>
+      </div>
+    </aside>
   </div>
 
-  <div class="stats-grid">
-    <div class="stat-card">
-      <h3>Assigned Cases</h3>
-      <div class="stat-value" id="assignedCases">0</div>
-      <div class="muted">Cases assigned or visible for counselor support</div>
-    </div>
-    <div class="stat-card">
-      <h3>Active Follow-Ups</h3>
-      <div class="stat-value" id="activeFollowUps">0</div>
-      <div class="muted">Interventions that still need monitoring</div>
-    </div>
-    <div class="stat-card">
-      <h3>Scheduled Hearings</h3>
-      <div class="stat-value" id="scheduledHearings">0</div>
-      <div class="muted">Upcoming hearings for counselor-visible cases</div>
-    </div>
-    <div class="stat-card">
-      <h3>Total Notes</h3>
-      <div class="stat-value" id="totalNotes">0</div>
-      <div class="muted">Intervention, behavior, recommendation, and follow-up notes</div>
-    </div>
-  </div>
+  <section class="dash-metrics" id="counselorMetrics"></section>
 
-  <div class="split-grid page-section">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Recent Counselor Notes</h2>
-          <p class="muted">Latest student interventions and counselor activity.</p>
+  <div class="dash-grid-main">
+    <main class="dash-stack">
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div>
+            <h2>Support Analytics</h2>
+            <p class="muted">Case status and counselor note progress.</p>
+          </div>
         </div>
-      </div>
-      <div id="recentNotes">Loading...</div>
-    </div>
+        <div class="dash-chart-grid">
+          <div id="statusChart"></div>
+          <div id="interventionChart"></div>
+        </div>
+      </section>
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Upcoming Hearings</h2>
-          <p class="muted">Hearings where counselor support may be needed.</p>
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div>
+            <h2>Cases Requiring Follow-Up</h2>
+            <p class="muted">Open cases that may need behavior monitoring or recommendations.</p>
+          </div>
+          <a href="cases.html"><button class="secondary">View All</button></a>
         </div>
-      </div>
-      <div id="upcomingHearings">Loading...</div>
-    </div>
-  </div>
+        <div id="followUpCases">Loading...</div>
+      </section>
+    </main>
 
-  <div class="split-grid page-section">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Cases Requiring Follow-Up</h2>
-          <p class="muted">Quick entry point for cases that may need behavior monitoring or recommendations.</p>
+    <aside class="dash-stack">
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div>
+            <h2>Support Calendar</h2>
+            <p class="muted">Scheduled hearings and counselor follow-up dates.</p>
+          </div>
         </div>
-      </div>
-      <div id="followUpCases">Loading...</div>
-    </div>
+        <div id="meetingCalendar"></div>
+      </section>
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Quick Actions</h2>
-          <p class="muted">Open the main counselor work areas.</p>
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div>
+            <h2>Upcoming Support Items</h2>
+            <p class="muted">Hearings and planned follow-ups on your calendar.</p>
+          </div>
         </div>
-      </div>
-      <div class="detail-list">
-        <div class="detail-item">
-          <p><strong><a href="cases.html">Case Queue</a></strong></p>
-          <p>Review case context, student history, and hearing or sanction support needs.</p>
-        </div>
-        <div class="detail-item">
-          <p><strong><a href="sanctions.html">Sanction Monitoring</a></strong></p>
-          <p>Track whether sanction follow-up and counselor support are progressing.</p>
-        </div>
-        <div class="detail-item">
-          <p><strong><a href="hearings.html">Hearing Support</a></strong></p>
-          <p>See scheduled hearing dates connected to counselor-visible cases.</p>
-        </div>
-        <div class="detail-item">
-          <p><strong><a href="appeals.html">Appeal Visibility</a></strong></p>
-          <p>Review submitted appeals and decisions that may affect student support planning.</p>
-        </div>
-        <div class="detail-item">
-          <p><strong><a href="evidence.html">Evidence Visibility</a></strong></p>
-          <p>Open uploaded case evidence in read-only mode for counseling context.</p>
-        </div>
-      </div>
-    </div>
+        <div id="meetingCalendarList">Loading...</div>
+      </section>
+    </aside>
   </div>
 </div>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
+<script src="../../js/core/dashboard-widgets.js"></script>
 <script>
 requireAuth();
 
@@ -122,84 +100,76 @@ if (!user || user.role !== "guidance_counselor") {
   logout();
 }
 
-function badge(value) {
-  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+const W = DashboardWidgets;
+document.getElementById("counselorName").textContent = getUserFullName(user);
+document.getElementById("counselorInitials").textContent = `${user.first_name?.[0] || "G"}${user.last_name?.[0] || "C"}`.toUpperCase();
+
+function hearingToEvent(item) {
+  return {
+    date: item.scheduled_date,
+    time: item.scheduled_time,
+    title: `${item.case_number} hearing`,
+    meta: `${item.first_name || ""} ${item.last_name || ""} (${item.student_number || "student"})`,
+    url: `case-details.html?id=${item.case_id}`
+  };
 }
 
-function renderList(items, emptyMessage, mapFn) {
-  if (!items || !items.length) {
-    return `<div class="empty-state">${emptyMessage}</div>`;
-  }
-  return `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
+function noteToEvent(note) {
+  return {
+    date: note.follow_up_date,
+    time: "",
+    title: `${W.labelize(note.note_type)} follow-up`,
+    meta: `${note.first_name || ""} ${note.last_name || ""} (${note.student_number || "student"})`,
+    url: `case-details.html?id=${note.case_id}`
+  };
+}
+
+function renderDashboard({ dashboard, cases, interventions, hearings }) {
+  const activeCases = cases.filter(item => W.isOpenStatus(item.status));
+  const activeFollowUps = interventions.filter(item => ["planned", "ongoing"].includes(item.status));
+  const scheduledHearings = hearings.filter(item => item.status === "scheduled");
+  const events = [
+    ...scheduledHearings.map(hearingToEvent),
+    ...activeFollowUps.filter(note => note.follow_up_date).map(noteToEvent)
+  ];
+
+  W.renderMetrics("counselorMetrics", [
+    { icon: "CS", label: "Visible Cases", value: dashboard.summary?.visibleCases ?? cases.length, help: "Assigned or counselor-visible cases" },
+    { icon: "FU", label: "Active Follow-Ups", value: activeFollowUps.length, help: "Planned or ongoing notes" },
+    { icon: "MT", label: "Scheduled Hearings", value: scheduledHearings.length, help: "Meetings needing support" },
+    { icon: "NT", label: "Counselor Notes", value: interventions.length, help: "Interventions and recommendations" }
+  ]);
+
+  W.renderDonut("statusChart", W.toSegments(W.groupBy(cases, "status"), ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"]), "No visible cases yet");
+  W.renderBars("interventionChart", W.toSegments(W.groupBy(interventions, "status"), ["planned", "ongoing", "completed"]), "No counselor notes yet");
+  W.renderCalendar("meetingCalendar", events);
+  W.renderUpcoming("meetingCalendarList", events, "No upcoming hearings or follow-ups");
+
+  W.renderList("followUpCases", activeCases.slice(0, 6), "No active counselor-visible cases.", item => `
+    <a class="dash-case-row" href="case-details.html?id=${item.id}">
+      <span class="badge ${item.status}">${W.labelize(item.status)}</span>
+      <div>
+        <strong>${W.escapeHtml(item.case_number)} | ${W.escapeHtml(item.first_name)} ${W.escapeHtml(item.last_name)}</strong>
+        <p>${W.escapeHtml(item.violation_type)} | ${W.labelize(item.severity_level)} | ${W.formatDate(item.incident_date)}</p>
+      </div>
+    </a>
+  `);
 }
 
 async function loadDashboard() {
-  const [dashboardRes, interventionsRes, hearingsRes, casesRes] = await Promise.all([
+  const [dashboard, interventions, hearings, cases] = await Promise.all([
     apiRequest("/counselor/dashboard", "GET", null, true),
     apiRequest("/counselor/interventions", "GET", null, true),
     apiRequest("/hearings/all?status=scheduled", "GET", null, true),
     apiRequest("/counselor/cases", "GET", null, true)
   ]);
 
-  const recentNotes = document.getElementById("recentNotes");
-  const upcomingHearings = document.getElementById("upcomingHearings");
-  const followUpCases = document.getElementById("followUpCases");
-
-  if (!dashboardRes.success) {
-    recentNotes.innerHTML = `<div class="empty-state">${dashboardRes.message}</div>`;
-    upcomingHearings.innerHTML = `<div class="empty-state">${dashboardRes.message}</div>`;
-    followUpCases.innerHTML = `<div class="empty-state">${dashboardRes.message}</div>`;
-    return;
-  }
-
-  document.getElementById("assignedCases").textContent = dashboardRes.summary.assignedCases;
-  document.getElementById("activeFollowUps").textContent = dashboardRes.summary.activeFollowUps;
-  document.getElementById("scheduledHearings").textContent = dashboardRes.summary.scheduledHearings;
-  document.getElementById("totalNotes").textContent =
-    interventionsRes.success ? interventionsRes.interventions.length : dashboardRes.recentNotes.length;
-
-  recentNotes.innerHTML = renderList(
-    dashboardRes.recentNotes,
-    "No counselor notes have been recorded yet.",
-    note => `
-      <div class="detail-item">
-        <p><strong>${note.case_number}</strong> ${badge(note.status)}</p>
-        <p>${note.first_name} ${note.last_name} (${note.student_number})</p>
-        <p>${note.note_type}: ${note.note}</p>
-      </div>
-    `
-  );
-
-  upcomingHearings.innerHTML = renderList(
-    hearingsRes.success ? hearingsRes.hearings.slice(0, 6) : [],
-    "No scheduled hearings found for counselor-visible cases.",
-    hearing => `
-      <div class="detail-item">
-        <p><strong>${hearing.case_number}</strong> ${badge(hearing.status)}</p>
-        <p>${hearing.first_name} ${hearing.last_name} (${hearing.student_number})</p>
-        <p>${hearing.scheduled_date} ${hearing.scheduled_time} at ${hearing.location || "-"}</p>
-      </div>
-    `
-  );
-
-  const activeCases = casesRes.success
-    ? casesRes.cases.filter(item => !["resolved", "dismissed"].includes(item.status)).slice(0, 6)
-    : [];
-
-  followUpCases.innerHTML = renderList(
-    activeCases,
-    "No active counselor-visible cases at the moment.",
-    item => `
-      <div class="detail-item">
-        <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
-        <p>${item.first_name} ${item.last_name} (${item.student_number})</p>
-        <p>${item.violation_type} | ${badge(item.severity_level)}</p>
-        <div class="action-row">
-          <a href="case-details.html?id=${item.id}"><button type="button">Open Case</button></a>
-        </div>
-      </div>
-    `
-  );
+  renderDashboard({
+    dashboard: dashboard.success ? dashboard : { summary: {} },
+    interventions: interventions.success ? interventions.interventions : [],
+    hearings: hearings.success ? hearings.hearings : [],
+    cases: cases.success ? cases.cases : []
+  });
 }
 
 loadDashboard();
