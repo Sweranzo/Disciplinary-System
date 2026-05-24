@@ -21,16 +21,18 @@
     </section>
 
     <aside class="dash-profile-card">
-      <div class="dash-profile-row">
-        <div class="dash-avatar" id="teacherInitials">T</div>
+      <div class="admin-profile-head">
+        <div class="admin-profile-avatar" id="teacherInitials">T</div>
         <div>
           <strong id="teacherFullName">Teacher</strong>
-          <span>Teacher</span>
+          <span>Teacher / Classroom Reporter</span>
         </div>
       </div>
-      <div class="info-grid">
-        <div><strong>Scope</strong><span>Reported or assigned cases</span></div>
-        <div><strong>Calendar</strong><span>Student meetings and hearings</span></div>
+      <div class="admin-profile-info">
+        <div><strong>Email</strong><span id="teacherEmail">-</span></div>
+        <div><strong>User ID</strong><span id="teacherId">-</span></div>
+        <div><strong>Role</strong><span>Classroom Teacher</span></div>
+        <div><strong>Scope</strong><span>Reported / assigned cases</span></div>
       </div>
     </aside>
   </div>
@@ -46,10 +48,21 @@
             <p class="muted">Status and severity distribution for cases visible to you.</p>
           </div>
         </div>
-        <div class="dash-chart-grid">
-          <div id="statusChart"></div>
-          <div id="severityChart"></div>
+        <div class="case-analytics-grid">
+          <div class="case-analytics-block case-analytics-donut-block">
+            <span class="case-analytics-label">Relevant Cases</span>
+            <div id="statusChart"></div>
+          </div>
+          <div class="case-analytics-block">
+            <span class="case-analytics-label">Status Distribution</span>
+            <div id="statusLegend"></div>
+          </div>
+          <div class="case-analytics-block">
+            <span class="case-analytics-label">Severity Distribution</span>
+            <div id="severityChart"></div>
+          </div>
         </div>
+        <div id="teacherAnalyticsSummary" class="case-analytics-summary"></div>
       </section>
 
       <section class="dash-panel">
@@ -101,10 +114,17 @@ if (!user || user.role !== "teacher") {
 }
 
 const W = DashboardWidgets;
-const teacherFullName = W.escapeHtml(getUserFullName(user));
 document.getElementById("teacherName").textContent = user.first_name || "Teacher";
 document.getElementById("teacherFullName").textContent = getUserFullName(user);
-document.getElementById("teacherInitials").textContent = `${user.first_name?.[0] || "T"}${user.last_name?.[0] || ""}`.toUpperCase();
+const teacherAvatar = document.getElementById("teacherInitials");
+const teacherAvatarUrl = getAvatarUrl(user);
+if (teacherAvatarUrl) {
+  teacherAvatar.innerHTML = `<img src="${teacherAvatarUrl}" alt="${getUserFullName(user)} avatar">`;
+} else {
+  teacherAvatar.textContent = `${user.first_name?.[0] || "T"}${user.last_name?.[0] || ""}`.toUpperCase();
+}
+document.getElementById("teacherEmail").textContent = user.email || "-";
+document.getElementById("teacherId").textContent = user.employee_or_student_id || "-";
 
 function hearingToEvent(item) {
   return {
@@ -121,6 +141,10 @@ function renderTeacherDashboard({ cases, hearings, sanctions }) {
   const scheduledHearings = hearings.filter(item => item.status === "scheduled");
   const activeSanctions = sanctions.filter(item => item.status === "active");
   const uniqueStudents = new Set(cases.map(item => item.student_number).filter(Boolean));
+  const statusCounts = W.groupBy(cases, "status");
+  const severityCounts = W.groupBy(cases, "severity_level");
+  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"];
+  const caseSeverities = ["minor", "major", "grave"];
   const events = scheduledHearings.map(hearingToEvent);
 
   W.renderMetrics("teacherMetrics", [
@@ -130,8 +154,15 @@ function renderTeacherDashboard({ cases, hearings, sanctions }) {
     { icon: "ST", label: "Students Involved", value: uniqueStudents.size, help: "Distinct students in your scope" }
   ]);
 
-  W.renderDonut("statusChart", W.toSegments(W.groupBy(cases, "status"), ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"]), "No cases yet");
-  W.renderBars("severityChart", W.toSegments(W.groupBy(cases, "severity_level"), ["minor", "major", "grave"]), "No severity data yet");
+  W.renderDonut("statusChart", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No cases yet");
+  W.renderStatusList("statusLegend", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No status data yet");
+  W.renderBars("severityChart", W.toSegments(severityCounts, caseSeverities, { includeZeros: true }), "No severity data yet");
+  W.renderSummary("teacherAnalyticsSummary", [
+    { label: "Total", value: cases.length },
+    { label: "Open", value: activeCases.length },
+    { label: "Resolved", value: statusCounts.resolved || 0 },
+    { label: "Active Sanctions", value: activeSanctions.length }
+  ]);
   W.renderCalendar("meetingCalendar", events);
   W.renderUpcoming("meetingCalendarList", events, "No pending student meetings or hearings");
 

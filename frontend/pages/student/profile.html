@@ -8,46 +8,78 @@
 </head>
 <body>
 
-<div class="dashboard-container">
-  <div class="topbar">
+<div class="dashboard-container student-profile-workspace">
+  <div class="student-profile-topbar">
     <div>
       <span class="eyebrow">Student Identity</span>
-      <h1 style="margin-top:16px;">My Student Profile</h1>
-      <p class="muted">View your academic identity, linked guardians, disciplinary history, and school-issued QR code.</p>
+      <h1>My Student Profile</h1>
+      <p class="muted" id="profileMeta">View your academic identity, linked guardians, disciplinary history, and school-issued QR code.</p>
     </div>
-    <div class="action-row">
-      <a href="dashboard.html"><button class="secondary compact-btn">Back</button></a>
-      <button onclick="logout()" class="compact-btn">Logout</button>
+    <div class="student-profile-top-actions">
+      <a href="dashboard.html"><button class="secondary" type="button">Back to Dashboard</button></a>
+      <a href="cases.html"><button class="secondary" type="button">Case History</button></a>
+      <button onclick="logout()" class="secondary ghost-btn" type="button">Logout</button>
     </div>
   </div>
 
-  <div class="card student-profile-shell">
-    <div id="studentInfo">Loading...</div>
-  </div>
+  <div id="studentInfo">Loading...</div>
 
-  <div class="card">
-    <h2>Parents / Guardians</h2>
-    <div id="parentsInfo">Loading...</div>
-  </div>
+  <div class="student-profile-layout page-section">
+    <main class="student-profile-main-column">
+      <div class="student-activity-grid">
+        <div class="student-profile-card">
+          <div class="card-header">
+            <div>
+              <h2>Case History</h2>
+              <p class="muted">Recent disciplinary records linked to your student account.</p>
+            </div>
+          </div>
+          <div id="casesInfo">Loading...</div>
+        </div>
 
-  <div class="card">
-    <h2>Case History</h2>
-    <div id="casesInfo">Loading...</div>
-  </div>
+        <div class="student-profile-card">
+          <div class="card-header">
+            <div>
+              <h2>Sanctions</h2>
+              <p class="muted">Assigned sanctions and completion windows.</p>
+            </div>
+          </div>
+          <div id="sanctionsInfo">Loading...</div>
+        </div>
 
-  <div class="card">
-    <h2>Hearings</h2>
-    <div id="hearingsInfo">Loading...</div>
-  </div>
+        <div class="student-profile-card">
+          <div class="card-header">
+            <div>
+              <h2>Hearings</h2>
+              <p class="muted">Scheduled, completed, or cancelled hearing activity.</p>
+            </div>
+          </div>
+          <div id="hearingsInfo">Loading...</div>
+        </div>
 
-  <div class="card">
-    <h2>Sanctions</h2>
-    <div id="sanctionsInfo">Loading...</div>
-  </div>
+        <div class="student-profile-card">
+          <div class="card-header">
+            <div>
+              <h2>Appeals</h2>
+              <p class="muted">Appeal submissions and recorded decisions.</p>
+            </div>
+          </div>
+          <div id="appealsInfo">Loading...</div>
+        </div>
+      </div>
+    </main>
 
-  <div class="card">
-    <h2>Appeals</h2>
-    <div id="appealsInfo">Loading...</div>
+    <aside class="student-profile-side-column">
+      <section class="student-profile-card">
+        <div class="card-header">
+          <div>
+            <h2>Parents / Guardians</h2>
+            <p class="muted">Linked family contacts for school coordination.</p>
+          </div>
+        </div>
+        <div id="parentsInfo" class="student-sidebar-list">Loading...</div>
+      </section>
+    </aside>
   </div>
 </div>
 
@@ -67,6 +99,14 @@ let currentStudentNumber = null;
 
 function getStudentInitials(student) {
   return `${student.first_name?.[0] || "S"}${student.last_name?.[0] || ""}`.toUpperCase();
+}
+
+function getStudentFullName(student) {
+  return [student.first_name, student.middle_name, student.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim() || student.student_number || "Student";
 }
 
 function formatDate(value) {
@@ -111,73 +151,99 @@ async function loadProfile() {
     const student = res.student;
     currentStudentQr = student.qr_code_data_url || null;
     currentStudentNumber = student.student_number || null;
+    const parents = Array.isArray(res.parents) ? res.parents : [];
+    const recentCases = Array.isArray(res.recentCases) ? res.recentCases : [];
+    const hearings = Array.isArray(res.hearings) ? res.hearings : [];
+    const sanctions = Array.isArray(res.sanctions) ? res.sanctions : [];
+    const appeals = Array.isArray(res.appeals) ? res.appeals : [];
+    const fullName = getStudentFullName(student);
+    document.getElementById("profileMeta").innerHTML =
+      `${fullName} | ${student.student_number || "No student number"} | ${badge(student.academic_level || "student")}`;
 
     const avatarMarkup = student.avatar_url
-      ? `<span class="profile-settings-avatar student-profile-avatar has-image"><img src="${student.avatar_url}" alt="${student.first_name} ${student.last_name} avatar"></span>`
-      : `<span class="profile-settings-avatar student-profile-avatar">${getStudentInitials(student)}</span>`;
+      ? `<span class="student-avatar student-profile-avatar has-image"><img src="${student.avatar_url}" alt="${fullName} avatar"></span>`
+      : `<span class="student-avatar student-profile-avatar student-avatar-fallback" aria-label="${fullName} avatar placeholder">${getStudentInitials(student)}</span>`;
 
     studentInfo.innerHTML = `
-      <div class="student-profile-hero">
-        <div class="student-profile-identity">
-          ${avatarMarkup}
-          <div class="student-profile-copy">
-            <span class="eyebrow">Active Student Record</span>
-            <h2>${student.first_name} ${student.last_name}</h2>
-            <p>${student.program || "Program not set"} | ${student.year_level || "-"} year | Section ${student.section || "-"}</p>
-            <div class="student-profile-meta">
-              <span>${student.student_number}</span>
-              ${badge(student.academic_level || "student")}
+      <section class="student-premium-hero">
+        <div class="student-premium-main">
+          <div class="student-premium-identity">
+            ${avatarMarkup}
+            <div>
+              <span class="eyebrow">Active Student Record</span>
+              <h2>${fullName}</h2>
+              <p>${student.student_number || "No student number"} &bull; ${student.program || "Program not set"} &bull; ${student.year_level || "-"} ${student.section ? `- ${student.section}` : ""}</p>
+              <div class="student-profile-meta">
+                ${badge(student.academic_level || "student")}
+                <span>${student.email ? "Contact ready" : "Email missing"}</span>
+                <span>${student.qr_token ? "QR issued" : "QR pending"}</span>
+              </div>
             </div>
           </div>
+          <div class="student-hero-actions">
+            ${student.qr_code_data_url ? `<button type="button" id="printQrBtn">Print QR</button>` : ""}
+            <a href="cases.html"><button type="button" class="secondary">View Cases</button></a>
+            <a href="hearings.html"><button type="button" class="secondary">View Hearings</button></a>
+          </div>
         </div>
-        <div class="student-qr-panel">
-          <strong>Student QR</strong>
-          ${student.qr_code_data_url ? `
-            <img class="qr-thumb large student-qr-thumb" src="${student.qr_code_data_url}" alt="QR code for ${student.student_number}">
-            <button type="button" class="compact-btn" id="printQrBtn">Print QR Code</button>
-          ` : `
-            <div class="empty-state">QR code has not been generated for this student yet.</div>
-          `}
-        </div>
-      </div>
-      <div class="student-profile-grid">
-        <div class="student-profile-stat">
-          <strong>Email</strong>
-          <span>${student.email || "-"}</span>
-        </div>
-        <div class="student-profile-stat">
-          <strong>Department</strong>
-          <span>${student.department || "-"}</span>
-        </div>
-        <div class="student-profile-stat">
-          <strong>Program</strong>
-          <span>${student.program || "-"}</span>
-        </div>
-        <div class="student-profile-stat">
-          <strong>Year / Section</strong>
-          <span>${student.year_level || "-"} / ${student.section || "-"}</span>
-        </div>
-        <div class="student-profile-stat">
-          <strong>Academic Level</strong>
-          <span>${student.academic_level || "-"}</span>
-        </div>
-        <div class="student-profile-stat">
-          <strong>QR Token</strong>
-          <span>${student.qr_token || "Not issued"}</span>
-        </div>
-      </div>
+        <aside class="student-premium-qr">
+          <span>Student QR</span>
+          <div class="student-premium-qr-box">
+            ${student.qr_code_data_url ? `<img class="student-qr-thumb" src="${student.qr_code_data_url}" alt="QR code for ${student.student_number}">` : `<div class="empty-state">QR not generated</div>`}
+          </div>
+          <strong>${student.student_number || "No student number"}</strong>
+          <p>${student.qr_token || "No QR token"}</p>
+        </aside>
+      </section>
+
+      <section class="student-info-workspace">
+        <main class="student-info-main">
+          <div class="student-info-card">
+            <div class="student-info-card-head"><h3>Personal Information</h3><span>${student.email ? "Contact ready" : "Email missing"}</span></div>
+            <div class="student-info-list">
+              <div><span>Email</span><strong>${student.email || "-"}</strong></div>
+              <div><span>Student ID</span><strong>${student.student_number || "-"}</strong></div>
+              <div><span>Academic Level</span><strong>${student.academic_level || "-"}</strong></div>
+            </div>
+          </div>
+          <div class="student-info-card">
+            <div class="student-info-card-head"><h3>Academic Information</h3><span>${student.program || "Program"}</span></div>
+            <div class="student-info-list">
+              <div><span>Department</span><strong>${student.department || "-"}</strong></div>
+              <div><span>Program</span><strong>${student.program || "-"}</strong></div>
+              <div><span>Year / Section</span><strong>${student.year_level || "-"} / ${student.section || "-"}</strong></div>
+            </div>
+          </div>
+          <div class="student-info-card">
+            <div class="student-info-card-head"><h3>QR and Verification</h3><span>${student.qr_token ? "Issued" : "Pending"}</span></div>
+            <div class="student-info-list">
+              <div><span>QR Token</span><strong>${student.qr_token || "Not issued"}</strong></div>
+              <div><span>Verification Use</span><strong>Reporting and student lookup</strong></div>
+            </div>
+          </div>
+        </main>
+        <aside class="student-info-side">
+          <div class="student-info-card compact">
+            <h3>Quick Stats</h3>
+            <div class="student-mini-stats">
+              <div><strong>${recentCases.length}</strong><span>Cases</span></div>
+              <div><strong>${sanctions.length}</strong><span>Sanctions</span></div>
+              <div><strong>${hearings.length}</strong><span>Hearings</span></div>
+              <div><strong>${appeals.length}</strong><span>Appeals</span></div>
+            </div>
+          </div>
+          <div class="student-info-card compact">
+            <h3>Recent Activity</h3>
+            <p class="muted">${recentCases.length ? "Recent case activity is available in your profile history." : "No recent disciplinary activity."}</p>
+          </div>
+        </aside>
+      </section>
     `;
 
     const printQrBtn = document.getElementById("printQrBtn");
     if (printQrBtn) {
       printQrBtn.addEventListener("click", () => printStudentQr(currentStudentNumber, currentStudentQr));
     }
-
-    const parents = Array.isArray(res.parents) ? res.parents : [];
-    const recentCases = Array.isArray(res.recentCases) ? res.recentCases : [];
-    const hearings = Array.isArray(res.hearings) ? res.hearings : [];
-    const sanctions = Array.isArray(res.sanctions) ? res.sanctions : [];
-    const appeals = Array.isArray(res.appeals) ? res.appeals : [];
 
     if (!parents.length) {
       parentsInfo.innerHTML = `<div class="empty-state">No parent or guardian records linked yet.</div>`;

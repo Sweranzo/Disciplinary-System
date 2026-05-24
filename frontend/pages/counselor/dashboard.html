@@ -21,16 +21,18 @@
     </section>
 
     <aside class="dash-profile-card">
-      <div class="dash-profile-row">
-        <div class="dash-avatar" id="counselorInitials">GC</div>
+      <div class="admin-profile-head">
+        <div class="admin-profile-avatar" id="counselorInitials">GC</div>
         <div>
           <strong id="counselorName">Counselor</strong>
-          <span>Guidance Counselor</span>
+          <span>Guidance Counselor / Student Support</span>
         </div>
       </div>
-      <div class="info-grid">
-        <div><strong>Focus</strong><span>Interventions and follow-ups</span></div>
-        <div><strong>Calendar</strong><span>Hearings and follow-up dates</span></div>
+      <div class="admin-profile-info">
+        <div><strong>Email</strong><span id="counselorEmail">-</span></div>
+        <div><strong>User ID</strong><span id="counselorId">-</span></div>
+        <div><strong>Role</strong><span>Guidance Counselor</span></div>
+        <div><strong>Focus</strong><span>Interventions / follow-ups</span></div>
       </div>
     </aside>
   </div>
@@ -46,10 +48,21 @@
             <p class="muted">Case status and counselor note progress.</p>
           </div>
         </div>
-        <div class="dash-chart-grid">
-          <div id="statusChart"></div>
-          <div id="interventionChart"></div>
+        <div class="case-analytics-grid">
+          <div class="case-analytics-block case-analytics-donut-block">
+            <span class="case-analytics-label">Visible Cases</span>
+            <div id="statusChart"></div>
+          </div>
+          <div class="case-analytics-block">
+            <span class="case-analytics-label">Case Status</span>
+            <div id="statusLegend"></div>
+          </div>
+          <div class="case-analytics-block">
+            <span class="case-analytics-label">Intervention Progress</span>
+            <div id="interventionChart"></div>
+          </div>
         </div>
+        <div id="counselorAnalyticsSummary" class="case-analytics-summary"></div>
       </section>
 
       <section class="dash-panel">
@@ -102,7 +115,15 @@ if (!user || user.role !== "guidance_counselor") {
 
 const W = DashboardWidgets;
 document.getElementById("counselorName").textContent = getUserFullName(user);
-document.getElementById("counselorInitials").textContent = `${user.first_name?.[0] || "G"}${user.last_name?.[0] || "C"}`.toUpperCase();
+const counselorAvatar = document.getElementById("counselorInitials");
+const counselorAvatarUrl = getAvatarUrl(user);
+if (counselorAvatarUrl) {
+  counselorAvatar.innerHTML = `<img src="${counselorAvatarUrl}" alt="${getUserFullName(user)} avatar">`;
+} else {
+  counselorAvatar.textContent = `${user.first_name?.[0] || "G"}${user.last_name?.[0] || "C"}`.toUpperCase();
+}
+document.getElementById("counselorEmail").textContent = user.email || "-";
+document.getElementById("counselorId").textContent = user.employee_or_student_id || "-";
 
 function hearingToEvent(item) {
   return {
@@ -128,6 +149,10 @@ function renderDashboard({ dashboard, cases, interventions, hearings }) {
   const activeCases = cases.filter(item => W.isOpenStatus(item.status));
   const activeFollowUps = interventions.filter(item => ["planned", "ongoing"].includes(item.status));
   const scheduledHearings = hearings.filter(item => item.status === "scheduled");
+  const completedFollowUps = interventions.filter(item => item.status === "completed");
+  const statusCounts = W.groupBy(cases, "status");
+  const interventionCounts = W.groupBy(interventions, "status");
+  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"];
   const events = [
     ...scheduledHearings.map(hearingToEvent),
     ...activeFollowUps.filter(note => note.follow_up_date).map(noteToEvent)
@@ -140,8 +165,15 @@ function renderDashboard({ dashboard, cases, interventions, hearings }) {
     { icon: "NT", label: "Counselor Notes", value: interventions.length, help: "Interventions and recommendations" }
   ]);
 
-  W.renderDonut("statusChart", W.toSegments(W.groupBy(cases, "status"), ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"]), "No visible cases yet");
-  W.renderBars("interventionChart", W.toSegments(W.groupBy(interventions, "status"), ["planned", "ongoing", "completed"]), "No counselor notes yet");
+  W.renderDonut("statusChart", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No visible cases yet");
+  W.renderStatusList("statusLegend", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No status data yet");
+  W.renderBars("interventionChart", W.toSegments(interventionCounts, ["planned", "ongoing", "completed"], { includeZeros: true }), "No counselor notes yet");
+  W.renderSummary("counselorAnalyticsSummary", [
+    { label: "Open Cases", value: activeCases.length },
+    { label: "Active Follow-Ups", value: activeFollowUps.length },
+    { label: "Completed Notes", value: completedFollowUps.length },
+    { label: "Hearings", value: scheduledHearings.length }
+  ]);
   W.renderCalendar("meetingCalendar", events);
   W.renderUpcoming("meetingCalendarList", events, "No upcoming hearings or follow-ups");
 

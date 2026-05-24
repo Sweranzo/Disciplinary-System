@@ -2,6 +2,18 @@ const pool = require("../config/db");
 const { logAudit } = require("../utils/auditLogger");
 const { getCaseStatusRecord, isCaseClosed } = require("./caseController");
 
+function buildAvatarUrl(avatarPath) {
+  if (!avatarPath) {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(avatarPath)) {
+    return avatarPath;
+  }
+
+  return `http://localhost:${process.env.PORT || 5000}${avatarPath}`;
+}
+
 function formatRoleLabel(role = "") {
   return String(role || "")
     .split("_")
@@ -16,9 +28,15 @@ async function getCounselorDashboard(req, res) {
       `
       SELECT COUNT(*) AS total
       FROM cases
-      WHERE assigned_to_user_id = ? OR assigned_to_user_id IS NULL
-      `,
-      [req.user.id]
+      `
+    );
+
+    const [activeCases] = await pool.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM cases
+      WHERE status NOT IN ('resolved', 'dismissed')
+      `
     );
 
     const [followUps] = await pool.query(
@@ -36,10 +54,8 @@ async function getCounselorDashboard(req, res) {
       SELECT COUNT(*) AS total
       FROM hearings h
       JOIN cases c ON h.case_id = c.id
-      WHERE (c.assigned_to_user_id = ? OR c.assigned_to_user_id IS NULL)
-        AND h.status = 'scheduled'
-      `,
-      [req.user.id]
+      WHERE h.status = 'scheduled'
+      `
     );
 
     const [recentNotes] = await pool.query(
@@ -75,7 +91,7 @@ async function getCounselorDashboard(req, res) {
       success: true,
       summary: {
         visibleCases: visibleCases[0].total,
-        assignedCases: visibleCases[0].total,
+        activeSupportCases: activeCases[0].total,
         activeFollowUps: followUps[0].total,
         scheduledHearings: hearings[0].total
       },
@@ -105,21 +121,33 @@ async function getCounselorCases(req, res) {
         c.status,
         c.incident_date,
         s.student_number,
+        COALESCE(u.middle_name, s.middle_name) AS middle_name,
         COALESCE(u.first_name, s.first_name) AS first_name,
         COALESCE(u.last_name, s.last_name) AS last_name,
-        s.id AS student_id
+        u.avatar_path AS student_avatar_path,
+        s.id AS student_id,
+        c.assigned_to_user_id,
+        assignee.first_name AS assigned_to_first_name,
+        assignee.last_name AS assigned_to_last_name,
+        assignee.role AS assigned_to_role
       FROM cases c
       JOIN students s ON c.student_id = s.id
       LEFT JOIN users u ON s.user_id = u.id
-      WHERE c.assigned_to_user_id = ? OR c.assigned_to_user_id IS NULL
+      LEFT JOIN users assignee ON c.assigned_to_user_id = assignee.id
       ORDER BY c.created_at DESC
-      `,
-      [req.user.id]
+      `
     );
 
     return res.json({
       success: true,
-      cases: rows
+      cases: rows.map(item => ({
+        ...item,
+        student_avatar_url: buildAvatarUrl(item.student_avatar_path),
+        assigned_to_role_label: formatRoleLabel(item.assigned_to_role),
+        support_scope: item.assigned_to_user_id
+          ? (Number(item.assigned_to_user_id) === Number(req.user.id) ? "assigned_to_you" : "discipline_owned")
+          : "support_queue"
+      }))
     });
   } catch (error) {
     console.error("Counselor cases error:", error);

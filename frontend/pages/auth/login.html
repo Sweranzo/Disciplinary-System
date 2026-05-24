@@ -9,36 +9,39 @@
 <body class="no-app-sidebar auth-page">
 
 <main class="auth-shell">
-  <section class="auth-hero" aria-label="System overview">
+  <section class="auth-hero" aria-label="Discipline portal overview">
     <div class="auth-hero-content">
       <div class="auth-brand-row">
-        <img src="../../Philtech-logo.png" alt="Philtech-GMA logo" class="auth-crest">
+        <img src="../../philtech-crest.png" alt="Philtech-GMA logo" class="auth-crest">
         <div>
-          <span class="auth-kicker">Disciplinary System</span>
-          <p>Philtech-GMA Student Support</p>
+          <strong>PHILTECH-GMA</strong>
+          <span>Discipline Portal</span>
         </div>
       </div>
 
-      <div>
-        <h1>Case handling that feels organized, secure, and ready for school teams.</h1>
-        <p class="auth-lead">Manage reports, hearings, sanctions, evidence, appeals, and role-based dashboards from one connected workspace.</p>
+      <div class="auth-copy">
+        <p class="auth-kicker">Smart. Secure. Systematic.</p>
+        <h1>Building Discipline. Strengthening <span>Future.</span></h1>
+        <p class="auth-lead">A unified system for managing cases, hearings, sanctions, appeals, and student records with integrity and efficiency.</p>
       </div>
+
+      <img src="../../login-students.png" alt="Philtech-GMA students" class="auth-students">
 
       <div class="auth-feature-grid" aria-label="System highlights">
         <div>
-          <span>01</span>
-          <strong>Role dashboards</strong>
-          <p>Admin, discipline, teacher, counselor, student, and parent views.</p>
+          <span class="auth-feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1Z"></path><path d="m9 12 2 2 4-4"></path></svg></span>
+          <strong>Secure & Reliable</strong>
+          <p>Your data is protected with advanced security.</p>
         </div>
         <div>
-          <span>02</span>
-          <strong>Clear records</strong>
-          <p>Structured case history with evidence and hearing details.</p>
+          <span class="auth-feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v6l4 2"></path><circle cx="12" cy="12" r="10"></circle></svg></span>
+          <strong>Organized & Efficient</strong>
+          <p>Manage cases and records in one unified workspace.</p>
         </div>
         <div>
-          <span>03</span>
-          <strong>Fast access</strong>
-          <p>Seeded local accounts stay available for quick testing.</p>
+          <span class="auth-feature-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+          <strong>Student-Centered</strong>
+          <p>Promoting discipline, accountability, and growth.</p>
         </div>
       </div>
     </div>
@@ -47,27 +50,58 @@
   <section class="auth-panel" aria-label="Login form">
     <div class="auth-card">
       <div class="auth-card-header">
-        <span class="auth-status">Secure portal</span>
-        <h2>Welcome back</h2>
-        <p>Sign in with your assigned account to open the correct dashboard.</p>
+        <span class="auth-status">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+          Secure Portal
+        </span>
+        <h2>Welcome back!</h2>
+        <p>Sign in with your assigned account to access the Discipline Portal.</p>
+      </div>
+
+      <div class="auth-role-showcase" aria-label="Supported role access">
+        <div>
+          <span>RBAC access</span>
+          <strong>One portal for every role</strong>
+        </div>
+        <ul>
+          <li>Admin</li>
+          <li>Discipline</li>
+          <li>Guidance</li>
+          <li>Teacher</li>
+          <li>Parent</li>
+          <li>Student</li>
+        </ul>
       </div>
 
       <form class="auth-form" id="loginForm">
         <label for="usernameOrEmail">Username or Email</label>
-        <input type="text" id="usernameOrEmail" placeholder="Enter username or email" value="admin" autocomplete="username">
+        <div class="auth-input-wrap">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 20a6 6 0 0 0-12 0"></path><circle cx="12" cy="10" r="4"></circle></svg>
+          <input type="text" id="usernameOrEmail" placeholder="Enter your username or email" autocomplete="username">
+        </div>
 
         <label for="password">Password</label>
-        <input type="password" id="password" placeholder="Enter password" value="123456" autocomplete="current-password">
+        <div class="auth-input-wrap">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password">
+          <button class="auth-password-toggle" id="passwordToggle" type="button" aria-label="Show password">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.06 12.35a1 1 0 0 1 0-.7A10.75 10.75 0 0 1 12 5c4.39 0 8.14 2.64 9.94 6.65a1 1 0 0 1 0 .7A10.75 10.75 0 0 1 12 19c-4.39 0-8.14-2.64-9.94-6.65Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
+        </div>
 
-        <button id="loginBtn" class="full-width" type="submit">Sign in</button>
+        <div class="auth-form-row">
+          <label class="auth-check"><input type="checkbox" id="rememberMe"> <span>Remember me</span></label>
+          <a href="#" aria-disabled="true">Forgot password?</a>
+        </div>
+
+        <button id="loginBtn" class="full-width" type="submit">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          Sign in
+        </button>
       </form>
 
-      <div class="auth-demo-note">
-        <strong>Demo access</strong>
-        <p>The seeded credentials above are ready for local testing.</p>
-      </div>
-
       <p id="error" class="auth-error" role="alert"></p>
+      <p class="auth-footer">&copy; 2025 PHILTECH-GMA Discipline Portal<br>All rights reserved.</p>
     </div>
   </section>
 </main>
@@ -78,6 +112,14 @@
 <script>
 const loginForm = document.getElementById("loginForm");
 const errorEl = document.getElementById("error");
+const passwordInput = document.getElementById("password");
+const passwordToggle = document.getElementById("passwordToggle");
+
+passwordToggle.addEventListener("click", () => {
+  const isPassword = passwordInput.type === "password";
+  passwordInput.type = isPassword ? "text" : "password";
+  passwordToggle.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+});
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();

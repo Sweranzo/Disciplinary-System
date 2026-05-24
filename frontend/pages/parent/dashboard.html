@@ -21,16 +21,18 @@
     </section>
 
     <aside class="dash-profile-card">
-      <div class="dash-profile-row">
-        <div class="dash-avatar" id="parentInitials">P</div>
+      <div class="admin-profile-head">
+        <div class="admin-profile-avatar" id="parentInitials">P</div>
         <div>
           <strong id="parentName">Parent</strong>
-          <span>Parent / Guardian</span>
+          <span>Parent / Guardian Portal</span>
         </div>
       </div>
-      <div class="info-grid">
+      <div class="admin-profile-info">
+        <div><strong>Email</strong><span id="parentEmail">-</span></div>
+        <div><strong>User ID</strong><span id="parentId">-</span></div>
+        <div><strong>Role</strong><span>Parent / Guardian</span></div>
         <div><strong>Scope</strong><span>Linked students only</span></div>
-        <div><strong>Calendar</strong><span>Child hearings and sanction dates</span></div>
       </div>
     </aside>
   </div>
@@ -46,10 +48,21 @@
             <p class="muted">Case status and severity across formally linked students.</p>
           </div>
         </div>
-        <div class="dash-chart-grid">
-          <div id="statusChart"></div>
-          <div id="severityChart"></div>
+        <div class="case-analytics-grid">
+          <div class="case-analytics-block case-analytics-donut-block">
+            <span class="case-analytics-label">Linked Cases</span>
+            <div id="statusChart"></div>
+          </div>
+          <div class="case-analytics-block">
+            <span class="case-analytics-label">Status Distribution</span>
+            <div id="statusLegend"></div>
+          </div>
+          <div class="case-analytics-block">
+            <span class="case-analytics-label">Severity Distribution</span>
+            <div id="severityChart"></div>
+          </div>
         </div>
+        <div id="parentAnalyticsSummary" class="case-analytics-summary"></div>
       </section>
 
       <section class="dash-panel">
@@ -101,7 +114,15 @@ if (!user || user.role !== "parent") {
 
 const W = DashboardWidgets;
 document.getElementById("parentName").textContent = getUserFullName(user);
-document.getElementById("parentInitials").textContent = `${user.first_name?.[0] || "P"}${user.last_name?.[0] || ""}`.toUpperCase();
+const parentAvatar = document.getElementById("parentInitials");
+const parentAvatarUrl = getAvatarUrl(user);
+if (parentAvatarUrl) {
+  parentAvatar.innerHTML = `<img src="${parentAvatarUrl}" alt="${getUserFullName(user)} avatar">`;
+} else {
+  parentAvatar.textContent = `${user.first_name?.[0] || "P"}${user.last_name?.[0] || ""}`.toUpperCase();
+}
+document.getElementById("parentEmail").textContent = user.email || "-";
+document.getElementById("parentId").textContent = user.employee_or_student_id || "-";
 
 function hearingToEvent(item) {
   return {
@@ -127,6 +148,10 @@ function renderDashboard({ children, cases, hearings, sanctions }) {
   const scheduledHearings = hearings.filter(item => item.status === "scheduled");
   const activeSanctions = sanctions.filter(item => item.status === "active");
   const openCases = cases.filter(item => W.isOpenStatus(item.status));
+  const statusCounts = W.groupBy(cases, "status");
+  const severityCounts = W.groupBy(cases, "severity_level");
+  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"];
+  const caseSeverities = ["minor", "major", "grave"];
   const events = [...scheduledHearings.map(hearingToEvent), ...activeSanctions.map(sanctionToEvent).filter(item => item.date)];
 
   W.renderMetrics("parentMetrics", [
@@ -136,8 +161,15 @@ function renderDashboard({ children, cases, hearings, sanctions }) {
     { icon: "SN", label: "Active Sanctions", value: activeSanctions.length, help: "Sanctions still being tracked" }
   ]);
 
-  W.renderDonut("statusChart", W.toSegments(W.groupBy(cases, "status"), ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"]), "No linked cases yet");
-  W.renderBars("severityChart", W.toSegments(W.groupBy(cases, "severity_level"), ["minor", "major", "grave"]), "No severity data yet");
+  W.renderDonut("statusChart", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No linked cases yet");
+  W.renderStatusList("statusLegend", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No status data yet");
+  W.renderBars("severityChart", W.toSegments(severityCounts, caseSeverities, { includeZeros: true }), "No severity data yet");
+  W.renderSummary("parentAnalyticsSummary", [
+    { label: "Linked Students", value: children.length },
+    { label: "Open Cases", value: openCases.length },
+    { label: "Resolved", value: statusCounts.resolved || 0 },
+    { label: "Active Sanctions", value: activeSanctions.length }
+  ]);
   W.renderCalendar("meetingCalendar", events);
   W.renderUpcoming("meetingCalendarList", events, "No upcoming hearings or sanction dates");
 

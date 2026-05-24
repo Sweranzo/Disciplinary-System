@@ -1,6 +1,7 @@
 const pool = require("../config/db");
 const { logAudit } = require("../utils/auditLogger");
 const { sendSms, isSmsEnabled } = require("../utils/smsService");
+const { generateQrDataUrl } = require("../utils/identityService");
 
 async function createNotification(userId, title, message, type = "system") {
   await pool.query(
@@ -10,6 +11,18 @@ async function createNotification(userId, title, message, type = "system") {
     `,
     [userId, title, message, type]
   );
+}
+
+function buildAvatarUrl(avatarPath) {
+  if (!avatarPath) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(avatarPath)) {
+    return avatarPath;
+  }
+
+  return `http://localhost:${process.env.PORT || 5000}${avatarPath}`;
 }
 
 async function notifyLinkedParentsAboutCase({
@@ -93,7 +106,7 @@ function parsePagination(query) {
   return { page, limit, offset };
 }
 
-function buildCaseFilterClause(query, params) {
+function buildCaseFilterClause(query, params, user = null) {
   let clause = "";
 
   if (query.search) {
@@ -124,6 +137,9 @@ function buildCaseFilterClause(query, params) {
 
   if (query.assigned === "unassigned") {
     clause += " AND c.assigned_to_user_id IS NULL";
+  } else if (query.assigned === "mine" && user?.id) {
+    clause += " AND c.assigned_to_user_id = ?";
+    params.push(user.id);
   }
 
   return clause;
@@ -413,7 +429,7 @@ async function getAllCases(req, res) {
     const access = buildCaseAccessClause(context);
     const { page, limit, offset } = parsePagination(req.query);
     const filterParams = [];
-    const filterClause = buildCaseFilterClause(req.query, filterParams);
+    const filterClause = buildCaseFilterClause(req.query, filterParams, req.user);
 
     const [countRows] = await pool.query(
       `
@@ -519,7 +535,10 @@ async function getCaseById(req, res) {
         s.year_level,
         s.section,
         s.academic_level,
+        s.qr_token,
+        u.avatar_path AS student_avatar_path,
           COALESCE(u.first_name, s.first_name) AS first_name,
+          COALESCE(u.middle_name, s.middle_name) AS middle_name,
           COALESCE(u.last_name, s.last_name) AS last_name,
           reporter.first_name AS reported_by_first_name,
           reporter.last_name AS reported_by_last_name,
@@ -545,8 +564,14 @@ async function getCaseById(req, res) {
       });
     }
 
+      const studentQrCodeDataUrl = rows[0].qr_token
+        ? await generateQrDataUrl(rows[0].student_number, rows[0].qr_token)
+        : "";
+
       const caseData = {
         ...rows[0],
+        student_avatar_url: buildAvatarUrl(rows[0].student_avatar_path),
+        student_qr_code_data_url: studentQrCodeDataUrl,
         reported_by_role_label: formatRoleLabel(rows[0].reported_by_role),
         assigned_to_role_label: formatRoleLabel(rows[0].assigned_to_role),
         is_closed: isCaseClosed(rows[0].status)
@@ -980,12 +1005,14 @@ async function assignCase(req, res) {
       [assignedToUserId, id]
     );
 
-    await createNotification(
-      assignee.id,
-      "Case Assignment",
-      `You have been assigned to handle case ${caseRows[0].case_number}.`,
-      "case"
-    );
+    if (Number(assignee.id) !== Number(req.user.id)) {
+      await createNotification(
+        assignee.id,
+        "Case Assignment",
+        `You have been assigned to handle case ${caseRows[0].case_number}.`,
+        "case"
+      );
+    }
 
     await logAudit({
       userId: req.user.id,
@@ -1005,6 +1032,162 @@ async function assignCase(req, res) {
     return res.status(500).json({
       success: false,
       message: "Server error while assigning case."
+    });
+  }
+}
+
+async function claimCase(req, res) {
+  try {
+    const { id } = req.params;
+
+    if (req.user.role !== "discipline_officer") {
+      return res.status(403).json({
+        success: false,
+        message: "Only discipline officers can claim cases."
+      });
+    }
+
+    const [caseRows] = await pool.query(
+      `
+      SELECT
+        c.id,
+        c.case_number,
+        c.status,
+        c.assigned_to_user_id,
+        c.reported_by_user_id,
+        c.violation_type,
+        s.student_number,
+        COALESCE(su.first_name, s.first_name) AS first_name,
+        COALESCE(su.last_name, s.last_name) AS last_name
+      FROM cases c
+      JOIN students s ON c.student_id = s.id
+      LEFT JOIN users su ON s.user_id = su.id
+      WHERE c.id = ?
+      LIMIT 1
+      `,
+      [id]
+    );
+
+    if (!caseRows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Case not found."
+      });
+    }
+
+    const caseItem = caseRows[0];
+    const [actorRows] = await pool.query(
+      `
+      SELECT id, first_name, last_name
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [req.user.id]
+    );
+    const actor = actorRows[0] || {
+      id: req.user.id,
+      first_name: req.user.username || "Discipline",
+      last_name: "Officer"
+    };
+
+    if (isCaseClosed(caseItem.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Resolved or dismissed cases are read-only."
+      });
+    }
+
+    if (caseItem.assigned_to_user_id && Number(caseItem.assigned_to_user_id) !== Number(req.user.id)) {
+      return res.status(409).json({
+        success: false,
+        message: "This case has already been assigned to another staff member."
+      });
+    }
+
+    if (Number(caseItem.assigned_to_user_id) === Number(req.user.id)) {
+      return res.json({
+        success: true,
+        message: "You are already handling this case.",
+        case: {
+          id: caseItem.id,
+          case_number: caseItem.case_number,
+          status: caseItem.status,
+          assigned_to_user_id: req.user.id
+        }
+      });
+    }
+
+    await pool.query(
+      `
+      UPDATE cases
+      SET assigned_to_user_id = ?, status = 'under_investigation'
+      WHERE id = ? AND assigned_to_user_id IS NULL
+      `,
+      [req.user.id, id]
+    );
+
+    await pool.query(
+      `
+      INSERT INTO case_updates (case_id, updated_by_user_id, update_type, content)
+      VALUES (?, ?, 'investigation', ?)
+      `,
+      [
+        id,
+        req.user.id,
+        `Case claimed by ${actor.first_name} ${actor.last_name} for investigation.`
+      ]
+    );
+
+    await logAudit({
+      userId: req.user.id,
+      action: "CLAIM_CASE",
+        targetTable: "cases",
+        targetId: Number(id),
+        details: `Claimed ${caseItem.case_number} for investigation`,
+      ipAddress: req.ip
+    });
+
+    const [adminAndGuidanceRows] = await pool.query(
+      `
+      SELECT id, role
+      FROM users
+      WHERE status = 'active'
+        AND role IN ('admin', 'guidance_counselor')
+        AND id <> ?
+      `,
+      [req.user.id]
+    );
+
+    const notificationTargets = new Set(adminAndGuidanceRows.map(item => item.id));
+    if (caseItem.reported_by_user_id && Number(caseItem.reported_by_user_id) !== Number(req.user.id)) {
+      notificationTargets.add(caseItem.reported_by_user_id);
+    }
+
+    for (const targetUserId of notificationTargets) {
+      await createNotification(
+        targetUserId,
+        "Case Claimed for Investigation",
+        `${actor.first_name} ${actor.last_name} claimed ${caseItem.case_number} for ${caseItem.first_name} ${caseItem.last_name}.`,
+        "case"
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: "Case claimed successfully.",
+      case: {
+        id: caseItem.id,
+        case_number: caseItem.case_number,
+        status: "under_investigation",
+        assigned_to_user_id: req.user.id
+      }
+    });
+  } catch (error) {
+    console.error("Claim case error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while claiming case."
     });
   }
 }
@@ -1180,6 +1363,7 @@ module.exports = {
   getCaseUpdates,
   updateCaseStatus,
   assignCase,
+  claimCase,
   getCaseSummary,
   getMyStudentCases,
   getParentChildCases,

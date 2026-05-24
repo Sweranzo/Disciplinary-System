@@ -48,7 +48,9 @@
       <select id="assigned">
         <option value="">All Assignments</option>
         <option value="unassigned">Unassigned</option>
+        <option value="mine">My Claimed Cases</option>
       </select>
+      <button type="button" class="secondary compact-btn" id="clearFiltersBtn">Clear Filters</button>
     </div>
   </div>
 
@@ -80,6 +82,23 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="casePreviewModal">
+  <div class="modal-card modal-card-wide">
+    <div class="card-header">
+      <div>
+        <h2>Case Summary</h2>
+        <p class="muted">Preview the case before claiming or opening the full workspace.</p>
+      </div>
+    </div>
+    <div id="casePreviewContent" class="soft-panel">Loading...</div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" id="closePreviewBtn">Close</button>
+      <button type="button" id="previewClaimBtn">Claim Case</button>
+      <a id="previewOpenLink" href="#"><button type="button" class="secondary">Open Full Workspace</button></a>
+    </div>
+  </div>
+</div>
+
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
 <script>
@@ -91,8 +110,42 @@ if (!user || user.role !== "discipline_officer") {
   logout();
 }
 
+let currentPreviewCase = null;
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function badge(value) {
-  return `<span class="badge ${value}">${value.replaceAll("_", " ")}</span>`;
+  return `<span class="badge ${String(value || "").toLowerCase().replaceAll(" ", "_")}">${String(value || "-").replaceAll("_", " ")}</span>`;
+}
+
+function isUnassigned(caseItem) {
+  return !caseItem.assigned_to_first_name;
+}
+
+function renderCaseActions(caseItem) {
+  const summaryButton = `<button type="button" class="secondary compact-btn" onclick="openCasePreview(${caseItem.id})">View Summary</button>`;
+  if (isUnassigned(caseItem)) {
+    return `
+      <div class="action-row tight">
+        ${summaryButton}
+        <button type="button" class="compact-btn" onclick="claimCase(${caseItem.id})">Claim Case</button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="action-row tight">
+      ${summaryButton}
+      <a href="case-details.html?id=${caseItem.id}"><button type="button" class="compact-btn">Manage</button></a>
+    </div>
+  `;
 }
 
 async function loadCases() {
@@ -124,15 +177,72 @@ async function loadCases() {
 
   table.innerHTML = res.cases.map(c => `
     <tr>
-      <td><strong>${c.case_number}</strong></td>
-      <td>${c.first_name} ${c.last_name}<br><span class="muted">${c.student_number}</span></td>
-      <td>${c.violation_type}</td>
+      <td><strong>${escapeHtml(c.case_number)}</strong></td>
+      <td>${escapeHtml(c.first_name)} ${escapeHtml(c.last_name)}<br><span class="muted">${escapeHtml(c.student_number)}</span></td>
+      <td>${escapeHtml(c.violation_type)}</td>
       <td>${badge(c.severity_level)}</td>
       <td>${badge(c.status)}</td>
-      <td>${c.assigned_to_first_name ? `${c.assigned_to_first_name} ${c.assigned_to_last_name}` : "-"}</td>
-      <td><a href="case-details.html?id=${c.id}"><button type="button">Manage</button></a></td>
+      <td>${c.assigned_to_first_name ? `${escapeHtml(c.assigned_to_first_name)} ${escapeHtml(c.assigned_to_last_name)}` : badge("unassigned")}</td>
+      <td>${renderCaseActions(c)}</td>
     </tr>
   `).join("");
+}
+
+async function claimCase(caseId) {
+  const res = await apiRequest(`/cases/${caseId}/claim`, "PUT", {}, true);
+  if (!res.success) {
+    alert(res.message || "Unable to claim case.");
+    return;
+  }
+
+  if (currentPreviewCase && Number(currentPreviewCase.id) === Number(caseId)) {
+    closeCasePreview();
+  }
+
+  await loadCases();
+}
+
+async function openCasePreview(caseId) {
+  const modal = document.getElementById("casePreviewModal");
+  const content = document.getElementById("casePreviewContent");
+  const claimButton = document.getElementById("previewClaimBtn");
+  const openLink = document.getElementById("previewOpenLink");
+  modal.classList.add("open");
+  content.innerHTML = "Loading...";
+  claimButton.disabled = true;
+  currentPreviewCase = null;
+
+  const res = await apiRequest(`/cases/${caseId}`, "GET", null, true);
+  if (!res.success) {
+    content.innerHTML = `<div class="empty-state">${escapeHtml(res.message || "Unable to load case summary.")}</div>`;
+    return;
+  }
+
+  const c = res.case;
+  currentPreviewCase = c;
+  openLink.href = `case-details.html?id=${c.id}`;
+  claimButton.disabled = !!c.assigned_to_user_id || ["resolved", "dismissed"].includes(String(c.status || "").toLowerCase());
+  claimButton.style.display = c.assigned_to_user_id ? "none" : "";
+
+  content.innerHTML = `
+    <div class="info-grid">
+      <div><strong>Case</strong><span>${escapeHtml(c.case_number)} ${badge(c.status)}</span></div>
+      <div><strong>Student</strong><span>${escapeHtml(c.first_name)} ${escapeHtml(c.last_name)} (${escapeHtml(c.student_number)})</span></div>
+      <div><strong>Violation</strong><span>${escapeHtml(c.violation_type)}</span></div>
+      <div><strong>Severity</strong><span>${badge(c.severity_level)}</span></div>
+      <div><strong>Date Reported</strong><span>${escapeHtml(c.incident_date || "-")}</span></div>
+      <div><strong>Assigned</strong><span>${c.assigned_to_first_name ? `${escapeHtml(c.assigned_to_first_name)} ${escapeHtml(c.assigned_to_last_name)}` : "Unassigned"}</span></div>
+    </div>
+    <div class="detail-item" style="margin-top:16px;">
+      <p><strong>Incident Summary</strong></p>
+      <p>${escapeHtml(c.description || "No description recorded.")}</p>
+    </div>
+  `;
+}
+
+function closeCasePreview() {
+  document.getElementById("casePreviewModal").classList.remove("open");
+  currentPreviewCase = null;
 }
 
 ["search", "status", "severity", "assigned"].forEach(id => {
@@ -145,6 +255,28 @@ document.getElementById("search").addEventListener("keydown", event => {
   }
 });
 
+document.getElementById("clearFiltersBtn").addEventListener("click", () => {
+  document.getElementById("search").value = "";
+  document.getElementById("status").value = "";
+  document.getElementById("severity").value = "";
+  document.getElementById("assigned").value = "";
+  loadCases();
+});
+
+document.getElementById("closePreviewBtn").addEventListener("click", closeCasePreview);
+document.getElementById("previewClaimBtn").addEventListener("click", async () => {
+  if (currentPreviewCase) {
+    await claimCase(currentPreviewCase.id);
+  }
+});
+document.getElementById("casePreviewModal").addEventListener("click", event => {
+  if (event.target.id === "casePreviewModal") {
+    closeCasePreview();
+  }
+});
+
+document.getElementById("status").value = "";
+document.getElementById("assigned").value = "";
 loadCases();
 </script>
 

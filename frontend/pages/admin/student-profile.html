@@ -8,123 +8,129 @@
 </head>
 <body>
 
-<div class="dashboard-container">
-  <div class="topbar">
+<div class="dashboard-container student-profile-workspace">
+  <div class="student-profile-topbar">
     <div>
+      <span class="eyebrow">Student Workspace</span>
       <h1>Student Profile</h1>
-      <p class="muted">Full student record with linked family, cases, hearings, sanctions, and appeals.</p>
+      <p class="muted" id="profileMeta">Loading student record...</p>
     </div>
-    <div class="action-row">
-      <a href="students.html"><button class="secondary">Back</button></a>
-      <a href="accounts.html"><button class="secondary">Accounts</button></a>
-      <button onclick="logout()">Logout</button>
-    </div>
-  </div>
-
-  <div class="card page-section">
-    <div class="card-header">
-      <div>
-        <h2>Profile Overview</h2>
-        <p class="muted" id="profileMeta">Loading student record...</p>
-      </div>
-    </div>
-    <div id="studentInfo">Loading...</div>
-  </div>
-
-  <div class="split-grid page-section">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Edit Student Record</h2>
-          <p class="muted">Update academic information and account status.</p>
-        </div>
-      </div>
-      <div class="form-grid">
-        <input type="text" id="firstName" placeholder="First Name">
-        <input type="text" id="middleName" placeholder="Middle Name">
-        <input type="text" id="lastName" placeholder="Last Name">
-        <input type="email" id="email" placeholder="Email">
-        <input type="text" id="department" placeholder="Department">
-        <input type="text" id="program" placeholder="Program">
-        <input type="text" id="yearLevel" placeholder="Year Level">
-        <input type="text" id="section" placeholder="Section">
-        <select id="academicLevel">
-          <option value="">Academic Level</option>
-          <option value="college">College</option>
-          <option value="shs">SHS</option>
-        </select>
-        <select id="status">
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
-      <div class="action-row">
-        <button id="saveBtn">Save Student Record</button>
-        <span id="saveResult" class="muted"></span>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Link Parent</h2>
-          <p class="muted">Connect a parent or guardian to this student record.</p>
-        </div>
-      </div>
-      <div class="form-grid">
-        <select id="linkParentId">
-          <option value="">Select Parent</option>
-        </select>
-        <input type="text" id="relationship" placeholder="Relationship">
-      </div>
-      <div class="action-row">
-        <button id="linkParentBtn">Link Parent</button>
-        <span id="linkResult" class="muted"></span>
-      </div>
-      <div id="parentsInfo" style="margin-top:16px;">Loading...</div>
+    <div class="student-profile-top-actions">
+      <a href="students.html"><button class="secondary" type="button">Back to Records</button></a>
+      <a href="accounts.html"><button class="secondary" type="button">Accounts</button></a>
+      <button onclick="logout()" class="secondary ghost-btn" type="button">Logout</button>
     </div>
   </div>
 
-  <div class="stack-grid page-section">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Recent Cases</h2>
-          <p class="muted">Most recent case history linked to this student.</p>
-        </div>
-      </div>
-      <div id="casesInfo">Loading...</div>
-    </div>
+  <div id="studentInfo">Loading...</div>
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Sanctions</h2>
-          <p class="muted">Assigned sanctions and completion status.</p>
+  <div class="student-profile-layout page-section">
+    <main class="student-profile-main-column">
+      <details class="student-profile-card student-edit-card">
+        <summary>
+          <div>
+            <h2>Edit Student Record</h2>
+            <p class="muted">Update personal and academic information.</p>
+          </div>
+          <span>Edit</span>
+        </summary>
+        <div class="student-edit-section">
+          <h3>Personal Information</h3>
+          <div class="student-profile-form-grid">
+            <div class="field-stack"><label for="firstName">First Name</label><input type="text" id="firstName" placeholder="First Name"></div>
+            <div class="field-stack"><label for="middleName">Middle Name</label><input type="text" id="middleName" placeholder="Middle Name"></div>
+            <div class="field-stack"><label for="lastName">Last Name</label><input type="text" id="lastName" placeholder="Last Name"></div>
+            <div class="field-stack"><label for="email">Email</label><input type="email" id="email" placeholder="Email"></div>
+          </div>
         </div>
-      </div>
-      <div id="sanctionsInfo">Loading...</div>
-    </div>
+        <div class="student-edit-section">
+          <h3>Academic Information</h3>
+          <div class="student-profile-form-grid">
+            <div class="field-stack"><label for="department">Department</label><input type="text" id="department" placeholder="Department"></div>
+            <div class="field-stack"><label for="program">Program / Course</label><input type="text" id="program" placeholder="Program"></div>
+            <div class="field-stack"><label for="yearLevel">Year Level</label><input type="text" id="yearLevel" placeholder="Year Level"></div>
+            <div class="field-stack"><label for="section">Section</label><input type="text" id="section" placeholder="Section"></div>
+            <div class="field-stack"><label for="academicLevel">Academic Level</label><select id="academicLevel">
+              <option value="">Academic Level</option>
+              <option value="college">College</option>
+              <option value="shs">SHS</option>
+            </select></div>
+            <div class="field-stack"><label for="status">Status</label><select id="status">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select></div>
+          </div>
+        </div>
+        <div class="student-profile-savebar">
+          <button id="saveBtn">Save Student Record</button>
+          <span id="saveResult" class="muted"></span>
+        </div>
+      </details>
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Hearings</h2>
-          <p class="muted">Scheduled, completed, or cancelled hearing history.</p>
+      <div class="student-activity-grid">
+        <div class="student-profile-card">
+          <div class="card-header">
+            <div>
+              <h2>Recent Cases</h2>
+              <p class="muted">Most recent case history linked to this student.</p>
+            </div>
+          </div>
+          <div id="casesInfo">Loading...</div>
         </div>
-      </div>
-      <div id="hearingsInfo">Loading...</div>
-    </div>
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Appeals</h2>
-          <p class="muted">Appeal submissions and recorded board decisions.</p>
+        <div class="student-profile-card">
+          <div class="card-header">
+            <div>
+              <h2>Sanctions</h2>
+              <p class="muted">Assigned sanctions and completion status.</p>
+            </div>
+          </div>
+          <div id="sanctionsInfo">Loading...</div>
+        </div>
+
+        <div class="student-profile-card">
+          <div class="card-header">
+            <div>
+              <h2>Hearings</h2>
+              <p class="muted">Scheduled, completed, or cancelled hearing history.</p>
+            </div>
+          </div>
+          <div id="hearingsInfo">Loading...</div>
+        </div>
+
+        <div class="student-profile-card">
+          <div class="card-header">
+            <div>
+              <h2>Appeals</h2>
+              <p class="muted">Appeal submissions and recorded board decisions.</p>
+            </div>
+          </div>
+          <div id="appealsInfo">Loading...</div>
         </div>
       </div>
-      <div id="appealsInfo">Loading...</div>
-    </div>
+    </main>
+
+    <aside class="student-profile-side-column">
+      <section class="student-profile-card">
+        <div class="card-header">
+          <div>
+            <h2>Parent / Guardian</h2>
+            <p class="muted">Connect a guardian to this student record.</p>
+          </div>
+        </div>
+        <div class="student-profile-form-grid one-col">
+          <div class="field-stack"><label for="linkParentId">Parent</label><select id="linkParentId">
+            <option value="">Select Parent</option>
+          </select></div>
+          <div class="field-stack"><label for="relationship">Relationship</label><input type="text" id="relationship" placeholder="Relationship"></div>
+        </div>
+        <div class="student-profile-savebar compact">
+          <button id="linkParentBtn">Link Parent</button>
+          <span id="linkResult" class="muted"></span>
+        </div>
+        <div id="parentsInfo" class="student-sidebar-list">Loading...</div>
+      </section>
+    </aside>
   </div>
 </div>
 
@@ -211,37 +217,83 @@ async function loadProfile() {
     `${fullName} | ${student.student_number} | ${badge(student.status)}`;
 
   studentInfo.innerHTML = `
-    <div class="student-profile-shell">
-      <div class="student-profile-hero">
-        <div class="student-profile-identity">
+    <section class="student-premium-hero">
+      <div class="student-premium-main">
+        <div class="student-premium-identity">
           ${studentAvatarMarkup(student)}
-          <div class="student-profile-copy">
+          <div>
             <span class="eyebrow">Student Identity</span>
             <h2>${fullName}</h2>
-            <p>${student.student_number} | ${student.program || "No program"} | ${student.section || "No section"}</p>
+            <p>${student.student_number} &bull; ${student.program || "No program"} &bull; ${student.year_level || "No year"} ${student.section ? `- ${student.section}` : ""}</p>
             <div class="student-profile-meta">
-              <span>${student.has_account ? "Linked account" : "Profile only"}</span>
               ${badge(student.status)}
+              <span>${student.has_account ? "Linked account" : "Profile only"}</span>
+              <span>${student.academic_level || "Academic level not set"}</span>
             </div>
           </div>
         </div>
-        <div class="student-qr-panel">
-          ${student.qr_code_data_url ? `<img class="student-qr-thumb" src="${student.qr_code_data_url}" alt="QR for ${student.student_number}">` : `<div class="empty-state">QR not generated</div>`}
-          <div>
-            <strong>QR Code</strong>
-            <p class="muted">${student.qr_token || "No QR token"}</p>
-          </div>
+        <div class="student-hero-actions">
+          <button type="button" onclick="const editCard = document.querySelector('.student-edit-card'); if (editCard) { editCard.open = true; editCard.scrollIntoView({ behavior: 'smooth', block: 'start' }); }">Edit</button>
+          <button type="button" class="secondary" onclick="document.getElementById('status').value='inactive'; document.getElementById('saveBtn').click();">Deactivate</button>
+          <button type="button" class="secondary" onclick="window.print()">Print QR</button>
+          <button type="button" class="secondary" onclick="window.print()">Generate Report</button>
         </div>
       </div>
-      <div class="student-profile-grid">
-        <div class="student-profile-stat"><strong>Email</strong><span>${student.email || "-"}</span></div>
-        <div class="student-profile-stat"><strong>Department</strong><span>${student.department || "-"}</span></div>
-        <div class="student-profile-stat"><strong>Program</strong><span>${student.program || "-"}</span></div>
-        <div class="student-profile-stat"><strong>Year Level</strong><span>${student.year_level || "-"}</span></div>
-        <div class="student-profile-stat"><strong>Section</strong><span>${student.section || "-"}</span></div>
-        <div class="student-profile-stat"><strong>Academic Level</strong><span>${student.academic_level || "-"}</span></div>
-      </div>
-    </div>
+      <aside class="student-premium-qr">
+        <span>Student QR</span>
+        <div class="student-premium-qr-box">
+          ${student.qr_code_data_url ? `<img class="student-qr-thumb" src="${student.qr_code_data_url}" alt="QR for ${student.student_number}">` : `<div class="empty-state">QR not generated</div>`}
+        </div>
+        <strong>${student.student_number || "No student number"}</strong>
+        <p>${student.qr_token || "No QR token"}</p>
+      </aside>
+    </section>
+
+    <section class="student-info-workspace">
+      <main class="student-info-main">
+        <div class="student-info-card">
+          <div class="student-info-card-head"><h3>Personal Information</h3><span>${student.email ? "Contact ready" : "Email missing"}</span></div>
+          <div class="student-info-list">
+            <div><span>Email</span><strong>${student.email || "-"}</strong></div>
+            <div><span>Student ID</span><strong>${student.student_number || "-"}</strong></div>
+            <div><span>Account</span><strong>${student.has_account ? "Linked account" : "Profile only"}</strong></div>
+          </div>
+        </div>
+        <div class="student-info-card">
+          <div class="student-info-card-head"><h3>Academic Information</h3><span>${student.status || "-"}</span></div>
+          <div class="student-info-list">
+            <div><span>Department</span><strong>${student.department || "-"}</strong></div>
+            <div><span>Program</span><strong>${student.program || "-"}</strong></div>
+            <div><span>Year / Section</span><strong>${student.year_level || "-"} / ${student.section || "-"}</strong></div>
+            <div><span>Academic Level</span><strong>${student.academic_level || "-"}</strong></div>
+          </div>
+        </div>
+        <div class="student-info-card">
+          <div class="student-info-card-head"><h3>Linked Account Information</h3><span>${student.has_account ? "Enabled" : "Not linked"}</span></div>
+          <div class="student-info-list">
+            <div><span>Login Access</span><strong>${student.has_account ? "Available" : "Not created"}</strong></div>
+            <div><span>Account Mode</span><strong>${student.has_account ? "Student portal login" : "Profile only record"}</strong></div>
+          </div>
+        </div>
+      </main>
+      <aside class="student-info-side">
+        <div class="student-info-card compact">
+          <h3>Quick Stats</h3>
+          <div class="student-mini-stats">
+            <div><strong>${(res.recentCases || []).length}</strong><span>Cases</span></div>
+            <div><strong>${(res.sanctions || []).length}</strong><span>Sanctions</span></div>
+            <div><strong>${(res.hearings || []).length}</strong><span>Hearings</span></div>
+            <div><strong>${(res.appeals || []).length}</strong><span>Appeals</span></div>
+          </div>
+        </div>
+        <div class="student-info-card compact">
+          <h3>Recent Activity</h3>
+          <div>
+            <p class="muted">${(res.recentCases || []).length ? "Recent case activity available." : "No recent disciplinary activity."}</p>
+          </div>
+        </div>
+      </aside>
+    </section>
   `;
 
   document.getElementById("firstName").value = student.first_name || "";

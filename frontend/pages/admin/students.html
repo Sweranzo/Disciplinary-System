@@ -8,28 +8,53 @@
 </head>
 <body>
 
-<div class="dashboard-container">
-  <div class="topbar">
+<div class="dashboard-container students-workspace">
+  <div class="students-page-hero">
+    <div class="students-hero-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+    </div>
     <div>
-      <h1>Student Records Management</h1>
-      <p class="muted">Create student profiles with or without login accounts, generate QR codes, link parents now or later, and open full student history.</p>
-    </div>
-    <div class="action-row">
-      <a href="dashboard.html"><button class="secondary">Back</button></a>
-      <a href="accounts.html"><button class="secondary">Accounts & Identity</button></a>
-      <button id="openCreateModalBtn">Create Student</button>
-      <button onclick="logout()">Logout</button>
+      <span class="eyebrow">Student Management</span>
+      <h1>Student Records</h1>
+      <p class="muted">Create profiles, manage login accounts, generate QR codes, link parents, and open full student history.</p>
     </div>
   </div>
 
-  <div class="summary-band">
-    <div class="summary-chip"><strong>Total Records</strong><span id="totalStudents">0</span></div>
-    <div class="summary-chip"><strong>With Account</strong><span id="withAccountCount">0</span></div>
-    <div class="summary-chip"><strong>Profile Only</strong><span id="profileOnlyCount">0</span></div>
-    <div class="summary-chip"><strong>Visible Inactive</strong><span id="inactiveCount">0</span></div>
+  <div class="students-action-toolbar">
+    <div class="students-toolbar-left">
+      <a href="dashboard.html"><button class="secondary students-back-btn" type="button">Back</button></a>
+      <div>
+        <span>Records Workspace</span>
+        <strong>Manage student identity and access</strong>
+      </div>
+    </div>
+    <div class="students-toolbar-actions">
+      <a href="accounts.html"><button class="secondary" type="button">Accounts & Identity</button></a>
+      <button id="openCreateModalBtn" class="students-primary-action" type="button">Create Student</button>
+      <button onclick="logout()" class="secondary ghost-btn" type="button">Logout</button>
+    </div>
   </div>
 
-  <div class="card page-section">
+  <div class="students-stat-grid">
+    <div class="students-stat-card">
+      <span class="students-stat-icon icon-burgundy"><svg viewBox="0 0 24 24"><path d="M3 7h18"></path><path d="M3 12h18"></path><path d="M3 17h18"></path></svg></span>
+      <div><strong id="totalStudents">0</strong><span>Total Records</span><small>All student profiles</small></div>
+    </div>
+    <div class="students-stat-card">
+      <span class="students-stat-icon icon-green"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path></svg></span>
+      <div><strong id="withAccountCount">0</strong><span>With Account</span><small>Login enabled</small></div>
+    </div>
+    <div class="students-stat-card">
+      <span class="students-stat-icon icon-blue"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 0 0-16 0"></path></svg></span>
+      <div><strong id="profileOnlyCount">0</strong><span>Profile Only</span><small>Account not linked</small></div>
+    </div>
+    <div class="students-stat-card">
+      <span class="students-stat-icon icon-amber"><svg viewBox="0 0 24 24"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path></svg></span>
+      <div><strong id="inactiveCount">0</strong><span>Visible Inactive</span><small>Shown in current view</small></div>
+    </div>
+  </div>
+
+  <div class="card page-section students-filter-card">
     <div class="card-header">
       <div>
         <h2>Search and Filters</h2>
@@ -37,7 +62,7 @@
       </div>
       <p class="muted" id="paginationInfo">Loading...</p>
     </div>
-    <div class="toolbar">
+    <div class="toolbar students-filter-toolbar">
       <input type="text" id="search" placeholder="Search student number, name, or email">
       <select id="statusFilter">
         <option value="">All Statuses</option>
@@ -54,15 +79,15 @@
     </div>
   </div>
 
-  <div class="card page-section">
+  <div class="card page-section students-table-card">
     <div class="card-header">
       <div>
         <h2>Student List</h2>
         <p class="muted">Open a profile for full history, scan the QR preview, or create a linked account later for profile-only records.</p>
       </div>
     </div>
-    <div class="table-wrap">
-      <table>
+    <div class="table-wrap students-table-wrap">
+      <table class="students-table">
         <thead>
           <tr>
             <th>QR</th>
@@ -372,7 +397,7 @@ async function loadStudents() {
 
     table.innerHTML = currentRows.map(student => `
       <tr>
-        <td>${student.qr_code_data_url ? `<img class="qr-thumb" src="${student.qr_code_data_url}" alt="QR for ${escapeHtml(student.student_number)}">` : "-"}</td>
+        <td><div class="student-qr-cell">${student.qr_code_data_url ? `<img class="qr-thumb" src="${student.qr_code_data_url}" alt="QR for ${escapeHtml(student.student_number)}">` : "-"}</div></td>
         <td>
           <div class="student-cell">
             ${studentAvatarMarkup(student)}
@@ -387,10 +412,10 @@ async function loadStudents() {
       <td>${student.has_account ? badge("linked_account") + `<br><span class="muted">${escapeHtml(student.username || "-")}</span>` : `<span class="muted">Profile only</span>`}</td>
       <td>${badge(student.status)}</td>
       <td>
-        <div class="action-row">
-          <a href="student-profile.html?id=${student.id}"><button type="button">Open Profile</button></a>
-          ${!student.has_account ? `<button type="button" class="secondary" onclick="openCreateAccountModal(${student.id})">Create Login</button>` : ""}
-          ${student.status === "active" ? `<button type="button" class="secondary" onclick="deactivateStudent(${student.id})">Deactivate</button>` : ""}
+        <div class="student-row-actions">
+          <a href="student-profile.html?id=${student.id}"><button class="student-action-primary" type="button">Open Profile</button></a>
+          ${!student.has_account ? `<button type="button" class="student-action-secondary" onclick="openCreateAccountModal(${student.id})">Create Login</button>` : ""}
+          ${student.status === "active" ? `<button type="button" class="student-action-danger" onclick="deactivateStudent(${student.id})">Deactivate</button>` : ""}
         </div>
       </td>
     </tr>

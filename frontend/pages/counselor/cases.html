@@ -12,7 +12,7 @@
   <div class="topbar">
     <div>
       <h1>Counselor Case Queue</h1>
-      <p class="muted">Open cases where the counselor may need to review student history, interventions, or follow-up support.</p>
+      <p class="muted">Review student-support cases, record interventions, plan follow-ups, and add guidance recommendations without changing discipline ownership.</p>
     </div>
     <div class="action-row">
       <a href="dashboard.html"><button class="secondary">Back</button></a>
@@ -20,97 +20,102 @@
     </div>
   </div>
 
-  <div class="card page-section">
-    <div class="card-header">
-      <div>
-        <h2>Relevant Cases</h2>
-        <p class="muted">Includes assigned cases and unassigned cases visible to the counselor role.</p>
-      </div>
-    </div>
-    <div class="table-wrap">
-      <div class="toolbar">
-        <input type="search" id="caseSearch" placeholder="Search case, student, violation, or status">
-        <select id="statusFilter">
-          <option value="">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="under_investigation">Under Investigation</option>
-          <option value="hearing_scheduled">Hearing Scheduled</option>
-          <option value="resolved">Resolved</option>
-          <option value="dismissed">Dismissed</option>
-        </select>
-        <select id="severityFilter">
-          <option value="">All Severities</option>
-          <option value="minor">Minor</option>
-          <option value="major">Major</option>
-          <option value="grave">Grave</option>
-        </select>
-        <select id="followUpFilter">
-          <option value="">All Follow-Ups</option>
-          <option value="planned">Planned</option>
-          <option value="ongoing">Ongoing</option>
-          <option value="completed">Completed</option>
-          <option value="none">No Counselor Note</option>
-        </select>
-        <button id="refreshBtn" type="button">Refresh</button>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Case</th>
-            <th>Student</th>
-            <th>Violation</th>
-            <th>Severity</th>
-            <th>Status</th>
-            <th>Counselor Work</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="casesTable">
-          <tr><td colspan="7">Loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="split-grid page-section">
-    <div class="card">
-      <div class="card-header">
+  <div class="counselor-workspace page-section">
+    <aside class="counselor-queue-panel">
+      <div class="counselor-panel-head">
         <div>
-          <h2>Selected Case Review</h2>
-          <p class="muted">Preview context before adding support notes or opening the full case file.</p>
+          <span class="eyebrow">Support Queue</span>
+          <h2>Student Cases</h2>
+          <p class="muted">Browse cases where guidance support, recommendations, or follow-up planning may be needed.</p>
+        </div>
+        <button id="refreshBtn" type="button" class="secondary compact-btn">Refresh</button>
+      </div>
+
+      <div class="counselor-filter-stack">
+        <input type="search" id="caseSearch" placeholder="Search case, student, violation">
+        <div class="counselor-filter-grid">
+          <select id="statusFilter">
+            <option value="">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="under_investigation">Under Investigation</option>
+            <option value="hearing_scheduled">Hearing Scheduled</option>
+            <option value="resolved">Resolved</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
+          <select id="severityFilter">
+            <option value="">All Severities</option>
+            <option value="minor">Minor</option>
+            <option value="major">Major</option>
+            <option value="grave">Grave</option>
+          </select>
+          <select id="followUpFilter">
+            <option value="">All Follow-Ups</option>
+            <option value="planned">Planned</option>
+            <option value="ongoing">Ongoing</option>
+            <option value="completed">Completed</option>
+            <option value="none">No Note</option>
+          </select>
+          <select id="scopeFilter">
+            <option value="">All Scopes</option>
+            <option value="support_queue">Support Queue</option>
+            <option value="discipline_owned">Discipline-Owned</option>
+            <option value="assigned_to_you">Assigned to You</option>
+          </select>
         </div>
       </div>
-      <div id="selectedCaseReview" class="empty-state">Select a case from the queue.</div>
-    </div>
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Counselor Remark</h2>
-          <p class="muted">Record an intervention, recommendation, behavior note, or follow-up status.</p>
-        </div>
+      <div id="queueSummary" class="counselor-queue-summary">Loading cases...</div>
+      <div id="casesList" class="counselor-case-list">Loading...</div>
+    </aside>
+
+    <main class="counselor-workspace-panel">
+      <div id="caseWorkspace" class="counselor-empty-workspace">
+        <span class="eyebrow">Case Workspace</span>
+        <h2>Select a case to begin</h2>
+        <p class="muted">Choose a student case from the queue to review context, add intervention notes, schedule follow-ups, and track counseling actions.</p>
       </div>
+
       <input type="hidden" id="selectedCaseId">
-      <div class="form-grid">
-        <select id="remarkType">
-          <option value="intervention">Intervention</option>
-          <option value="behavior_note">Behavior Note</option>
-          <option value="recommendation">Recommendation</option>
-          <option value="follow_up">Follow-up</option>
-        </select>
-        <select id="remarkStatus">
-          <option value="planned">Planned</option>
-          <option value="ongoing">Ongoing</option>
-          <option value="completed">Completed</option>
-        </select>
-        <input type="date" id="remarkFollowUpDate">
-      </div>
-      <textarea id="remarkNote" placeholder="Enter counselor remark or support plan"></textarea>
-      <div class="action-row">
-        <button id="saveRemarkBtn" type="button">Save Remark</button>
-        <span id="remarkResult" class="muted"></span>
-      </div>
-    </div>
+      <section id="counselorActionForm" class="counselor-action-form" style="display:none;">
+        <div class="card-header">
+          <div>
+            <h2>Counseling Action</h2>
+            <p class="muted">Record a support action, recommendation, behavior observation, or follow-up plan.</p>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field-stack">
+            <label for="remarkType">Action Type</label>
+            <select id="remarkType">
+              <option value="intervention">Intervention</option>
+              <option value="behavior_note">Behavior Note</option>
+              <option value="recommendation">Recommendation</option>
+              <option value="follow_up">Follow-up</option>
+            </select>
+          </div>
+          <div class="field-stack">
+            <label for="remarkStatus">Support Status</label>
+            <select id="remarkStatus">
+              <option value="planned">Planned</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+          <div class="field-stack">
+            <label for="remarkFollowUpDate">Follow-up Date</label>
+            <input type="date" id="remarkFollowUpDate">
+          </div>
+        </div>
+        <div class="field-stack">
+          <label for="remarkNote">Support Note</label>
+          <textarea id="remarkNote" placeholder="Document student context, counseling action, recommendation, or planned follow-up."></textarea>
+        </div>
+        <div class="action-row">
+          <button id="saveRemarkBtn" type="button">Save Counseling Action</button>
+          <span id="remarkResult" class="muted"></span>
+        </div>
+      </section>
+    </main>
   </div>
 </div>
 
@@ -133,59 +138,123 @@ function badge(value) {
   return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
 }
 
-function renderCases(items) {
-  const table = document.getElementById("casesTable");
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function labelize(value) {
+  return String(value || "-").replaceAll("_", " ");
+}
+
+function getStudentName(item) {
+  return [item.first_name, item.middle_name, item.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getStudentInitials(item) {
+  return `${item.first_name?.[0] || ""}${item.last_name?.[0] || ""}`.trim().toUpperCase() || "S";
+}
+
+function renderSelectedStudentAvatar(item) {
+  const fullName = escapeHtml(getStudentName(item));
+
+  if (item.student_avatar_url) {
+    return `
+      <span class="student-avatar counselor-selected-avatar has-image">
+        <img src="${escapeHtml(item.student_avatar_url)}" alt="${fullName} avatar">
+      </span>
+    `;
+  }
+
+  return `
+    <span class="student-avatar counselor-selected-avatar student-avatar-fallback" aria-label="${fullName} avatar placeholder">
+      ${escapeHtml(getStudentInitials(item))}
+    </span>
+  `;
+}
+
+function getCaseNotes(caseId) {
+  return allInterventions.filter(note => Number(note.case_id) === Number(caseId));
+}
+
+function renderQueue(items) {
+  const list = document.getElementById("casesList");
+  const summary = document.getElementById("queueSummary");
+  summary.textContent = `${items.length} case${items.length === 1 ? "" : "s"} shown`;
 
   if (!items.length) {
-    table.innerHTML = `<tr><td colspan="7">No counselor-visible cases.</td></tr>`;
+    list.innerHTML = `<div class="empty-state">No cases match the current filters.</div>`;
     return;
   }
 
-  table.innerHTML = items.map(item => `
-    <tr>
-      <td><strong>${item.case_number}</strong><br><span class="muted">${item.incident_date || "-"}</span></td>
-      <td>${item.first_name} ${item.last_name}<br><span class="muted">${item.student_number}</span></td>
-      <td>${item.violation_type}</td>
-      <td>${badge(item.severity_level)}</td>
-      <td>${badge(item.status)}</td>
-      <td>
-        ${badge(item.follow_up_status || "none")}
-        <br><span class="muted">${item.note_count || 0} note${Number(item.note_count || 0) === 1 ? "" : "s"}</span>
-      </td>
-      <td>
-        <div class="action-row">
-          <button type="button" class="secondary" onclick="selectCase(${item.id})">Review</button>
-          <a href="case-details.html?id=${item.id}"><button type="button">Open Case</button></a>
-          <a href="student-profile.html?id=${item.student_id}"><button type="button" class="secondary">Student</button></a>
+  list.innerHTML = items.map(item => {
+    const isActive = selectedCase && Number(selectedCase.id) === Number(item.id);
+    const owner = item.assigned_to_first_name
+      ? `${item.assigned_to_first_name} ${item.assigned_to_last_name || ""}`.trim()
+      : "Unassigned";
+    return `
+      <button type="button" class="counselor-case-card ${isActive ? "is-active" : ""}" onclick="selectCase(${item.id})">
+        <div class="counselor-case-card-head">
+          <div>
+            <strong>${escapeHtml(item.case_number)}</strong>
+            <span>${escapeHtml(getStudentName(item))}</span>
+          </div>
+          ${badge(item.status)}
         </div>
-      </td>
-    </tr>
-  `).join("");
+        <div class="counselor-case-issue">${escapeHtml(item.violation_type || "-")}</div>
+        <div class="counselor-case-meta">
+          <span>${badge(item.severity_level)}</span>
+          <span>${badge(item.follow_up_status || "none")}</span>
+          <span>${escapeHtml(item.incident_date || "-")}</span>
+        </div>
+        <div class="counselor-case-footer">
+          <span>${escapeHtml(item.student_number || "-")}</span>
+          <span>${escapeHtml(owner)}</span>
+        </div>
+      </button>
+    `;
+  }).join("");
 }
 
-function applySearch() {
+function getFilteredCases() {
   const search = document.getElementById("caseSearch").value.trim().toLowerCase();
   const status = document.getElementById("statusFilter").value;
   const severity = document.getElementById("severityFilter").value;
   const followUp = document.getElementById("followUpFilter").value;
+  const scope = document.getElementById("scopeFilter").value;
 
-  renderCases(allCases.filter(item => {
+  return allCases.filter(item => {
     const matchesSearch = !search || [
       item.case_number,
       item.student_number,
       item.first_name,
+      item.middle_name,
       item.last_name,
       item.violation_type,
       item.severity_level,
       item.status,
-      item.follow_up_status
+      item.follow_up_status,
+      item.support_scope
     ].some(value => String(value || "").toLowerCase().includes(search));
 
     return matchesSearch
       && (!status || item.status === status)
       && (!severity || item.severity_level === severity)
-      && (!followUp || item.follow_up_status === followUp);
-  }));
+      && (!followUp || item.follow_up_status === followUp)
+      && (!scope || item.support_scope === scope);
+  });
+}
+
+function applySearch() {
+  renderQueue(getFilteredCases());
 }
 
 function mergeInterventionState() {
@@ -219,25 +288,103 @@ function selectCase(caseId) {
   document.getElementById("selectedCaseId").value = selectedCase ? selectedCase.id : "";
 
   if (!selectedCase) {
-    document.getElementById("selectedCaseReview").innerHTML = `<div class="empty-state">Select a case from the queue.</div>`;
+    document.getElementById("caseWorkspace").innerHTML = `
+      <div class="counselor-empty-workspace">
+        <span class="eyebrow">Case Workspace</span>
+        <h2>Select a case to begin</h2>
+        <p class="muted">Choose a student case from the queue to begin intervention planning.</p>
+      </div>
+    `;
+    document.getElementById("counselorActionForm").style.display = "none";
+    applySearch();
     return;
   }
 
-  document.getElementById("selectedCaseReview").innerHTML = `
-    <div class="detail-list">
-      <div class="detail-item">
-        <p><strong>${selectedCase.case_number}</strong> ${badge(selectedCase.status)} ${badge(selectedCase.severity_level)}</p>
-        <p>${selectedCase.first_name} ${selectedCase.last_name} (${selectedCase.student_number})</p>
-        <p>${selectedCase.violation_type} | Incident: ${selectedCase.incident_date || "-"}</p>
-        <p class="muted">Counselor follow-up: ${selectedCase.follow_up_status || "none"} | Notes: ${selectedCase.note_count || 0}</p>
-        ${selectedCase.latest_note ? `<p>${selectedCase.latest_note.note_type}: ${selectedCase.latest_note.note}</p>` : ""}
+  const notes = getCaseNotes(selectedCase.id);
+  const recommendations = notes.filter(note => note.note_type === "recommendation");
+  const activeFollowUps = notes.filter(note => ["planned", "ongoing"].includes(note.status));
+  const completedActions = notes.filter(note => note.status === "completed");
+  const owner = selectedCase.assigned_to_first_name
+    ? `${selectedCase.assigned_to_first_name} ${selectedCase.assigned_to_last_name || ""}`.trim()
+    : "No discipline owner yet";
+
+  document.getElementById("caseWorkspace").innerHTML = `
+    <section class="counselor-student-card">
+      <div class="counselor-selected-identity">
+        ${renderSelectedStudentAvatar(selectedCase)}
+        <div>
+          <span class="eyebrow">Selected Student</span>
+          <h2>${escapeHtml(getStudentName(selectedCase))}</h2>
+          <p>${escapeHtml(selectedCase.student_number)} | ${escapeHtml(selectedCase.case_number)}</p>
+        </div>
+      </div>
+      <div class="counselor-status-stack">
+        ${badge(selectedCase.status)}
+        ${badge(selectedCase.severity_level)}
+      </div>
+    </section>
+
+    <section class="support-stat-grid">
+      <div><span>Support Status</span><strong>${labelize(selectedCase.follow_up_status || "none")}</strong></div>
+      <div><span>Actions Logged</span><strong>${notes.length}</strong></div>
+      <div><span>Active Follow-ups</span><strong>${activeFollowUps.length}</strong></div>
+      <div><span>Completed</span><strong>${completedActions.length}</strong></div>
+    </section>
+
+    <section class="counselor-section">
+      <div class="counselor-section-head">
+        <div>
+          <h3>Incident Summary</h3>
+          <p class="muted">Read-only case context for student support planning.</p>
+        </div>
         <div class="action-row">
-          <a href="case-details.html?id=${selectedCase.id}"><button type="button">Full Case File</button></a>
+          <a href="case-details.html?id=${selectedCase.id}"><button type="button" class="secondary">Full Case</button></a>
           <a href="student-profile.html?id=${selectedCase.student_id}"><button type="button" class="secondary">Student Profile</button></a>
         </div>
       </div>
-    </div>
+      <div class="counselor-summary-grid">
+        <div><span>Violation</span><strong>${escapeHtml(selectedCase.violation_type || "-")}</strong></div>
+        <div><span>Incident Date</span><strong>${escapeHtml(selectedCase.incident_date || "-")}</strong></div>
+        <div><span>Support Scope</span><strong>${labelize(selectedCase.support_scope)}</strong></div>
+        <div><span>Discipline Owner</span><strong>${escapeHtml(owner)}</strong></div>
+      </div>
+    </section>
+
+    <section class="counselor-section">
+      <div class="counselor-section-head">
+        <div>
+          <h3>Intervention Timeline</h3>
+          <p class="muted">Counselor notes, recommendations, and follow-up actions for this case.</p>
+        </div>
+      </div>
+      <div class="counselor-timeline">
+        ${notes.length ? notes.map(note => `
+          <article class="counselor-note-item">
+            <div>
+              <strong>${labelize(note.note_type)}</strong>
+              <span>${badge(note.status)}</span>
+            </div>
+            <p>${escapeHtml(note.note)}</p>
+            <small>Follow-up: ${escapeHtml(note.follow_up_date || "-")} | Recorded: ${escapeHtml(note.created_at || "-")}</small>
+          </article>
+        `).join("") : `<div class="empty-state">No counseling actions recorded yet.</div>`}
+      </div>
+    </section>
+
+    <section class="counselor-section counselor-recommendation-strip">
+      <div>
+        <h3>Recommendations</h3>
+        <p class="muted">${recommendations.length ? `${recommendations.length} recommendation${recommendations.length === 1 ? "" : "s"} logged.` : "No recommendations recorded yet."}</p>
+      </div>
+      <div>
+        <h3>Follow-Up Tracker</h3>
+        <p class="muted">${activeFollowUps.length ? `${activeFollowUps.length} active follow-up item${activeFollowUps.length === 1 ? "" : "s"}.` : "No active follow-up is scheduled."}</p>
+      </div>
+    </section>
   `;
+  document.getElementById("counselorActionForm").style.display = "grid";
+  document.getElementById("remarkResult").textContent = "";
+  applySearch();
 }
 
 async function loadCases() {
@@ -245,15 +392,16 @@ async function loadCases() {
     apiRequest("/counselor/cases", "GET", null, true),
     apiRequest("/counselor/interventions", "GET", null, true)
   ]);
-  const table = document.getElementById("casesTable");
+  const list = document.getElementById("casesList");
 
   if (!res.success) {
-    table.innerHTML = `<tr><td colspan="7">${res.message}</td></tr>`;
+    list.innerHTML = `<div class="empty-state">${res.message}</div>`;
     return;
   }
 
   if (!res.cases.length) {
-    table.innerHTML = `<tr><td colspan="7">No counselor-visible cases.</td></tr>`;
+    list.innerHTML = `<div class="empty-state">No counselor-visible cases.</div>`;
+    document.getElementById("queueSummary").textContent = "0 cases shown";
     return;
   }
 
@@ -261,12 +409,19 @@ async function loadCases() {
   allInterventions = interventionsRes.success ? interventionsRes.interventions : [];
   mergeInterventionState();
   applySearch();
+  if (!selectedCase) {
+    const firstOpenCase = allCases.find(item => !["resolved", "dismissed"].includes(String(item.status)));
+    selectCase(firstOpenCase?.id || allCases[0].id);
+  } else {
+    selectCase(selectedCase.id);
+  }
 }
 
 document.getElementById("caseSearch").addEventListener("input", applySearch);
 document.getElementById("statusFilter").addEventListener("change", applySearch);
 document.getElementById("severityFilter").addEventListener("change", applySearch);
 document.getElementById("followUpFilter").addEventListener("change", applySearch);
+document.getElementById("scopeFilter").addEventListener("change", applySearch);
 document.getElementById("refreshBtn").addEventListener("click", loadCases);
 document.getElementById("saveRemarkBtn").addEventListener("click", async () => {
   const caseId = document.getElementById("selectedCaseId").value;

@@ -9,6 +9,7 @@ const {
   getCaseUpdates,
   updateCaseStatus,
   assignCase,
+  claimCase,
   getCaseSummary,
   getMyStudentCases,
   getParentChildCases
@@ -85,5 +86,12 @@ router.put(
   verifyToken,
   allowRoles("admin", "discipline_officer"),
   assignCase
+);
+
+router.put(
+  "/:id/claim",
+  verifyToken,
+  allowRoles("discipline_officer"),
+  claimCase
 );
 module.exports = router;

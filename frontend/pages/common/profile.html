@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container account-center">
+  <div class="account-center-topbar">
+    <div>
+      <span class="eyebrow">Account Profile</span>
+      <h1>My Profile</h1>
+      <p class="muted">Review your account identity, role, and visible profile information.</p>
+    </div>
+    <div class="account-profile-actions">
+      <button id="settingsBtn" class="secondary compact-btn" type="button">Profile Settings</button>
+      <button id="backToDashboardBtn" class="compact-btn" type="button">Back to Dashboard</button>
+    </div>
+  </div>
+
+  <section class="account-hero-card account-profile-hero">
+    <div class="account-hero-identity">
+      <div class="profile-settings-avatar account-hero-avatar" id="profileAvatarPreview">U</div>
+      <div>
+        <span class="account-role-pill" id="profileRoleLabel">Role</span>
+        <h2 id="profileDisplayName">Account User</h2>
+        <p id="accountHeroEmail">account@example.com</p>
+      </div>
+    </div>
+    <div class="account-hero-meta">
+      <div><span>Account ID</span><strong id="summaryAccountId">-</strong></div>
+      <div><span>Username</span><strong id="summaryUsername">-</strong></div>
+      <div><span>Status</span><strong><i id="accountStatusChip" class="account-status-chip">-</i></strong></div>
+      <div><span>Last Login</span><strong id="accountLastLogin">Current session</strong></div>
+    </div>
+  </section>
+
+  <div class="account-center-grid account-profile-grid">
+    <main class="account-main-column">
+      <section class="account-card">
+        <div class="card-header account-section-head">
+          <div>
+            <h2>Profile Details</h2>
+            <p class="muted">These details identify you across dashboards, notifications, hearings, and case records.</p>
+          </div>
+        </div>
+        <div class="account-readonly-grid">
+          <div><span>First Name</span><strong id="detailFirstName">-</strong></div>
+          <div><span>Middle Name</span><strong id="detailMiddleName">-</strong></div>
+          <div><span>Last Name</span><strong id="detailLastName">-</strong></div>
+          <div><span>Email</span><strong id="detailEmail">-</strong></div>
+          <div><span>Username</span><strong id="detailUsername">-</strong></div>
+          <div><span>Role</span><strong id="detailRole">-</strong></div>
+          <div><span>Employee / Student ID</span><strong id="detailAccountId">-</strong></div>
+          <div><span>Account Status</span><strong id="detailStatus">-</strong></div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="account-side-column">
+      <section class="account-card">
+        <div class="card-header">
+          <div>
+            <h2>Account Summary</h2>
+            <p class="muted">Quick account reference.</p>
+          </div>
+        </div>
+        <div class="account-info-list">
+          <div><span>Display Name</span><strong id="summaryDisplayName">-</strong></div>
+          <div><span>Email</span><strong id="summaryEmail">-</strong></div>
+          <div><span>Role</span><strong id="accountSideRole">-</strong></div>
+        </div>
+      </section>
+
+      <section class="account-card account-security-card">
+        <div>
+          <span class="account-security-icon">OK</span>
+          <h2>Profile Controls</h2>
+          <p>Use Profile Settings when you need to update your name, email, photo, username, or password.</p>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const backToDashboardBtn = document.getElementById("backToDashboardBtn");
+const settingsBtn = document.getElementById("settingsBtn");
+
+function textOrDash(value) {
+  return value ? String(value) : "-";
+}
+
+function getLocalInitials(user) {
+  const first = user?.first_name?.[0] || user?.username?.[0] || "U";
+  const last = user?.last_name?.[0] || "";
+  return `${first}${last}`.toUpperCase();
+}
+
+function renderAvatar(user) {
+  const preview = document.getElementById("profileAvatarPreview");
+  const avatarUrl = getAvatarUrl(user);
+  if (avatarUrl) {
+    preview.classList.add("has-image");
+    preview.innerHTML = `<img src="${avatarUrl}" alt="${getUserFullName(user)} avatar">`;
+  } else {
+    preview.classList.remove("has-image");
+    preview.textContent = getLocalInitials(user);
+  }
+}
+
+function setText(id, value) {
+  document.getElementById(id).textContent = textOrDash(value);
+}
+
+function renderProfile(user) {
+  setUser(user);
+
+  const fullName = getUserFullName(user);
+  const roleLabel = user.role_label || getRoleLabel(user.role);
+  const accountId = user.employee_or_student_id || user.id;
+  const lastLoginAt = localStorage.getItem("lastLoginAt");
+  const lastLogin = user.last_login || user.lastLogin || (lastLoginAt ? formatSessionDate(lastLoginAt) : "Current session");
+
+  setText("profileDisplayName", fullName);
+  setText("profileRoleLabel", roleLabel);
+  setText("accountHeroEmail", user.email);
+  setText("summaryAccountId", accountId);
+  setText("summaryUsername", user.username);
+  setText("accountStatusChip", user.status);
+  setText("accountLastLogin", lastLogin);
+
+  setText("detailFirstName", user.first_name);
+  setText("detailMiddleName", user.middle_name);
+  setText("detailLastName", user.last_name);
+  setText("detailEmail", user.email);
+  setText("detailUsername", user.username);
+  setText("detailRole", roleLabel);
+  setText("detailAccountId", accountId);
+  setText("detailStatus", user.status);
+
+  setText("summaryDisplayName", fullName);
+  setText("summaryEmail", user.email);
+  setText("accountSideRole", roleLabel);
+
+  renderAvatar(user);
+  backToDashboardBtn.onclick = () => goToPage(getDashboardPath(user.role));
+}
+
+async function loadProfile() {
+  const cachedUser = getUser();
+  if (cachedUser) {
+    renderProfile(cachedUser);
+  }
+
+  const response = await apiRequest("/auth/me", "GET", null, true);
+  if (response.success && response.user) {
+    renderProfile(response.user);
+    return;
+  }
+
+  if (!cachedUser) {
+    document.getElementById("profileDisplayName").textContent = response.message || "Unable to load profile";
+  }
+}
+
+settingsBtn.addEventListener("click", () => goToPage("common/profile-settings.html"));
+loadProfile();
+</script>
+
+</body>
+</html>

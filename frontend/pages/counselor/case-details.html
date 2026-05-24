@@ -6,13 +6,13 @@
   <title>Counselor Case Detail</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="counselor-detail-page">
 
 <div class="dashboard-container">
   <div class="topbar">
     <div>
       <h1>Counselor Case Detail</h1>
-      <p class="muted">Review the case timeline, student context, hearings, sanctions, appeals, and counselor interventions.</p>
+      <p class="muted">Student support workspace for case context, interventions, recommendations, and follow-up planning.</p>
     </div>
     <div class="action-row">
       <a href="cases.html"><button class="secondary">Back</button></a>
@@ -20,96 +20,121 @@
     </div>
   </div>
 
-  <div class="split-grid page-section">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Case and Student Overview</h2>
-          <p class="muted" id="caseMeta">Loading...</p>
-        </div>
-      </div>
-      <div id="caseInfo">Loading...</div>
+  <section class="counselor-detail-shell page-section">
+    <div id="caseInfo" class="counselor-detail-hero">
+      <span class="eyebrow">Case Workspace</span>
+      <h2>Loading case...</h2>
+      <p class="muted" id="caseMeta">Loading...</p>
     </div>
+  </section>
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Student Profile Access</h2>
-          <p class="muted">Open the linked student profile for a wider record view.</p>
+  <div class="counselor-intervention-workspace page-section">
+    <main class="counselor-intervention-main">
+      <section class="card counselor-detail-card counselor-student-context-card">
+        <div class="card-header">
+          <div>
+            <h2>Student Context</h2>
+            <p class="muted">Counseling view of the student, family link, and support signals.</p>
+          </div>
         </div>
-      </div>
-      <div id="studentProfileLink">Loading...</div>
-    </div>
-  </div>
+        <div id="studentProfileLink">Loading...</div>
+      </section>
 
-  <div class="split-grid page-section">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Behavior and Support Timeline</h2>
-          <p class="muted">Case updates and counselor notes combined in reverse chronological order.</p>
+      <section class="card counselor-detail-card counselor-timeline-card">
+        <div class="card-header">
+          <div>
+            <h2>Behavior and Support Timeline</h2>
+            <p class="muted">A live activity trail across discipline actions, counseling notes, hearings, and recommendations.</p>
+          </div>
         </div>
-      </div>
-      <div id="timelineContainer">Loading...</div>
-    </div>
+        <div id="timelineContainer">Loading...</div>
+      </section>
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Add Counselor Note</h2>
-          <p class="muted">Use note types and follow-up status to keep intervention history structured.</p>
+      <section class="counselor-support-grid">
+        <div class="card counselor-detail-card">
+          <div class="card-header">
+            <div>
+              <h2>Hearings and Sanctions</h2>
+              <p class="muted">Monitor upcoming hearings and sanction follow-up requirements.</p>
+            </div>
+          </div>
+          <div id="supportContainer">Loading...</div>
         </div>
-      </div>
-      <select id="noteType">
-        <option value="intervention">Intervention</option>
-        <option value="behavior_note">Behavior Note</option>
-        <option value="recommendation">Recommendation</option>
-        <option value="follow_up">Follow-up</option>
-      </select>
-      <select id="noteStatus">
-        <option value="planned">Planned</option>
-        <option value="ongoing">Ongoing</option>
-        <option value="completed">Completed</option>
-      </select>
-      <input type="date" id="followUpDate">
-      <textarea id="note" placeholder="Counselor remark, intervention, or recommendation"></textarea>
-      <div class="action-row">
-        <button id="saveNoteBtn">Save Counselor Note</button>
-        <span id="noteResult" class="muted"></span>
-      </div>
-    </div>
-  </div>
 
-  <div class="split-grid page-section">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Hearings and Sanctions</h2>
-          <p class="muted">Monitor upcoming hearings and sanction follow-up requirements.</p>
+        <div class="card counselor-detail-card">
+          <div class="card-header">
+            <div>
+              <h2>Evidence</h2>
+              <p class="muted">Uploaded files and review status for this case.</p>
+            </div>
+          </div>
+          <div id="evidenceContainer">Loading...</div>
         </div>
-      </div>
-      <div id="supportContainer">Loading...</div>
-    </div>
+      </section>
+    </main>
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Appeals</h2>
-          <p class="muted">See active and resolved appeal activity for this case.</p>
+    <aside class="counselor-intervention-rail">
+      <section class="card counselor-detail-card counselor-note-card">
+        <div class="card-header">
+          <div>
+            <span class="eyebrow">Intervention Workspace</span>
+            <h2>Add Counselor Note</h2>
+            <p class="muted">Record support work, recommendations, and follow-up intent for this student.</p>
+          </div>
         </div>
-      </div>
-      <div id="appealContainer">Loading...</div>
-    </div>
-  </div>
+        <div class="support-pill-row" aria-label="Support focus options">
+          <span>Academic stress</span>
+          <span>Family context</span>
+          <span>Behavior coaching</span>
+          <span>Follow-up</span>
+        </div>
+        <div class="form-grid">
+          <div class="field-stack">
+            <label for="noteType">Support Type</label>
+            <select id="noteType">
+              <option value="intervention">Intervention</option>
+              <option value="behavior_note">Behavior Note</option>
+              <option value="recommendation">Recommendation</option>
+              <option value="follow_up">Follow-up</option>
+            </select>
+          </div>
+          <div class="field-stack">
+            <label for="noteStatus">Intervention Status</label>
+            <select id="noteStatus">
+              <option value="planned">Planned</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+          <div class="field-stack">
+            <label for="followUpDate">Follow-up Date</label>
+            <input type="date" id="followUpDate">
+          </div>
+        </div>
+        <div class="field-stack">
+          <label for="note">Support Note / Recommendation</label>
+          <textarea id="note" placeholder="Document the student support action, recommendation, follow-up plan, or behavior observation."></textarea>
+        </div>
+        <div class="intervention-context-strip">
+          <span>Confidential guidance context</span>
+          <strong>Use supportive, observable, student-centered language.</strong>
+        </div>
+        <div class="action-row">
+          <button id="saveNoteBtn">Save Counselor Note</button>
+          <span id="noteResult" class="muted"></span>
+        </div>
+      </section>
 
-  <div class="card page-section">
-    <div class="card-header">
-      <div>
-        <h2>Evidence</h2>
-        <p class="muted">Uploaded files and review status for this case.</p>
-      </div>
-    </div>
-    <div id="evidenceContainer">Loading...</div>
+      <section class="card counselor-detail-card">
+        <div class="card-header">
+          <div>
+            <h2>Appeals</h2>
+            <p class="muted">See active and resolved appeal activity for this case.</p>
+          </div>
+        </div>
+        <div id="appealContainer">Loading...</div>
+      </section>
+    </aside>
   </div>
 </div>
 
@@ -130,6 +155,49 @@ function badge(value) {
   return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function labelize(value) {
+  return String(value || "-").replaceAll("_", " ");
+}
+
+function getStudentFullName(item) {
+  return [item?.first_name, item?.middle_name, item?.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim() || "Student";
+}
+
+function getStudentInitials(item) {
+  return `${item?.first_name?.[0] || ""}${item?.last_name?.[0] || ""}`.trim().toUpperCase() || "S";
+}
+
+function renderDetailStudentAvatar(item) {
+  const fullName = escapeHtml(getStudentFullName(item));
+
+  if (item?.student_avatar_url) {
+    return `
+      <span class="student-avatar counselor-detail-avatar has-image">
+        <img src="${escapeHtml(item.student_avatar_url)}" alt="${fullName} avatar">
+      </span>
+    `;
+  }
+
+  return `
+    <span class="student-avatar counselor-detail-avatar student-avatar-fallback" aria-label="${fullName} avatar placeholder">
+      ${escapeHtml(getStudentInitials(item))}
+    </span>
+  `;
+}
+
 function renderList(items, emptyMessage, mapFn) {
   if (!items || !items.length) {
     return `<div class="empty-state">${emptyMessage}</div>`;
@@ -139,6 +207,132 @@ function renderList(items, emptyMessage, mapFn) {
 
 function formatDate(value) {
   return value || "-";
+}
+
+function getCurrentStage(item, timeline = {}, noteRows = []) {
+  if (["resolved", "dismissed"].includes(String(item?.status))) {
+    return "resolution";
+  }
+
+  if ((timeline.hearings || []).length || item?.status === "hearing_scheduled") {
+    return "hearing";
+  }
+
+  if (noteRows.length) {
+    return "counseling";
+  }
+
+  if (item?.assigned_to_user_id || item?.status === "under_investigation") {
+    return "investigation";
+  }
+
+  return "reported";
+}
+
+function renderProgressTracker(currentStage) {
+  const stages = [
+    ["reported", "Reported"],
+    ["investigation", "Investigation"],
+    ["counseling", "Counseling"],
+    ["hearing", "Hearing"],
+    ["resolution", "Resolution"]
+  ];
+  const activeIndex = stages.findIndex(([key]) => key === currentStage);
+
+  return `
+    <div class="case-progress-tracker" aria-label="Case progress">
+      ${stages.map(([key, label], index) => `
+        <div class="case-progress-step ${index < activeIndex ? "is-complete" : ""} ${index === activeIndex ? "is-current" : ""}">
+          <span>${index + 1}</span>
+          <strong>${label}</strong>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function getActivityMeta(entry) {
+  const label = String(entry.label || entry.type || "").toLowerCase();
+
+  if (entry.type === "counselor_note" || label.includes("intervention") || label.includes("recommendation") || label.includes("follow")) {
+    return { icon: "C", tone: "support", title: labelize(entry.label || "Counselor note") };
+  }
+
+  if (entry.type === "hearing" || label.includes("hearing")) {
+    return { icon: "H", tone: "hearing", title: "Hearing Scheduled" };
+  }
+
+  if (entry.type === "sanction" || label.includes("sanction")) {
+    return { icon: "S", tone: "sanction", title: "Sanction Assigned" };
+  }
+
+  if (entry.type === "appeal" || label.includes("appeal")) {
+    return { icon: "A", tone: "appeal", title: "Appeal Activity" };
+  }
+
+  if (entry.type === "evidence") {
+    return { icon: "E", tone: "evidence", title: "Evidence Uploaded" };
+  }
+
+  return { icon: "U", tone: "update", title: labelize(entry.label || "Case Update") };
+}
+
+function renderActivityTimeline(items) {
+  if (!items.length) {
+    return `<div class="empty-state">No timeline items or counselor notes yet.</div>`;
+  }
+
+  return `
+    <div class="intervention-timeline">
+      ${items.map(entry => {
+        const meta = getActivityMeta(entry);
+        const source = entry.footer || entry.source || "Counselor workspace";
+        const body = escapeHtml(entry.body || "-");
+
+        return `
+          <article class="timeline-event is-${meta.tone}">
+            <div class="timeline-marker">${meta.icon}</div>
+            <div class="timeline-event-card">
+              <div class="timeline-event-head">
+                <div>
+                  <strong>${escapeHtml(meta.title)}</strong>
+                  <span>${escapeHtml(source)}</span>
+                </div>
+                <time>${escapeHtml(formatDate(entry.date))}</time>
+              </div>
+              <p>${body}</p>
+              ${entry.status ? `<div class="timeline-badge-row">${badge(entry.status)}${entry.followUpDate ? `<span class="soft-badge">Follow-up ${escapeHtml(formatDate(entry.followUpDate))}</span>` : ""}</div>` : ""}
+              ${entry.type === "counselor_note" ? `
+                <details class="timeline-edit-panel">
+                  <summary>Edit note</summary>
+                  <textarea id="edit-note-${entry.id}">${escapeHtml(entry.body)}</textarea>
+                  <div class="form-grid">
+                    <select id="edit-type-${entry.id}">
+                      <option value="intervention" ${entry.label === "intervention" ? "selected" : ""}>Intervention</option>
+                      <option value="behavior_note" ${entry.label === "behavior_note" ? "selected" : ""}>Behavior Note</option>
+                      <option value="recommendation" ${entry.label === "recommendation" ? "selected" : ""}>Recommendation</option>
+                      <option value="follow_up" ${entry.label === "follow_up" ? "selected" : ""}>Follow-up</option>
+                    </select>
+                    <select id="edit-status-${entry.id}">
+                      <option value="planned" ${entry.status === "planned" ? "selected" : ""}>Planned</option>
+                      <option value="ongoing" ${entry.status === "ongoing" ? "selected" : ""}>Ongoing</option>
+                      <option value="completed" ${entry.status === "completed" ? "selected" : ""}>Completed</option>
+                    </select>
+                    <input type="date" id="edit-followup-${entry.id}" value="${entry.followUpDate || ""}">
+                  </div>
+                  <button type="button" onclick="updateIntervention(${entry.id})">Update Note</button>
+                </details>
+              ` : ""}
+            </div>
+          </article>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderSupportList(items, emptyMessage, mapFn) {
+  return renderList(items, emptyMessage, mapFn);
 }
 
 async function loadCaseDetails() {
@@ -167,33 +361,94 @@ async function loadCaseDetails() {
   }
 
   const item = caseRes.case;
-  document.getElementById("caseMeta").innerHTML =
-    `${item.case_number} | ${badge(item.status)} | ${badge(item.severity_level)}`;
+  const studentName = getStudentFullName(item);
+  const studentProfileRes = item.student_id
+    ? await apiRequest(`/students/${item.student_id}`, "GET", null, true)
+    : { success: false };
+  const studentProfile = studentProfileRes.success ? studentProfileRes : null;
+  const parents = studentProfile?.parents || [];
+  const recentCases = studentProfile?.recentCases || [];
+  const studentSanctions = studentProfile?.sanctions || [];
+  const noteRows = interventionsRes.success ? interventionsRes.interventions : [];
+  const evidenceRows = evidenceRes.success ? evidenceRes.evidence : [];
+  const currentStage = getCurrentStage(item, caseRes.timeline, noteRows);
+  const activeFollowUps = noteRows.filter(note => ["planned", "ongoing"].includes(note.status));
+  const completedSupport = noteRows.filter(note => note.status === "completed");
+  const linkedParent = parents[0];
+  const caseMeta = document.getElementById("caseMeta");
+  if (caseMeta) {
+    caseMeta.innerHTML = `${item.case_number} | ${badge(item.status)} | ${badge(item.severity_level)}`;
+  }
 
   document.getElementById("caseInfo").innerHTML = `
-    <div class="info-grid">
-      <div><strong>Student</strong><span>${item.first_name} ${item.last_name} (${item.student_number})</span></div>
-      <div><strong>Violation</strong><span>${item.violation_type}</span></div>
-      <div><strong>Program / Section</strong><span>${item.program || "-"} / ${item.section || "-"}</span></div>
-      <div><strong>Incident Date</strong><span>${item.incident_date}</span></div>
-      <div><strong>Assigned To</strong><span>${item.assigned_to_first_name ? `${item.assigned_to_first_name} ${item.assigned_to_last_name}` : "Unassigned"}</span></div>
-      <div><strong>Location</strong><span>${item.location || "-"}</span></div>
-      <div><strong>Reported By</strong><span>${item.reported_by_first_name} ${item.reported_by_last_name}</span></div>
-      <div><strong>Description</strong><span>${item.description}</span></div>
+    <div class="counselor-detail-hero-main">
+      <div>
+        <div class="hero-action-row">
+          <span class="eyebrow">Counselor Workspace</span>
+          <a href="cases.html" class="button-link secondary">Back to Queue</a>
+        </div>
+        <h2>${escapeHtml(item.case_number || "Case Detail")}</h2>
+        <p>${escapeHtml(item.violation_type || "Student support case")} is currently in the <strong>${escapeHtml(labelize(currentStage))}</strong> stage.</p>
+        <div class="counselor-detail-badges">
+          ${badge(item.status)}
+          ${badge(item.severity_level)}
+          <span class="soft-badge">${escapeHtml(item.assigned_to_first_name ? `${item.assigned_to_first_name} ${item.assigned_to_last_name || ""}`.trim() : "Unassigned")}</span>
+        </div>
+      </div>
+      <div class="counselor-detail-student-pill">
+        ${renderDetailStudentAvatar(item)}
+        <div>
+          <span>Selected Student</span>
+          <strong>${escapeHtml(studentName)}</strong>
+          <p>${escapeHtml(item.student_number || "-")} | ${escapeHtml(item.program || "-")} ${escapeHtml(item.section || "")}</p>
+        </div>
+      </div>
+    </div>
+
+    ${renderProgressTracker(currentStage)}
+
+    <div class="counselor-detail-stats">
+      <div><span>Violation</span><strong>${escapeHtml(item.violation_type || "-")}</strong></div>
+      <div><span>Incident Date</span><strong>${escapeHtml(item.incident_date || "-")}</strong></div>
+      <div><span>Interventions</span><strong>${noteRows.length}</strong></div>
+      <div><span>Active Follow-ups</span><strong>${activeFollowUps.length}</strong></div>
+    </div>
+
+    <div class="counselor-detail-overview">
+      <div><strong>Discipline Owner</strong><span>${item.assigned_to_first_name ? `${escapeHtml(item.assigned_to_first_name)} ${escapeHtml(item.assigned_to_last_name || "")}` : "Unassigned"}</span></div>
+      <div><strong>Reported By</strong><span>${escapeHtml(item.reported_by_first_name || "-")} ${escapeHtml(item.reported_by_last_name || "")}</span></div>
+      <div><strong>Location</strong><span>${escapeHtml(item.location || "-")}</span></div>
+      <div class="is-wide"><strong>Description</strong><span>${escapeHtml(item.description || "-")}</span></div>
     </div>
   `;
 
   document.getElementById("studentProfileLink").innerHTML = `
-    <div class="detail-item">
-      <p><strong>${item.first_name} ${item.last_name}</strong> (${item.student_number})</p>
-      <p>${item.program || "-"} | ${item.year_level || "-"} | ${item.section || "-"}</p>
+    <div class="student-context-profile">
+      <div class="student-context-head">
+        ${renderDetailStudentAvatar(item)}
+        <div>
+          <span class="eyebrow">Student Support Profile</span>
+          <strong>${escapeHtml(studentName)}</strong>
+          <p>${escapeHtml(item.program || "-")} | ${escapeHtml(item.year_level || "-")} | ${escapeHtml(item.section || "-")}</p>
+        </div>
+      </div>
+      <div class="student-context-grid">
+        <div><span>Student ID</span><strong>${escapeHtml(item.student_number || "-")}</strong></div>
+        <div><span>Active Status</span><strong>${escapeHtml(labelize(studentProfile?.student?.status || "active"))}</strong></div>
+        <div><span>Linked Parent</span><strong>${linkedParent ? `${escapeHtml(linkedParent.first_name)} ${escapeHtml(linkedParent.last_name || "")}` : "No linked parent"}</strong></div>
+        <div><span>Support Signal</span><strong>${activeFollowUps.length ? "Follow-up active" : "Monitor and support"}</strong></div>
+      </div>
+      <div class="student-context-stats">
+        <span><strong>${recentCases.length}</strong> recent cases</span>
+        <span><strong>${studentSanctions.length}</strong> sanctions</span>
+        <span><strong>${completedSupport.length}</strong> completed supports</span>
+      </div>
       <div class="action-row">
         <a href="student-profile.html?id=${item.student_id}"><button type="button">Open Linked Student Profile</button></a>
       </div>
     </div>
   `;
 
-  const noteRows = interventionsRes.success ? interventionsRes.interventions : [];
   const combinedTimeline = [
     ...(caseRes.timeline.updates || []).map(entry => ({
       type: "case_update",
@@ -210,44 +465,42 @@ async function loadCaseDetails() {
       date: entry.created_at,
       status: entry.status,
       followUpDate: entry.follow_up_date
+    })),
+    ...(caseRes.timeline.hearings || []).map(entry => ({
+      type: "hearing",
+      label: "hearing",
+      body: `${entry.scheduled_date || "-"} ${entry.scheduled_time || ""} at ${entry.location || "-"}`,
+      date: entry.created_at || entry.scheduled_date,
+      status: entry.status,
+      source: entry.outcome || "Hearing office"
+    })),
+    ...(caseRes.timeline.sanctions || []).map(entry => ({
+      type: "sanction",
+      label: "sanction",
+      body: `${entry.sanction_type || "Sanction"} - ${entry.description || "No description provided."}`,
+      date: entry.created_at || entry.start_date,
+      status: entry.status,
+      source: `${entry.start_date || "-"} to ${entry.end_date || "-"}`
+    })),
+    ...(caseRes.timeline.appeals || []).map(entry => ({
+      type: "appeal",
+      label: "appeal",
+      body: entry.reason || "Appeal activity recorded.",
+      date: entry.created_at,
+      status: entry.status,
+      source: entry.decision_notes || "Appeal record"
+    })),
+    ...evidenceRows.map(entry => ({
+      type: "evidence",
+      label: "evidence",
+      body: entry.original_name || entry.file_name || "Evidence uploaded",
+      date: entry.uploaded_at,
+      status: entry.review_status,
+      source: `${entry.uploaded_by_first_name || "-"} ${entry.uploaded_by_last_name || ""}`.trim()
     }))
   ].sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
-  document.getElementById("timelineContainer").innerHTML = renderList(
-    combinedTimeline,
-    "No timeline items or counselor notes yet.",
-    entry => entry.type === "counselor_note" ? `
-      <div class="detail-item">
-        <p><strong>${entry.label}</strong> ${badge(entry.status)}</p>
-        <textarea id="edit-note-${entry.id}">${entry.body}</textarea>
-        <div class="form-grid">
-          <select id="edit-type-${entry.id}">
-            <option value="intervention" ${entry.label === "intervention" ? "selected" : ""}>Intervention</option>
-            <option value="behavior_note" ${entry.label === "behavior_note" ? "selected" : ""}>Behavior Note</option>
-            <option value="recommendation" ${entry.label === "recommendation" ? "selected" : ""}>Recommendation</option>
-            <option value="follow_up" ${entry.label === "follow_up" ? "selected" : ""}>Follow-up</option>
-          </select>
-          <select id="edit-status-${entry.id}">
-            <option value="planned" ${entry.status === "planned" ? "selected" : ""}>Planned</option>
-            <option value="ongoing" ${entry.status === "ongoing" ? "selected" : ""}>Ongoing</option>
-            <option value="completed" ${entry.status === "completed" ? "selected" : ""}>Completed</option>
-          </select>
-          <input type="date" id="edit-followup-${entry.id}" value="${entry.followUpDate || ""}">
-        </div>
-        <p class="muted">Recorded on ${formatDate(entry.date)}</p>
-        <div class="action-row">
-          <button type="button" onclick="updateIntervention(${entry.id})">Update Note</button>
-        </div>
-      </div>
-    ` : `
-      <div class="detail-item">
-        <p><strong>${entry.label}</strong></p>
-        <p>${entry.body}</p>
-        <p class="muted">${entry.footer || ""}</p>
-        <p class="muted">${formatDate(entry.date)}</p>
-      </div>
-    `
-  );
+  document.getElementById("timelineContainer").innerHTML = renderActivityTimeline(combinedTimeline);
 
   const hearingHtml = renderList(
     caseRes.timeline.hearings,

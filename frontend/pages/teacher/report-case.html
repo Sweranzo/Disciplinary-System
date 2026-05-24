@@ -30,7 +30,7 @@
         </div>
       </div>
 
-      <div class="detail-item" style="margin-bottom:16px;">
+      <div class="report-form-section" style="margin-bottom:16px;">
         <div class="card-header" style="margin-bottom:12px;">
           <div>
             <h3>Student Identification</h3>
@@ -48,7 +48,14 @@
         <div class="toolbar toolbar-compact" style="margin-top:12px;">
           <div class="field-stack">
             <label for="qrImageInput">QR Image Upload</label>
-            <input type="file" id="qrImageInput" accept="image/*">
+            <input class="visually-hidden-file" type="file" id="qrImageInput" accept="image/*">
+            <label class="compact-upload-trigger" for="qrImageInput" id="qrImageTrigger">
+              <span class="compact-upload-icon" data-upload-icon>UP</span>
+              <span>
+                <strong>Choose QR image</strong>
+                <small id="qrImageFileName">PNG, JPG, or screenshot</small>
+              </span>
+            </label>
           </div>
           <button type="button" id="useQrImageBtn" class="secondary compact-btn">Read Uploaded QR</button>
         </div>
@@ -60,8 +67,22 @@
 
       <div class="form-grid">
         <div class="field-stack">
-          <label for="violation">Violation Type</label>
-          <input type="text" id="violation" placeholder="Ex. Academic dishonesty, dress code, misconduct">
+          <label for="violationSearch">Violation Type</label>
+          <div class="violation-combobox" id="violationCombobox">
+            <button type="button" class="violation-select-trigger" id="violationTrigger" aria-expanded="false" aria-controls="violationMenu">
+              <span id="violationSelected">Select violation category</span>
+              <span class="violation-trigger-icon">⌄</span>
+            </button>
+            <div class="violation-menu" id="violationMenu">
+              <div class="violation-search-wrap">
+                <input type="search" id="violationSearch" placeholder="Search violation categories">
+              </div>
+              <div class="violation-options" id="violationOptions"></div>
+            </div>
+          </div>
+          <input type="hidden" id="violation">
+          <input type="text" id="violationOther" class="violation-other-input" placeholder="Enter custom violation type" style="display:none;">
+          <p class="field-helper">Choose the closest category. Select Other if the incident does not fit the list.</p>
         </div>
         <div class="field-stack">
           <label for="severity">Severity Level</label>
@@ -83,6 +104,7 @@
       </div>
       <div class="field-stack">
         <label for="description">Incident Narrative</label>
+        <p class="field-helper">Include observable facts, context, witnesses, and immediate action taken.</p>
         <textarea id="description" placeholder="Describe what happened, what was observed, and any immediate action taken."></textarea>
       </div>
     </div>
@@ -94,7 +116,18 @@
           <p class="muted">If you attach a file here, it will upload immediately after the case is created.</p>
         </div>
       </div>
-      <input type="file" id="evidenceFile">
+      <div class="evidence-upload-zone" id="evidenceDropzone" tabindex="0" role="button" aria-label="Upload supporting evidence">
+        <input class="visually-hidden-file" type="file" id="evidenceFile" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.mp4,.mov,.txt">
+        <div class="upload-icon" data-upload-icon>UP</div>
+        <div class="upload-copy">
+          <strong>Drop evidence here</strong>
+          <span>or click to browse your device</span>
+          <small>Accepted formats: JPG, PNG, GIF, PDF, DOC, DOCX, MP4, MOV, TXT</small>
+        </div>
+        <button type="button" class="secondary compact-btn" id="browseEvidenceBtn">Choose File</button>
+      </div>
+      <div id="evidenceFileList" class="upload-file-list" aria-live="polite"></div>
+      <div id="evidenceUploadStatus" class="upload-status" aria-live="polite"></div>
       <div class="detail-item">
         <p><strong>Supported flow</strong></p>
         <p>The case is created first. If the file upload fails, the case is still saved and you can retry from the case detail page.</p>
@@ -124,6 +157,8 @@
     </div>
   </div>
 </div>
+
+<div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
 <div class="modal-backdrop" id="qrScannerModal">
   <div class="modal-card">
@@ -166,6 +201,52 @@ let qrStream = null;
 let qrDetectorInterval = null;
 let qrCanvas = null;
 let qrCanvasContext = null;
+const violationCategories = [
+  { group: "Academic", items: ["Academic Dishonesty", "Cheating", "Unauthorized Absence", "Classroom Misconduct"] },
+  { group: "Conduct", items: ["Bullying", "Disrespectful Behavior", "Physical Altercation", "Harassment", "Threatening Behavior"] },
+  { group: "Policy and Property", items: ["Dress Code Violation", "Vandalism", "Improper Use of Devices", "Substance-related Incident"] },
+  { group: "Other", items: ["Other"] }
+];
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function showToast(message, type = "success") {
+  const stack = document.getElementById("toastStack");
+  const toast = document.createElement("div");
+  toast.className = `app-toast ${type === "error" ? "is-error" : "is-success"}`;
+  toast.innerHTML = `
+    <span>${type === "error" ? "!" : "OK"}</span>
+    <div>
+      <strong>${type === "error" ? "Submission failed" : "Case submitted"}</strong>
+      <p>${escapeHtml(message)}</p>
+    </div>
+  `;
+  stack.appendChild(toast);
+  window.setTimeout(() => toast.classList.add("is-visible"), 20);
+  window.setTimeout(() => {
+    toast.classList.remove("is-visible");
+    window.setTimeout(() => toast.remove(), 220);
+  }, 4200);
+}
+
+function setButtonBusy(button, isBusy, busyText = "Submitting...") {
+  if (!button) return;
+  if (isBusy) {
+    button.dataset.originalText = button.textContent;
+    button.textContent = busyText;
+    button.disabled = true;
+    return;
+  }
+  button.textContent = button.dataset.originalText || button.textContent;
+  button.disabled = false;
+}
 
 function openModal(id) {
   const modal = document.getElementById(id);
@@ -182,16 +263,20 @@ function closeModal(id) {
 }
 
 async function uploadInitialEvidence(caseId) {
-  const file = document.getElementById("evidenceFile").files[0];
+  const fileInput = document.getElementById("evidenceFile");
+  const file = fileInput.files[0];
   if (!file) {
     return { skipped: true };
   }
 
+  setEvidenceUploadState("uploading", "Uploading evidence attachment...");
   const formData = new FormData();
   formData.append("caseId", caseId);
   formData.append("file", file);
 
-  return apiRequest("/evidence/upload", "POST", formData, true);
+  const result = await apiRequest("/evidence/upload", "POST", formData, true);
+  setEvidenceUploadState(result.success ? "success" : "error", result.success ? "Evidence uploaded successfully." : result.message || "Evidence upload failed.");
+  return result;
 }
 
 function renderStudentSnapshot(student) {
@@ -424,50 +509,173 @@ async function openQrScanner() {
 function clearForm() {
   document.getElementById("studentId").value = "";
   document.getElementById("violation").value = "";
+  document.getElementById("violationSelected").textContent = "Select violation category";
+  document.getElementById("violationOther").value = "";
+  document.getElementById("violationOther").style.display = "none";
+  document.getElementById("violationSearch").value = "";
   document.getElementById("severity").value = "";
   document.getElementById("date").value = "";
   document.getElementById("location").value = "";
   document.getElementById("description").value = "";
   document.getElementById("evidenceFile").value = "";
+  document.getElementById("qrImageInput").value = "";
+  document.getElementById("qrImageFileName").textContent = "PNG, JPG, or screenshot";
+  renderEvidenceFileList();
+  setEvidenceUploadState("", "");
   document.getElementById("studentLookupResult").textContent = "";
   selectedStudent = null;
   renderStudentSnapshot(null);
 }
 
-document.getElementById("submitBtn").addEventListener("click", async () => {
-  const result = document.getElementById("result");
-  const payload = {
-    studentNumber: document.getElementById("studentId").value.trim(),
-    violation: document.getElementById("violation").value.trim(),
-    severity: document.getElementById("severity").value,
-    date: document.getElementById("date").value,
-    location: document.getElementById("location").value.trim(),
-    description: document.getElementById("description").value.trim()
-  };
+function formatFileSize(bytes = 0) {
+  if (!bytes) {
+    return "0 KB";
+  }
 
-  const createRes = await apiRequest("/cases/create", "POST", payload, true);
-  if (!createRes.success) {
-    result.textContent = createRes.message;
+  const units = ["B", "KB", "MB", "GB"];
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  return `${(bytes / Math.pow(1024, index)).toFixed(index ? 1 : 0)} ${units[index]}`;
+}
+
+function setEvidenceUploadState(state, message) {
+  const status = document.getElementById("evidenceUploadStatus");
+  status.className = `upload-status ${state ? `is-${state}` : ""}`.trim();
+  status.innerHTML = state === "uploading"
+    ? `<span class="upload-spinner"></span>${escapeHtml(message)}`
+    : escapeHtml(message);
+}
+
+function renderEvidenceFileList() {
+  const input = document.getElementById("evidenceFile");
+  const list = document.getElementById("evidenceFileList");
+  const file = input.files[0];
+
+  if (!file) {
+    list.innerHTML = "";
     return;
   }
 
-  const evidenceRes = await uploadInitialEvidence(createRes.case.id);
-  if (evidenceRes.skipped) {
-    result.textContent = "Case created successfully.";
-  } else if (evidenceRes.success) {
-    result.textContent = "Case created and evidence uploaded successfully.";
-  } else {
-    result.textContent = `Case created, but evidence upload failed: ${evidenceRes.message}`;
+  list.innerHTML = `
+    <div class="upload-file-item">
+      <span class="upload-file-icon">${window.LucideIcons?.svg("file-text") || "FILE"}</span>
+      <div>
+        <strong>${escapeHtml(file.name)}</strong>
+        <small>${formatFileSize(file.size)} | Ready to attach after case creation</small>
+      </div>
+      <button type="button" class="compact-btn secondary" id="removeEvidenceFile">Remove</button>
+    </div>
+  `;
+
+  document.getElementById("removeEvidenceFile").addEventListener("click", () => {
+    input.value = "";
+    renderEvidenceFileList();
+    setEvidenceUploadState("", "");
+  });
+}
+
+function setEvidenceFiles(files) {
+  const input = document.getElementById("evidenceFile");
+  if (!files || !files.length) {
+    return;
   }
 
-  document.getElementById("createdCaseSummary").textContent =
-      `${createRes.case.case_number} for ${createRes.case.student_name} (${createRes.case.student_number})`;
-  document.getElementById("parentSmsSummary").textContent =
-      buildParentNotificationSummary(createRes.parent_notification || {});
-  document.getElementById("openCaseLink").href = `case-details.html?id=${createRes.case.id}`;
-  document.getElementById("postCreateActions").style.display = "block";
+  const transfer = new DataTransfer();
+  transfer.items.add(files[0]);
+  input.files = transfer.files;
+  renderEvidenceFileList();
+  setEvidenceUploadState("", "");
+}
 
-  clearForm();
+function renderViolationOptions(filter = "") {
+  const options = document.getElementById("violationOptions");
+  const query = filter.trim().toLowerCase();
+  const groups = violationCategories
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => item.toLowerCase().includes(query))
+    }))
+    .filter(group => group.items.length);
+
+  options.innerHTML = groups.length ? groups.map(group => `
+    <div class="violation-option-group">
+      <span>${group.group}</span>
+      ${group.items.map(item => `<button type="button" class="violation-option" data-violation="${item}">${item}</button>`).join("")}
+    </div>
+  `).join("") : `<div class="empty-state">No matching categories</div>`;
+}
+
+function closeViolationMenu() {
+  document.getElementById("violationCombobox").classList.remove("is-open");
+  document.getElementById("violationTrigger").setAttribute("aria-expanded", "false");
+}
+
+function openViolationMenu() {
+  renderViolationOptions(document.getElementById("violationSearch").value);
+  document.getElementById("violationCombobox").classList.add("is-open");
+  document.getElementById("violationTrigger").setAttribute("aria-expanded", "true");
+  document.getElementById("violationSearch").focus();
+}
+
+function selectViolation(value) {
+  document.getElementById("violation").value = value === "Other" ? "" : value;
+  document.getElementById("violationSelected").textContent = value;
+  document.getElementById("violationOther").style.display = value === "Other" ? "block" : "none";
+  if (value === "Other") {
+    document.getElementById("violationOther").focus();
+  }
+  closeViolationMenu();
+}
+
+document.getElementById("submitBtn").addEventListener("click", async () => {
+  const result = document.getElementById("result");
+  const button = document.getElementById("submitBtn");
+  setButtonBusy(button, true, "Submitting...");
+  result.textContent = "Submitting incident report...";
+
+  try {
+    const customViolation = document.getElementById("violationOther").value.trim();
+    const payload = {
+      studentNumber: document.getElementById("studentId").value.trim(),
+      violation: customViolation || document.getElementById("violation").value.trim(),
+      severity: document.getElementById("severity").value,
+      date: document.getElementById("date").value,
+      location: document.getElementById("location").value.trim(),
+      description: document.getElementById("description").value.trim()
+    };
+
+    const createRes = await apiRequest("/cases/create", "POST", payload, true);
+    if (!createRes.success) {
+      result.textContent = createRes.message;
+      showToast(createRes.message || "Unable to submit incident report.", "error");
+      return;
+    }
+
+    const evidenceRes = await uploadInitialEvidence(createRes.case.id);
+    let successMessage = "";
+    if (evidenceRes.skipped) {
+      successMessage = "Case created successfully.";
+    } else if (evidenceRes.success) {
+      successMessage = "Case created and evidence uploaded successfully.";
+    } else {
+      successMessage = `Case created, but evidence upload failed: ${evidenceRes.message}`;
+    }
+    result.textContent = successMessage;
+    showToast(successMessage, "success");
+
+    document.getElementById("createdCaseSummary").textContent =
+        `${createRes.case.case_number} for ${createRes.case.student_name} (${createRes.case.student_number})`;
+    document.getElementById("parentSmsSummary").textContent =
+        buildParentNotificationSummary(createRes.parent_notification || {});
+    document.getElementById("openCaseLink").href = `case-details.html?id=${createRes.case.id}`;
+    document.getElementById("postCreateActions").style.display = "block";
+
+    clearForm();
+  } catch (error) {
+    result.textContent = "Unable to submit incident report. Please try again.";
+    showToast("Unable to submit incident report. Please try again.", "error");
+  } finally {
+    setButtonBusy(button, false);
+  }
 });
 
 document.getElementById("lookupStudentBtn").addEventListener("click", async () => {
@@ -495,9 +703,69 @@ document.getElementById("useQrImageBtn").addEventListener("click", async () => {
 document.getElementById("qrImageInput").addEventListener("change", async event => {
   const file = event.target.files[0];
   if (file) {
+    document.getElementById("qrImageFileName").textContent = file.name;
     await readQrFromImageFile(file);
   }
 });
+document.querySelectorAll("[data-upload-icon]").forEach(icon => {
+  icon.innerHTML = window.LucideIcons?.svg("folder-open") || "UP";
+});
+document.getElementById("browseEvidenceBtn").addEventListener("click", () => {
+  document.getElementById("evidenceFile").click();
+});
+document.getElementById("evidenceFile").addEventListener("change", renderEvidenceFileList);
+document.getElementById("evidenceDropzone").addEventListener("click", event => {
+  if (!event.target.closest("button")) {
+    document.getElementById("evidenceFile").click();
+  }
+});
+document.getElementById("evidenceDropzone").addEventListener("keydown", event => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    document.getElementById("evidenceFile").click();
+  }
+});
+["dragenter", "dragover"].forEach(eventName => {
+  document.getElementById("evidenceDropzone").addEventListener(eventName, event => {
+    event.preventDefault();
+    document.getElementById("evidenceDropzone").classList.add("is-dragover");
+  });
+});
+["dragleave", "drop"].forEach(eventName => {
+  document.getElementById("evidenceDropzone").addEventListener(eventName, event => {
+    event.preventDefault();
+    document.getElementById("evidenceDropzone").classList.remove("is-dragover");
+  });
+});
+document.getElementById("evidenceDropzone").addEventListener("drop", event => {
+  setEvidenceFiles(event.dataTransfer.files);
+});
+document.getElementById("violationTrigger").addEventListener("click", () => {
+  const combobox = document.getElementById("violationCombobox");
+  if (combobox.classList.contains("is-open")) {
+    closeViolationMenu();
+  } else {
+    openViolationMenu();
+  }
+});
+document.getElementById("violationSearch").addEventListener("input", event => {
+  renderViolationOptions(event.target.value);
+});
+document.getElementById("violationOptions").addEventListener("click", event => {
+  const option = event.target.closest("[data-violation]");
+  if (option) {
+    selectViolation(option.dataset.violation);
+  }
+});
+document.getElementById("violationOther").addEventListener("input", event => {
+  document.getElementById("violation").value = event.target.value.trim();
+});
+document.addEventListener("click", event => {
+  if (!event.target.closest("#violationCombobox")) {
+    closeViolationMenu();
+  }
+});
+renderViolationOptions();
 window.addEventListener("beforeunload", stopQrScanner);
 </script>
 

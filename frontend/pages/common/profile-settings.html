@@ -8,135 +8,166 @@
 </head>
 <body>
 
-<div class="dashboard-container">
-  <div class="topbar">
+<div class="dashboard-container account-center">
+  <div class="account-center-topbar">
     <div>
-      <span class="eyebrow">Account Settings</span>
-      <h1 style="margin-top:16px;">Profile Settings</h1>
-      <p class="muted">Update your account details, upload a profile photo, and manage your password from one place.</p>
+      <span class="eyebrow">Account Center</span>
+      <h1>Profile Settings</h1>
+      <p class="muted">Manage your identity, profile photo, and account security in one polished workspace.</p>
     </div>
-    <div class="action-row action-row-tight">
-      <button id="backToDashboardBtn" class="secondary compact-btn" type="button">Back to Dashboard</button>
-    </div>
+    <button id="backToDashboardBtn" class="secondary compact-btn" type="button">Back to Dashboard</button>
   </div>
 
-  <div class="split-grid page-section">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Profile Overview</h2>
-          <p class="muted">This summary updates as soon as your profile details are saved.</p>
-        </div>
-      </div>
-      <div class="profile-settings-overview">
-        <div class="profile-settings-avatar" id="profileAvatarPreview">U</div>
-        <div class="profile-settings-summary">
-          <h3 id="profileDisplayName">Account User</h3>
-          <p id="profileRoleLabel">Role</p>
-          <div class="summary-band">
-            <div class="summary-chip"><strong>Username</strong><span id="summaryUsername">-</span></div>
-            <div class="summary-chip"><strong>Email</strong><span id="summaryEmail">-</span></div>
-            <div class="summary-chip"><strong>ID</strong><span id="summaryAccountId">-</span></div>
-          </div>
-        </div>
+  <section class="account-hero-card">
+    <div class="account-hero-identity">
+      <div class="profile-settings-avatar account-hero-avatar" id="profileAvatarPreview">U</div>
+      <div>
+        <span class="account-role-pill" id="profileRoleLabel">Role</span>
+        <h2 id="profileDisplayName">Account User</h2>
+        <p id="accountHeroEmail">account@example.com</p>
       </div>
     </div>
+    <div class="account-hero-meta">
+      <div><span>Account ID</span><strong id="summaryAccountId">-</strong></div>
+      <div><span>Username</span><strong id="summaryUsername">-</strong></div>
+      <div><span>Status</span><strong><i id="accountStatusChip" class="account-status-chip">-</i></strong></div>
+      <div><span>Last Login</span><strong id="accountLastLogin">Current session</strong></div>
+    </div>
+  </section>
 
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Profile Photo</h2>
-          <p class="muted">Upload a clear square photo or logo-based avatar for the top-right profile menu.</p>
+  <div class="account-center-grid">
+    <aside class="account-side-column">
+      <section class="account-card account-profile-card">
+        <div class="card-header">
+          <div>
+            <h2>Profile Photo</h2>
+            <p class="muted">Use a clear image for menus and dashboard identity.</p>
+          </div>
         </div>
-      </div>
-      <form id="avatarForm" class="profile-form">
-        <label for="avatarFile">Choose Avatar Image</label>
-        <input id="avatarFile" name="avatar" type="file" accept="image/*">
-        <div class="inline-note-compact">Recommended: JPG or PNG, up to 5 MB.</div>
-        <div class="action-row action-row-tight">
-          <button type="submit" class="compact-btn">Upload Photo</button>
-        </div>
-        <div class="inline-feedback" id="avatarFeedback"></div>
-      </form>
-    </div>
-  </div>
+        <form id="avatarForm" class="profile-form account-avatar-form">
+          <label class="avatar-upload-zone" for="avatarFile">
+            <span>Drop or choose avatar</span>
+            <small>JPG or PNG, up to 5 MB</small>
+          </label>
+          <input id="avatarFile" name="avatar" type="file" accept="image/*">
+          <button type="submit" class="compact-btn account-primary-btn">Upload Photo</button>
+          <div class="inline-feedback" id="avatarFeedback"></div>
+        </form>
+      </section>
 
-  <div class="split-grid page-section">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Basic Information</h2>
-          <p class="muted">Keep your account identity accurate across dashboards, hearings, sanctions, and notifications.</p>
-        </div>
-      </div>
-      <form id="profileForm" class="profile-form">
-        <div class="form-grid">
-          <div class="field-stack">
-            <label for="firstName">First Name</label>
-            <input id="firstName" name="first_name" type="text" required>
-          </div>
-          <div class="field-stack">
-            <label for="middleName">Middle Name</label>
-            <input id="middleName" name="middle_name" type="text">
-          </div>
-          <div class="field-stack">
-            <label for="lastName">Last Name</label>
-            <input id="lastName" name="last_name" type="text" required>
-          </div>
-          <div class="field-stack">
-            <label for="username">Username</label>
-            <input id="username" name="username" type="text" required>
-          </div>
-          <div class="field-stack">
-            <label for="email">Email</label>
-            <input id="email" name="email" type="email" required>
-          </div>
-          <div class="field-stack">
-            <label for="roleReadOnly">Role</label>
-            <input id="roleReadOnly" type="text" disabled>
-          </div>
-          <div class="field-stack">
-            <label for="idReadOnly">Employee / Student ID</label>
-            <input id="idReadOnly" type="text" disabled>
-          </div>
-          <div class="field-stack">
-            <label for="statusReadOnly">Account Status</label>
-            <input id="statusReadOnly" type="text" disabled>
+      <section class="account-card">
+        <div class="card-header">
+          <div>
+            <h2>Quick Info</h2>
+            <p class="muted">Visible account details.</p>
           </div>
         </div>
-        <div class="action-row action-row-tight">
-          <button type="submit" class="compact-btn">Save Profile</button>
+        <div class="account-info-list">
+          <div><span>Email</span><strong id="summaryEmail">-</strong></div>
+          <div><span>Role</span><strong id="accountSideRole">-</strong></div>
+          <div><span>Status</span><strong id="accountSideStatus">-</strong></div>
         </div>
-        <div class="inline-feedback" id="profileFeedback"></div>
-      </form>
-    </div>
+      </section>
 
-    <div class="card">
-      <div class="card-header">
+      <section class="account-card account-security-card">
         <div>
-          <h2>Password</h2>
-          <p class="muted">Use a strong password and keep it private, especially for staff roles handling disciplinary actions.</p>
+          <span class="account-security-icon">✓</span>
+          <h2>Security Status</h2>
+          <p>Password protected account. Keep credentials private when handling disciplinary records.</p>
         </div>
-      </div>
-      <form id="passwordForm" class="profile-form">
-        <div class="field-stack">
-          <label for="currentPassword">Current Password</label>
-          <input id="currentPassword" name="currentPassword" type="password" required>
+      </section>
+    </aside>
+
+    <main class="account-main-column">
+      <section class="account-card">
+        <div class="card-header account-section-head">
+          <div>
+            <h2>Personal Information</h2>
+            <p class="muted">Keep your display identity accurate across dashboards, hearings, and notifications.</p>
+          </div>
         </div>
-        <div class="field-stack">
-          <label for="newPassword">New Password</label>
-          <input id="newPassword" name="newPassword" type="password" minlength="6" required>
+        <form id="profileForm" class="profile-form">
+          <div class="account-form-grid">
+            <div class="field-stack">
+              <label for="firstName">First Name</label>
+              <input id="firstName" name="first_name" type="text" required>
+            </div>
+            <div class="field-stack">
+              <label for="middleName">Middle Name</label>
+              <input id="middleName" name="middle_name" type="text">
+            </div>
+            <div class="field-stack">
+              <label for="lastName">Last Name</label>
+              <input id="lastName" name="last_name" type="text" required>
+            </div>
+            <div class="field-stack">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" required>
+            </div>
+          </div>
+
+          <div class="account-section-divider"></div>
+
+          <div class="card-header account-section-head">
+            <div>
+              <h2>Account Information</h2>
+              <p class="muted">System-managed role and account identifiers.</p>
+            </div>
+          </div>
+          <div class="account-form-grid">
+            <div class="field-stack">
+              <label for="username">Username</label>
+              <input id="username" name="username" type="text" required>
+            </div>
+            <div class="field-stack">
+              <label for="roleReadOnly">Role</label>
+              <input id="roleReadOnly" type="text" disabled>
+            </div>
+            <div class="field-stack">
+              <label for="idReadOnly">Employee / Student ID</label>
+              <input id="idReadOnly" type="text" disabled>
+            </div>
+            <div class="field-stack">
+              <label for="statusReadOnly">Account Status</label>
+              <input id="statusReadOnly" type="text" disabled>
+            </div>
+          </div>
+          <div class="account-sticky-actions">
+            <button type="submit" class="compact-btn account-primary-btn">Save Profile</button>
+          </div>
+          <div class="inline-feedback" id="profileFeedback"></div>
+        </form>
+      </section>
+
+      <section class="account-card">
+        <div class="card-header account-section-head">
+          <div>
+            <h2>Password & Security</h2>
+            <p class="muted">Use a strong password and keep it private, especially for staff roles handling cases.</p>
+          </div>
         </div>
-        <div class="field-stack">
-          <label for="confirmPassword">Confirm New Password</label>
-          <input id="confirmPassword" name="confirmPassword" type="password" minlength="6" required>
-        </div>
-        <div class="action-row action-row-tight">
-          <button type="submit" class="compact-btn">Update Password</button>
-        </div>
-        <div class="inline-feedback" id="passwordFeedback"></div>
-      </form>
-    </div>
+        <form id="passwordForm" class="profile-form">
+          <div class="account-form-grid">
+            <div class="field-stack">
+              <label for="currentPassword">Current Password</label>
+              <input id="currentPassword" name="currentPassword" type="password" required>
+            </div>
+            <div class="field-stack">
+              <label for="newPassword">New Password</label>
+              <input id="newPassword" name="newPassword" type="password" minlength="6" required>
+            </div>
+            <div class="field-stack">
+              <label for="confirmPassword">Confirm New Password</label>
+              <input id="confirmPassword" name="confirmPassword" type="password" minlength="6" required>
+            </div>
+          </div>
+          <div class="account-sticky-actions">
+            <button type="submit" class="compact-btn account-primary-btn">Update Password</button>
+          </div>
+          <div class="inline-feedback" id="passwordFeedback"></div>
+        </form>
+      </section>
+    </main>
   </div>
 </div>
 
@@ -179,6 +210,12 @@ function renderProfile(user) {
   document.getElementById("summaryUsername").textContent = user.username || "-";
   document.getElementById("summaryEmail").textContent = user.email || "-";
   document.getElementById("summaryAccountId").textContent = user.employee_or_student_id || "-";
+  document.getElementById("accountHeroEmail").textContent = user.email || "-";
+  document.getElementById("accountStatusChip").textContent = user.status || "-";
+  document.getElementById("accountSideRole").textContent = user.role_label || getRoleLabel(user.role);
+  document.getElementById("accountSideStatus").textContent = user.status || "-";
+  const lastLoginAt = localStorage.getItem("lastLoginAt");
+  document.getElementById("accountLastLogin").textContent = user.last_login || user.lastLogin || (lastLoginAt ? new Date(lastLoginAt).toLocaleString() : "Current session");
 
   document.getElementById("firstName").value = user.first_name || "";
   document.getElementById("middleName").value = user.middle_name || "";

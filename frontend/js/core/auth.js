@@ -319,7 +319,7 @@ function getRoleProfilePath(role) {
     case "student":
       return "student/profile.html";
     default:
-      return "common/profile-settings.html";
+      return "common/profile.html";
   }
 }
 

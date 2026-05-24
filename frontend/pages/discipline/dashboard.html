@@ -21,16 +21,18 @@
     </section>
 
     <aside class="dash-profile-card">
-      <div class="dash-profile-row">
-        <div class="dash-avatar" id="officerInitials">DO</div>
+      <div class="admin-profile-head">
+        <div class="admin-profile-avatar" id="officerInitials">DO</div>
         <div>
           <strong id="officerName">Discipline Officer</strong>
-          <span>Discipline Officer</span>
+          <span>Discipline Officer / Operations</span>
         </div>
       </div>
-      <div class="info-grid">
-        <div><strong>Focus</strong><span>Active investigations</span></div>
-        <div><strong>Calendar</strong><span>Hearings and case meetings</span></div>
+      <div class="admin-profile-info">
+        <div><strong>Email</strong><span id="officerEmail">-</span></div>
+        <div><strong>User ID</strong><span id="officerId">-</span></div>
+        <div><strong>Role</strong><span>Discipline Officer</span></div>
+        <div><strong>Focus</strong><span>Investigations / hearings</span></div>
       </div>
     </aside>
   </div>
@@ -46,10 +48,21 @@
             <p class="muted">Cases by status and severity for discipline operations.</p>
           </div>
         </div>
-        <div class="dash-chart-grid">
-          <div id="statusChart"></div>
-          <div id="severityChart"></div>
+        <div class="case-analytics-grid">
+          <div class="case-analytics-block case-analytics-donut-block">
+            <span class="case-analytics-label">Case Queue</span>
+            <div id="statusChart"></div>
+          </div>
+          <div class="case-analytics-block">
+            <span class="case-analytics-label">Status Distribution</span>
+            <div id="statusLegend"></div>
+          </div>
+          <div class="case-analytics-block">
+            <span class="case-analytics-label">Severity Distribution</span>
+            <div id="severityChart"></div>
+          </div>
         </div>
+        <div id="disciplineAnalyticsSummary" class="case-analytics-summary"></div>
       </section>
 
       <section class="dash-panel">
@@ -102,7 +115,15 @@ if (!user || user.role !== "discipline_officer") {
 
 const W = DashboardWidgets;
 document.getElementById("officerName").textContent = getUserFullName(user);
-document.getElementById("officerInitials").textContent = `${user.first_name?.[0] || "D"}${user.last_name?.[0] || "O"}`.toUpperCase();
+const officerAvatar = document.getElementById("officerInitials");
+const officerAvatarUrl = getAvatarUrl(user);
+if (officerAvatarUrl) {
+  officerAvatar.innerHTML = `<img src="${officerAvatarUrl}" alt="${getUserFullName(user)} avatar">`;
+} else {
+  officerAvatar.textContent = `${user.first_name?.[0] || "D"}${user.last_name?.[0] || "O"}`.toUpperCase();
+}
+document.getElementById("officerEmail").textContent = user.email || "-";
+document.getElementById("officerId").textContent = user.employee_or_student_id || "-";
 
 function hearingToEvent(item) {
   return {
@@ -119,6 +140,10 @@ function renderDashboard({ cases, hearings, sanctions, appeals }) {
   const scheduledHearings = hearings.filter(item => item.status === "scheduled");
   const activeSanctions = sanctions.filter(item => item.status === "active");
   const openAppeals = appeals.filter(item => ["submitted", "under_review"].includes(item.status));
+  const statusCounts = W.groupBy(cases, "status");
+  const severityCounts = W.groupBy(cases, "severity_level");
+  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"];
+  const caseSeverities = ["minor", "major", "grave"];
 
   W.renderMetrics("disciplineMetrics", [
     { icon: "CQ", label: "Case Queue", value: activeCases.length, help: "Open cases needing discipline action" },
@@ -127,8 +152,15 @@ function renderDashboard({ cases, hearings, sanctions, appeals }) {
     { icon: "AP", label: "Open Appeals", value: openAppeals.length, help: "Appeals pending decision" }
   ]);
 
-  W.renderDonut("statusChart", W.toSegments(W.groupBy(cases, "status"), ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"]), "No cases yet");
-  W.renderBars("severityChart", W.toSegments(W.groupBy(cases, "severity_level"), ["minor", "major", "grave"]), "No severity data yet");
+  W.renderDonut("statusChart", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No cases yet");
+  W.renderStatusList("statusLegend", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No status data yet");
+  W.renderBars("severityChart", W.toSegments(severityCounts, caseSeverities, { includeZeros: true }), "No severity data yet");
+  W.renderSummary("disciplineAnalyticsSummary", [
+    { label: "Open Queue", value: activeCases.length },
+    { label: "Under Investigation", value: statusCounts.under_investigation || 0 },
+    { label: "Active Sanctions", value: activeSanctions.length },
+    { label: "Open Appeals", value: openAppeals.length }
+  ]);
   const events = scheduledHearings.map(hearingToEvent);
   W.renderCalendar("meetingCalendar", events);
   W.renderUpcoming("meetingCalendarList", events, "No upcoming hearings");
