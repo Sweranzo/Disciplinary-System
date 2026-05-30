@@ -151,6 +151,26 @@ function labelize(value) {
   return String(value || "-").replaceAll("_", " ");
 }
 
+function formatDate(value) {
+  if (!value) {
+    return "-";
+  }
+
+  const raw = String(value);
+  const date = new Date(raw);
+
+  if (Number.isNaN(date.getTime())) {
+    return raw;
+  }
+
+  const hasTime = raw.includes("T") || /\d{1,2}:\d{2}/.test(raw);
+  const options = hasTime
+    ? { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }
+    : { month: "short", day: "numeric", year: "numeric" };
+
+  return date.toLocaleString("en-US", options);
+}
+
 function getStudentName(item) {
   return [item.first_name, item.middle_name, item.last_name]
     .filter(Boolean)
@@ -213,7 +233,7 @@ function renderQueue(items) {
         <div class="counselor-case-meta">
           <span>${badge(item.severity_level)}</span>
           <span>${badge(item.follow_up_status || "none")}</span>
-          <span>${escapeHtml(item.incident_date || "-")}</span>
+          <span>${escapeHtml(formatDate(item.incident_date))}</span>
         </div>
         <div class="counselor-case-footer">
           <span>${escapeHtml(item.student_number || "-")}</span>
@@ -344,7 +364,7 @@ function selectCase(caseId) {
       </div>
       <div class="counselor-summary-grid">
         <div><span>Violation</span><strong>${escapeHtml(selectedCase.violation_type || "-")}</strong></div>
-        <div><span>Incident Date</span><strong>${escapeHtml(selectedCase.incident_date || "-")}</strong></div>
+        <div><span>Incident Date</span><strong>${escapeHtml(formatDate(selectedCase.incident_date))}</strong></div>
         <div><span>Support Scope</span><strong>${labelize(selectedCase.support_scope)}</strong></div>
         <div><span>Discipline Owner</span><strong>${escapeHtml(owner)}</strong></div>
       </div>
@@ -365,7 +385,7 @@ function selectCase(caseId) {
               <span>${badge(note.status)}</span>
             </div>
             <p>${escapeHtml(note.note)}</p>
-            <small>Follow-up: ${escapeHtml(note.follow_up_date || "-")} | Recorded: ${escapeHtml(note.created_at || "-")}</small>
+            <small>Follow-up: ${escapeHtml(formatDate(note.follow_up_date))} | Recorded: ${escapeHtml(formatDate(note.created_at))}</small>
           </article>
         `).join("") : `<div class="empty-state">No counseling actions recorded yet.</div>`}
       </div>

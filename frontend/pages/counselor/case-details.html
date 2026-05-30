@@ -206,7 +206,44 @@ function renderList(items, emptyMessage, mapFn) {
 }
 
 function formatDate(value) {
-  return value || "-";
+  if (!value) {
+    return "-";
+  }
+
+  const raw = String(value);
+  const date = new Date(raw);
+
+  if (Number.isNaN(date.getTime())) {
+    return raw;
+  }
+
+  const hasTime = raw.includes("T") || /\d{1,2}:\d{2}/.test(raw);
+  const options = hasTime
+    ? { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }
+    : { month: "short", day: "numeric", year: "numeric" };
+
+  return date.toLocaleString("en-US", options);
+}
+
+function formatDateWithTime(dateValue, timeValue) {
+  const dateText = formatDate(dateValue);
+
+  if (!timeValue) {
+    return dateText;
+  }
+
+  const [hourPart, minutePart] = String(timeValue).split(":");
+  const hour = Number(hourPart);
+  const minute = Number(minutePart || 0);
+
+  if (Number.isNaN(hour)) {
+    return `${dateText} ${timeValue}`;
+  }
+
+  const time = new Date();
+  time.setHours(hour, minute, 0, 0);
+
+  return `${dateText}, ${time.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
 }
 
 function getCurrentStage(item, timeline = {}, noteRows = []) {
@@ -409,7 +446,7 @@ async function loadCaseDetails() {
 
     <div class="counselor-detail-stats">
       <div><span>Violation</span><strong>${escapeHtml(item.violation_type || "-")}</strong></div>
-      <div><span>Incident Date</span><strong>${escapeHtml(item.incident_date || "-")}</strong></div>
+      <div><span>Incident Date</span><strong>${escapeHtml(formatDate(item.incident_date))}</strong></div>
       <div><span>Interventions</span><strong>${noteRows.length}</strong></div>
       <div><span>Active Follow-ups</span><strong>${activeFollowUps.length}</strong></div>
     </div>
@@ -469,7 +506,7 @@ async function loadCaseDetails() {
     ...(caseRes.timeline.hearings || []).map(entry => ({
       type: "hearing",
       label: "hearing",
-      body: `${entry.scheduled_date || "-"} ${entry.scheduled_time || ""} at ${entry.location || "-"}`,
+      body: `${formatDateWithTime(entry.scheduled_date, entry.scheduled_time)} at ${entry.location || "-"}`,
       date: entry.created_at || entry.scheduled_date,
       status: entry.status,
       source: entry.outcome || "Hearing office"
@@ -480,7 +517,7 @@ async function loadCaseDetails() {
       body: `${entry.sanction_type || "Sanction"} - ${entry.description || "No description provided."}`,
       date: entry.created_at || entry.start_date,
       status: entry.status,
-      source: `${entry.start_date || "-"} to ${entry.end_date || "-"}`
+      source: `${formatDate(entry.start_date)} to ${formatDate(entry.end_date)}`
     })),
     ...(caseRes.timeline.appeals || []).map(entry => ({
       type: "appeal",
@@ -508,7 +545,7 @@ async function loadCaseDetails() {
     hearing => `
       <div class="detail-item">
         <p><strong>Hearing</strong> ${badge(hearing.status)}</p>
-        <p>${hearing.scheduled_date} ${hearing.scheduled_time} at ${hearing.location || "-"}</p>
+        <p>${formatDateWithTime(hearing.scheduled_date, hearing.scheduled_time)} at ${hearing.location || "-"}</p>
         <p>${hearing.outcome || "No hearing outcome yet."}</p>
       </div>
     `
@@ -521,7 +558,7 @@ async function loadCaseDetails() {
       <div class="detail-item">
         <p><strong>${sanction.sanction_type}</strong> ${badge(sanction.status)}</p>
         <p>${sanction.description || "-"}</p>
-        <p>${sanction.start_date || "-"} to ${sanction.end_date || "-"}</p>
+        <p>${formatDate(sanction.start_date)} to ${formatDate(sanction.end_date)}</p>
       </div>
     `
   );
