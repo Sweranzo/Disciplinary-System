@@ -86,7 +86,7 @@ async function loadChildCases() {
       <td>${item.violation_type}</td>
       <td>${badge(item.severity_level)}</td>
       <td>${badge(item.status)}</td>
-      <td>${item.incident_date}</td>
+      <td>${formatDisplayDate(item.incident_date)}</td>
       <td>${item.location || "-"}</td>
     </tr>
   `).join("");

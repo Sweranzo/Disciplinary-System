@@ -230,7 +230,7 @@ async function openCasePreview(caseId) {
       <div><strong>Student</strong><span>${escapeHtml(c.first_name)} ${escapeHtml(c.last_name)} (${escapeHtml(c.student_number)})</span></div>
       <div><strong>Violation</strong><span>${escapeHtml(c.violation_type)}</span></div>
       <div><strong>Severity</strong><span>${badge(c.severity_level)}</span></div>
-      <div><strong>Date Reported</strong><span>${escapeHtml(c.incident_date || "-")}</span></div>
+      <div><strong>Date Reported</strong><span>${escapeHtml(formatDisplayDate(c.incident_date))}</span></div>
       <div><strong>Assigned</strong><span>${c.assigned_to_first_name ? `${escapeHtml(c.assigned_to_first_name)} ${escapeHtml(c.assigned_to_last_name)}` : "Unassigned"}</span></div>
     </div>
     <div class="detail-item" style="margin-top:16px;">

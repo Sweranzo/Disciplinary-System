@@ -275,7 +275,7 @@ async function loadProfile() {
       item => `
         <div class="detail-item">
           <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
-          <p>${formatDate(item.scheduled_date)} ${item.scheduled_time || ""}</p>
+          <p>${formatDisplayDateWithTime(item.scheduled_date, item.scheduled_time)}</p>
           <p class="muted">${item.location || "Location not set"}</p>
         </div>
       `
@@ -287,7 +287,7 @@ async function loadProfile() {
       item => `
         <div class="detail-item">
           <p><strong>${item.sanction_type}</strong> ${badge(item.display_status || item.status)}</p>
-          <p>${formatDate(item.start_date)} to ${formatDate(item.end_date)}</p>
+          <p>${formatDisplayDateRange(item.start_date, item.end_date)}</p>
         </div>
       `
     );

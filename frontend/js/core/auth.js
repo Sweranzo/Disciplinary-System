@@ -11,6 +11,8 @@ const LucideIcons = (() => {
     "folder-open": '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6A2 2 0 0 1 18.46 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"></path>',
     bell: '<path d="M10.27 21a2 2 0 0 0 3.46 0"></path><path d="M3.26 15.33A2 2 0 0 0 5 18h14a2 2 0 0 0 1.74-2.67C20.22 13.98 19 13 19 10a7 7 0 1 0-14 0c0 3-1.22 3.98-1.74 5.33Z"></path>',
     settings: '<path d="M9.67 2.93a2.25 2.25 0 0 1 4.66 0 2.25 2.25 0 0 0 3.38 1.46 2.25 2.25 0 0 1 2.33 4.04 2.25 2.25 0 0 0 0 3.9 2.25 2.25 0 0 1-2.33 4.04 2.25 2.25 0 0 0-3.38 1.46 2.25 2.25 0 0 1-4.66 0 2.25 2.25 0 0 0-3.38-1.46 2.25 2.25 0 0 1-2.33-4.04 2.25 2.25 0 0 0 0-3.9 2.25 2.25 0 0 1 2.33-4.04 2.25 2.25 0 0 0 3.38-1.46Z"></path><circle cx="12" cy="12" r="3"></circle>',
+    sun: '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path>',
+    moon: '<path d="M20.99 13.49A9 9 0 1 1 10.51 3.01 7 7 0 0 0 20.99 13.49Z"></path>',
     menu: '<line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="18" y2="18"></line>',
     search: '<circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path>',
     "user-round": '<circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 0 0-16 0"></path>',
@@ -33,6 +35,104 @@ const LucideIcons = (() => {
 })();
 
 window.LucideIcons = LucideIcons;
+
+const THEME_STORAGE_KEY = "disciplineTheme";
+
+function getStoredTheme() {
+  try {
+    const value = localStorage.getItem(THEME_STORAGE_KEY);
+    return value === "dark" || value === "light" ? value : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function getPreferredTheme() {
+  const storedTheme = getStoredTheme();
+  if (storedTheme) {
+    return storedTheme;
+  }
+
+  if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
+    return "dark";
+  }
+
+  return "light";
+}
+
+function syncThemeToggles(theme) {
+  document.querySelectorAll("[data-theme-toggle]").forEach(button => {
+    renderThemeToggle(button, theme);
+  });
+}
+
+function renderThemeToggle(button, theme) {
+  const isDark = theme === "dark";
+  button.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+  button.setAttribute("title", isDark ? "Switch to light mode" : "Switch to dark mode");
+  button.innerHTML = `${LucideIcons.svg(isDark ? "sun" : "moon")}<span>${isDark ? "Light" : "Dark"}</span>`;
+}
+
+function applyTheme(theme, persist = false) {
+  const nextTheme = theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = nextTheme;
+  document.documentElement.style.colorScheme = nextTheme;
+
+  if (persist) {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch (error) {
+      console.warn("Unable to persist theme preference:", error);
+    }
+  }
+
+  syncThemeToggles(nextTheme);
+}
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+  applyTheme(currentTheme === "dark" ? "light" : "dark", true);
+}
+
+function createThemeToggle(extraClass = "") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `theme-toggle ${extraClass}`.trim();
+  button.dataset.themeToggle = "true";
+  button.addEventListener("click", toggleTheme);
+  renderThemeToggle(button, document.documentElement.dataset.theme || getPreferredTheme());
+  return button;
+}
+
+function injectAuthThemeToggle() {
+  if (!document.body.classList.contains("auth-page") || document.querySelector(".auth-theme-toggle")) {
+    return;
+  }
+
+  document.body.appendChild(createThemeToggle("auth-theme-toggle"));
+}
+
+function injectFallbackThemeToggle() {
+  if (document.querySelector("[data-theme-toggle]") || !isSharedAppPage()) {
+    return;
+  }
+
+  const target = document.querySelector(".app-top-actions, .topbar .action-row, .account-profile-actions, .dash-profile-tools");
+  if (target) {
+    target.prepend(createThemeToggle());
+    return;
+  }
+
+  document.body.appendChild(createThemeToggle("page-theme-toggle"));
+}
+
+applyTheme(getPreferredTheme());
+
+window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.("change", event => {
+  if (!getStoredTheme()) {
+    applyTheme(event.matches ? "dark" : "light");
+  }
+});
 
 function saveAuth(data) {
   localStorage.setItem("token", data.token);
@@ -525,21 +625,102 @@ function createNotificationsButton(user) {
 }
 
 function formatNotificationTime(value) {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return String(value);
-  }
-
-  return date.toLocaleString(undefined, {
+  return formatDisplayDateTime(value, "", {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit"
   });
+}
+
+function parseDisplayDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  const rawValue = String(value).trim();
+  if (!rawValue || rawValue === "-") {
+    return null;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) {
+    const [year, month, day] = rawValue.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  const date = new Date(rawValue);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDisplayDate(value, fallback = "-") {
+  const date = parseDisplayDate(value);
+  if (!date) {
+    return fallback;
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
+function formatDisplayDateTime(value, fallback = "-", options = {}) {
+  const date = parseDisplayDate(value);
+  if (!date) {
+    return fallback;
+  }
+
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    ...options
+  });
+}
+
+function formatDisplayTime(value, fallback = "-") {
+  if (!value) {
+    return fallback;
+  }
+
+  const rawValue = String(value).trim();
+  const date = /^\d{1,2}:\d{2}/.test(rawValue)
+    ? new Date(`1970-01-01T${rawValue.slice(0, 8)}`)
+    : parseDisplayDate(rawValue);
+
+  if (!date || Number.isNaN(date.getTime())) {
+    return fallback;
+  }
+
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function formatDisplayDateRange(startValue, endValue, fallback = "-") {
+  const start = formatDisplayDate(startValue, "");
+  const end = formatDisplayDate(endValue, "");
+
+  if (start && end) {
+    return `${start} to ${end}`;
+  }
+
+  return start || end || fallback;
+}
+
+function formatDisplayDateWithTime(dateValue, timeValue, fallback = "-") {
+  const dateText = formatDisplayDate(dateValue, "");
+  const timeText = formatDisplayTime(timeValue, "");
+
+  if (dateText && timeText) {
+    return `${dateText} at ${timeText}`;
+  }
+
+  return dateText || timeText || fallback;
 }
 
 function updateNotificationCounts(unreadCount = 0) {
@@ -660,22 +841,7 @@ async function handleNotificationMenuAction(event, menu) {
 }
 
 function formatSessionDate(value) {
-  if (!value) {
-    return "-";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  return formatDisplayDateTime(value, "-");
 }
 
 function injectAppHeader(user) {
@@ -701,6 +867,7 @@ function injectAppHeader(user) {
   `;
 
   const actions = header.querySelector(".app-top-actions");
+  actions.appendChild(createThemeToggle());
   const notificationsButton = createNotificationsButton(user);
   const trigger = createProfileTrigger(user);
   const menu = createProfileMenu(user);
@@ -787,6 +954,7 @@ function enhanceTopbarUser(topbar, user) {
   wrapper.className = "profile-menu-wrap";
   wrapper.appendChild(trigger);
   wrapper.appendChild(menu);
+  container.appendChild(createThemeToggle());
   container.appendChild(notificationsButton);
   container.appendChild(wrapper);
 
@@ -867,6 +1035,7 @@ function enhanceDashboardProfile(user) {
   wrapper.appendChild(trigger);
   wrapper.appendChild(menu);
 
+  toolbar.appendChild(createThemeToggle());
   toolbar.appendChild(notificationsButton);
   toolbar.appendChild(wrapper);
   card.prepend(toolbar);
@@ -1153,6 +1322,7 @@ async function refreshNotificationBadge() {
 }
 
 async function initializeSharedTopbar() {
+  injectAuthThemeToggle();
   injectBranding();
   const cachedUser = getUser();
 
@@ -1185,6 +1355,7 @@ async function initializeSharedTopbar() {
     });
   }
 
+  injectFallbackThemeToggle();
   refreshNotificationBadge();
   initializeRevealOnScroll();
   initializeAnimatedMetrics();
@@ -1261,6 +1432,13 @@ window.logout = logout;
 window.requireAuth = requireAuth;
 window.redirectByRole = redirectByRole;
 window.goToPage = goToPage;
+window.applyTheme = applyTheme;
+window.toggleTheme = toggleTheme;
+window.formatDisplayDate = formatDisplayDate;
+window.formatDisplayDateTime = formatDisplayDateTime;
+window.formatDisplayTime = formatDisplayTime;
+window.formatDisplayDateRange = formatDisplayDateRange;
+window.formatDisplayDateWithTime = formatDisplayDateWithTime;
 window.injectBranding = injectBranding;
 window.injectAppHeader = injectAppHeader;
 window.enhanceDashboardProfile = enhanceDashboardProfile;

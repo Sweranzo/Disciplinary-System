@@ -26,6 +26,8 @@
   <div class="summary-band">
     <div class="summary-chip"><strong>Total Accounts</strong><span id="totalAccounts">0</span></div>
     <div class="summary-chip"><strong>Active Accounts</strong><span id="activeAccounts">0</span></div>
+    <div class="summary-chip"><strong>Staff Accounts</strong><span id="staffAccounts">0</span></div>
+    <div class="summary-chip"><strong>Student / Parent</strong><span id="familyAccounts">0</span></div>
     <div class="summary-chip"><strong>Parent Records</strong><span id="totalParents">0</span></div>
     <div class="summary-chip"><strong>Profile-Only Parents</strong><span id="profileOnlyParents">0</span></div>
   </div>
@@ -63,71 +65,64 @@
     <div class="card-header">
       <div>
         <h2>User Accounts</h2>
-        <p class="muted">Create and manage accounts for all supported roles, activate or deactivate them, and reset passwords.</p>
+        <p class="muted">Use the filters above to find accounts before making changes.</p>
       </div>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>User</th>
-            <th>Username</th>
-            <th>Role</th>
-            <th>Linked Profile</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="accountTable">
-          <tr><td colspan="6">Loading...</td></tr>
-        </tbody>
-      </table>
+    <div id="accountTable" class="account-directory">
+      <div class="empty-state">Choose a role, status, or search term to show matching accounts.</div>
     </div>
-    <div class="action-row action-row-tight" style="margin-top:16px;">
+    <div class="account-pagination">
       <button id="accountPrevBtn" class="secondary compact-btn" type="button">Previous</button>
+      <span id="accountPageIndicator" class="muted">Page 1</span>
       <button id="accountNextBtn" class="compact-btn" type="button">Next</button>
     </div>
   </div>
 
-  <div class="card page-section">
-    <div class="card-header">
+  <details class="card page-section identity-secondary-panel" id="parentRecordsPanel">
+    <summary>
       <div>
-        <h2>Parent & Guardian Management</h2>
-        <p class="muted">Create parent records with or without accounts, then link them to one or more students.</p>
+        <span class="eyebrow">Secondary Records</span>
+        <h2>Parent & Guardian Records</h2>
+        <p class="muted">Manage guardian contact profiles and student relationships only when needed.</p>
       </div>
-      <div class="action-row action-row-tight">
+      <div class="identity-panel-actions">
+        <span><strong id="parentPanelTotal">0</strong> records</span>
+        <span><strong id="parentPanelProfileOnly">0</strong> profile only</span>
         <button id="openParentModalBtn" type="button" class="compact-btn">Create Parent</button>
-        <button id="openLinkModalBtn" type="button" class="secondary compact-btn">Link Parent to Student</button>
+        <button id="openLinkModalBtn" type="button" class="secondary compact-btn">Link to Student</button>
+        <i aria-hidden="true">Open</i>
+      </div>
+    </summary>
+    <div class="identity-secondary-body">
+      <div class="toolbar toolbar-compact">
+        <input type="text" id="parentSearch" placeholder="Search parent name, email, or phone">
+        <select id="parentStatusFilter">
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        <button id="applyParentFiltersBtn" type="button" class="compact-btn">Apply</button>
+        <button id="clearParentFiltersBtn" type="button" class="secondary compact-btn">Clear</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Parent / Guardian</th>
+              <th>Contact</th>
+              <th>Linked Students</th>
+              <th>Account</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="parentTable">
+            <tr><td colspan="6">Open this section to load parent records.</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
-    <div class="toolbar toolbar-compact">
-      <input type="text" id="parentSearch" placeholder="Search parent name, email, or phone">
-      <select id="parentStatusFilter">
-        <option value="">All Statuses</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-      </select>
-      <button id="applyParentFiltersBtn" type="button" class="compact-btn">Apply</button>
-      <button id="clearParentFiltersBtn" type="button" class="secondary compact-btn">Clear</button>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Parent / Guardian</th>
-            <th>Contact</th>
-            <th>Linked Students</th>
-            <th>Account</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="parentTable">
-          <tr><td colspan="6">Loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  </details>
 
   <div class="card page-section">
     <div class="card-header">
@@ -348,6 +343,7 @@ if (!user || user.role !== "admin") {
 let accountPage = 1;
 let accountTotalPages = 1;
 let parentPage = 1;
+let parentRecordsLoaded = false;
 let importRows = [];
 let studentOptions = [];
 let parentOptions = [];
@@ -364,6 +360,137 @@ function escapeHtml(value) {
 
 function badge(value) {
   return `<span class="badge ${String(value || "").replaceAll(" ", "_")}">${String(value || "").replaceAll("_", " ")}</span>`;
+}
+
+function roleLabel(value) {
+  const labels = {
+    admin: "Admin",
+    discipline_officer: "Discipline Officer",
+    guidance_counselor: "Guidance Counselor",
+    teacher: "Teacher",
+    student: "Student",
+    parent: "Parent"
+  };
+  return labels[value] || String(value || "Account").replaceAll("_", " ");
+}
+
+function accountInitials(item) {
+  const first = item.first_name?.[0] || item.username?.[0] || "U";
+  const last = item.last_name?.[0] || "";
+  return `${first}${last}`.toUpperCase();
+}
+
+function accountGroupLabel(role) {
+  return `${roleLabel(role)} Accounts`;
+}
+
+function accountGroupKey(item) {
+  return item.role || "other";
+}
+
+function hasAccountFilters() {
+  return Boolean(
+    document.getElementById("accountSearch").value.trim()
+    || document.getElementById("accountRoleFilter").value
+    || document.getElementById("accountStatusFilter").value
+  );
+}
+
+function resetAccountDirectory(message = "Choose a role, status, or search term to show matching accounts.") {
+  document.getElementById("accountTable").innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
+  document.getElementById("accountPaginationInfo").textContent = "No account filter applied";
+  document.getElementById("accountPageIndicator").textContent = "Filtered results only";
+  document.getElementById("accountPrevBtn").disabled = true;
+  document.getElementById("accountNextBtn").disabled = true;
+  document.getElementById("totalAccounts").textContent = "-";
+  document.getElementById("activeAccounts").textContent = "-";
+  document.getElementById("staffAccounts").textContent = "-";
+  document.getElementById("familyAccounts").textContent = "-";
+  window.__accountRows = [];
+}
+
+function syncParentSummary(total = null, profileOnly = null) {
+  if (total !== null) {
+    document.getElementById("totalParents").textContent = total;
+    document.getElementById("parentPanelTotal").textContent = total;
+  }
+
+  if (profileOnly !== null) {
+    document.getElementById("profileOnlyParents").textContent = profileOnly;
+    document.getElementById("parentPanelProfileOnly").textContent = profileOnly;
+  }
+}
+
+function renderAccountActions(item) {
+  const nextStatus = item.status === "active" ? "inactive" : "active";
+  const statusLabel = item.status === "active" ? "Disable" : "Enable";
+  const encodedUsername = encodeURIComponent(item.username || "");
+  return `
+    <div class="account-row-actions">
+      <button type="button" class="compact-btn" onclick="openEditAccount(${item.id})">Edit</button>
+      <button type="button" class="compact-btn secondary" onclick="toggleAccountStatus(${item.id}, '${nextStatus}')">${statusLabel}</button>
+      <button type="button" class="compact-btn secondary" onclick="openResetModal(${item.id})">Reset</button>
+      ${!item.linked_profile_type && item.role === "student" ? `<button type="button" class="compact-btn secondary" onclick="openRepairModal(${item.id})">Repair Link</button>` : ""}
+      <button type="button" class="compact-btn secondary icon-btn" title="Delete account" aria-label="Delete account" onclick="deleteAccount(${item.id}, decodeURIComponent('${encodedUsername}'))">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm1 11h8a2 2 0 0 0 2-2V7H6v11a2 2 0 0 0 2 2z"/>
+        </svg>
+      </button>
+    </div>
+  `;
+}
+
+function renderAccountCard(item) {
+  const fullName = `${item.first_name || ""} ${item.last_name || ""}`.trim() || item.username || "Unnamed account";
+  const studentProfileMeta = item.role === "student"
+    ? `<div><span>Student Profile</span><strong>${item.linked_profile_type === "student" ? `${badge("student")} <span>#${escapeHtml(item.linked_profile_id)}</span>` : `<span class="account-link-warning">Needs student profile link</span>`}</strong></div>`
+    : "";
+
+  return `
+    <article class="account-row-card">
+      <div class="account-row-user">
+        <span class="account-row-avatar">${escapeHtml(accountInitials(item))}</span>
+        <div>
+          <strong>${escapeHtml(fullName)}</strong>
+          <span>${escapeHtml(item.email || "No email recorded")}</span>
+        </div>
+      </div>
+      <div class="account-row-meta">
+        <div><span>Username</span><strong>${escapeHtml(item.username || "-")}</strong><small>${escapeHtml(item.employee_or_student_id || "No ID")}</small></div>
+        <div><span>Role</span><strong>${badge(roleLabel(item.role))}</strong></div>
+        ${studentProfileMeta}
+        <div><span>Status</span><strong>${badge(item.status)}</strong></div>
+      </div>
+      ${renderAccountActions(item)}
+    </article>
+  `;
+}
+
+function renderAccountDirectory(users) {
+  const groupOrder = ["admin", "discipline_officer", "guidance_counselor", "teacher", "student", "parent", "other"];
+  const grouped = users.reduce((acc, item) => {
+    const key = accountGroupKey(item);
+    acc[key] = acc[key] || [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+
+  return groupOrder
+    .filter(key => grouped[key]?.length)
+    .map(key => `
+      <section class="account-role-group">
+        <div class="account-role-group-head">
+          <div>
+            <h3>${accountGroupLabel(grouped[key][0].role)}</h3>
+            <p class="muted">${grouped[key].length} account${grouped[key].length === 1 ? "" : "s"} in this page</p>
+          </div>
+          <span>${grouped[key].filter(item => item.status === "active").length} active</span>
+        </div>
+        <div class="account-row-list">
+          ${grouped[key].map(renderAccountCard).join("")}
+        </div>
+      </section>
+    `).join("");
 }
 
 function openModal(id) {
@@ -465,6 +592,11 @@ async function loadOptions() {
 }
 
 async function loadAccounts() {
+  if (!hasAccountFilters()) {
+    resetAccountDirectory();
+    return;
+  }
+
   const query = new URLSearchParams({
     page: accountPage,
     limit: 10,
@@ -474,53 +606,35 @@ async function loadAccounts() {
   });
 
   const res = await apiRequest(`/admin/users?${query.toString()}`, "GET", null, true);
-  const table = document.getElementById("accountTable");
+  const directory = document.getElementById("accountTable");
 
   if (!res.success) {
-    table.innerHTML = `<tr><td colspan="6">${escapeHtml(res.message)}</td></tr>`;
+    directory.innerHTML = `<div class="empty-state">${escapeHtml(res.message)}</div>`;
     return;
   }
 
   accountTotalPages = res.pagination.totalPages || 1;
   document.getElementById("accountPaginationInfo").textContent = `Page ${res.pagination.page} of ${accountTotalPages} | ${res.pagination.total} accounts`;
+  document.getElementById("accountPageIndicator").textContent = `Page ${res.pagination.page} of ${accountTotalPages}`;
+  document.getElementById("accountPrevBtn").disabled = Number(res.pagination.page) <= 1;
+  document.getElementById("accountNextBtn").disabled = Number(res.pagination.page) >= accountTotalPages;
   document.getElementById("totalAccounts").textContent = res.pagination.total;
   document.getElementById("activeAccounts").textContent = res.users.filter(item => item.status === "active").length;
+  document.getElementById("staffAccounts").textContent = res.users.filter(item => !["student", "parent"].includes(item.role)).length;
+  document.getElementById("familyAccounts").textContent = res.users.filter(item => ["student", "parent"].includes(item.role)).length;
 
   if (!res.users.length) {
-    table.innerHTML = `<tr><td colspan="6">No accounts found.</td></tr>`;
+    directory.innerHTML = `<div class="empty-state">No accounts found.</div>`;
     return;
   }
 
-  table.innerHTML = res.users.map(item => `
-    <tr>
-      <td>
-        <strong>${escapeHtml(item.first_name)} ${escapeHtml(item.last_name)}</strong><br>
-        <span class="muted">${escapeHtml(item.email)}</span>
-      </td>
-      <td>${escapeHtml(item.username)}<br><span class="muted">${escapeHtml(item.employee_or_student_id || "-")}</span></td>
-      <td>${badge(item.role)}</td>
-      <td>${item.linked_profile_type ? `${badge(item.linked_profile_type)} #${item.linked_profile_id}` : "-"}</td>
-      <td>${badge(item.status)}</td>
-      <td>
-        <div class="action-chip-group">
-          <button type="button" class="compact-btn" onclick="openEditAccount(${item.id})">Edit</button>
-          <button type="button" class="compact-btn secondary" onclick="toggleAccountStatus(${item.id}, '${item.status === "active" ? "inactive" : "active"}')">${item.status === "active" ? "Disable" : "Enable"}</button>
-          <button type="button" class="compact-btn secondary" onclick="openResetModal(${item.id})">Reset</button>
-          ${!item.linked_profile_type && (item.role === "student" || item.role === "parent") ? `<button type="button" class="compact-btn secondary" onclick="openRepairModal(${item.id})">Repair</button>` : ""}
-          <button type="button" class="compact-btn secondary icon-btn" title="Delete account" aria-label="Delete account" onclick="deleteAccount(${item.id}, '${escapeHtml(item.username).replaceAll("'", "\\'")}')">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm1 11h8a2 2 0 0 0 2-2V7H6v11a2 2 0 0 0 2 2z"/>
-            </svg>
-          </button>
-        </div>
-      </td>
-    </tr>
-  `).join("");
+  directory.innerHTML = renderAccountDirectory(res.users);
 
   window.__accountRows = res.users;
 }
 
 async function loadParents() {
+  parentRecordsLoaded = true;
   const query = new URLSearchParams({
     page: parentPage,
     limit: 10,
@@ -536,8 +650,7 @@ async function loadParents() {
     return;
   }
 
-  document.getElementById("totalParents").textContent = res.pagination.total;
-  document.getElementById("profileOnlyParents").textContent = res.parents.filter(item => !item.has_account).length;
+  syncParentSummary(res.pagination.total, res.parents.filter(item => !item.has_account).length);
 
   if (!res.parents.length) {
     table.innerHTML = `<tr><td colspan="6">No parent records found.</td></tr>`;
@@ -959,7 +1072,7 @@ document.getElementById("clearAccountFiltersBtn").addEventListener("click", () =
   document.getElementById("accountRoleFilter").value = "";
   document.getElementById("accountStatusFilter").value = "";
   accountPage = 1;
-  loadAccounts();
+  resetAccountDirectory("Filters cleared. Choose a role, status, or search term to show matching accounts.");
 });
 document.getElementById("accountPrevBtn").addEventListener("click", () => {
   if (accountPage > 1) {
@@ -988,7 +1101,12 @@ document.getElementById("openLinkModalBtn").addEventListener("click", () => {
 document.getElementById("saveLinkBtn").addEventListener("click", saveLink);
 document.getElementById("applyParentFiltersBtn").addEventListener("click", () => {
   parentPage = 1;
-  loadParents();
+  const panel = document.getElementById("parentRecordsPanel");
+  const shouldLoadDirectly = panel.open || parentRecordsLoaded;
+  panel.open = true;
+  if (shouldLoadDirectly) {
+    loadParents();
+  }
 });
 document.getElementById("clearParentFiltersBtn").addEventListener("click", () => {
   document.getElementById("parentSearch").value = "";
@@ -1002,7 +1120,20 @@ document.getElementById("runImportBtn").addEventListener("click", runImport);
 loadOptions().then(() => {
   updateAccountRoleState();
   loadAccounts();
-  loadParents();
+  syncParentSummary("-", "-");
+});
+
+document.getElementById("parentRecordsPanel").addEventListener("toggle", event => {
+  if (event.currentTarget.open && !parentRecordsLoaded) {
+    loadParents();
+  }
+});
+
+document.querySelectorAll(".identity-panel-actions button").forEach(button => {
+  button.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
 });
 </script>
 

@@ -101,8 +101,8 @@ async function loadHearings() {
     <tr>
       <td><strong>${item.case_number}</strong></td>
       <td>${item.violation_type}</td>
-      <td>${item.scheduled_date}</td>
-      <td>${item.scheduled_time}</td>
+      <td>${formatDisplayDate(item.scheduled_date)}</td>
+      <td>${formatDisplayTime(item.scheduled_time)}</td>
       <td>${item.location || "-"}</td>
       <td>${badge(item.status)}</td>
     </tr>

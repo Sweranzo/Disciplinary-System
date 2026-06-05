@@ -98,7 +98,7 @@ function renderEvidence(items) {
       <td><strong>${item.case_number}</strong><br><a href="case-details.html?id=${item.case_id}">Open Case</a></td>
       <td>${item.first_name} ${item.last_name} (${item.student_number})</td>
       <td><a href="http://localhost:5000${item.file_path}" target="_blank">${item.original_name || item.file_name}</a></td>
-      <td>${item.uploaded_at}</td>
+      <td>${formatDisplayDateTime(item.uploaded_at)}</td>
       <td>${badge(item.review_status)}</td>
       <td>${item.review_notes || "-"}</td>
     </tr>

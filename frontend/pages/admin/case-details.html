@@ -265,7 +265,7 @@ async function loadCaseDetails() {
       <div class="case-list-row"><strong>Reported By</strong><span>${item.reported_by_first_name} ${item.reported_by_last_name} - ${item.reported_by_role_label || getRoleLabel(item.reported_by_role)}</span></div>
       <div class="case-list-row"><strong>Violation</strong><span>${item.violation_type}</span></div>
       <div class="case-list-row"><strong>Severity</strong><span>${badge(item.severity_level)}</span></div>
-      <div class="case-list-row"><strong>Incident Date</strong><span>${item.incident_date}</span></div>
+      <div class="case-list-row"><strong>Incident Date</strong><span>${formatDisplayDate(item.incident_date)}</span></div>
       <div class="case-list-row"><strong>Location</strong><span>${item.location || "-"}</span></div>
       <div class="case-list-row"><strong>Academic Context</strong><span>${item.program || "-"} / ${item.year_level || "-"} / ${item.section || "-"}</span></div>
       <div class="case-list-row"><strong>Assigned To</strong><span>${item.assigned_to_first_name ? `${item.assigned_to_first_name} ${item.assigned_to_last_name} - ${item.assigned_to_role_label || getRoleLabel(item.assigned_to_role)}` : "Unassigned"}</span></div>
@@ -282,7 +282,7 @@ async function loadCaseDetails() {
       <p><strong>${update.update_type}</strong> ${badge(update.role)}</p>
       <p>${update.content}</p>
       <p class="muted">By ${update.first_name} ${update.last_name} - ${update.role_label || getRoleLabel(update.role)}</p>
-      <p class="muted">${update.created_at}</p>
+      <p class="muted">${formatDisplayDateTime(update.created_at)}</p>
     </div>
   `);
 
@@ -290,7 +290,7 @@ async function loadCaseDetails() {
     <div class="detail-item">
       <p><strong>${evidence.original_name || evidence.file_name}</strong> ${badge(evidence.review_status || "pending")}</p>
       <p>Uploaded by ${evidence.uploaded_by_first_name} ${evidence.uploaded_by_last_name} - ${evidence.uploaded_by_role_label || getRoleLabel(evidence.uploaded_by_role)}</p>
-      <p>Uploaded on ${evidence.uploaded_at || "-"}</p>
+      <p>Uploaded on ${formatDisplayDateTime(evidence.uploaded_at)}</p>
       <p>${evidence.review_notes || "No review notes yet."}</p>
       <p class="muted">${evidence.reviewed_by_first_name ? `Reviewed by ${evidence.reviewed_by_first_name} ${evidence.reviewed_by_last_name} - ${evidence.reviewed_by_role_label || getRoleLabel(evidence.reviewed_by_role)}` : "No reviewer assigned yet."}</p>
       <div class="action-row">

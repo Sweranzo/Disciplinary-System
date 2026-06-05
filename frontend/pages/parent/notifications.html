@@ -57,7 +57,7 @@ async function loadNotifications() {
       <div class="update-item">
         <p><strong>${n.title}</strong></p>
         <p>${n.message}</p>
-        <p class="muted">${n.created_at}</p>
+        <p class="muted">${formatDisplayDateTime(n.created_at)}</p>
       </div>
     `).join("");
   } catch (err) {

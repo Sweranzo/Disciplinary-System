@@ -98,7 +98,7 @@ function renderSanctions(items) {
       <td>${s.first_name} ${s.last_name} (${s.student_number})</td>
       <td>${s.sanction_type}</td>
       <td>${badge(s.display_status || s.status)}</td>
-      <td>${s.start_date || "-"} to ${s.end_date || "-"}</td>
+      <td>${formatDisplayDateRange(s.start_date, s.end_date)}</td>
       <td>
         <div class="action-row">
           <a href="case-details.html?id=${s.case_id}"><button type="button">Open Case</button></a>

@@ -29,6 +29,10 @@ const DashboardWidgets = (() => {
   }
 
   function formatDate(value) {
+    if (window.formatDisplayDate) {
+      return window.formatDisplayDate(value);
+    }
+
     const key = normalizeDate(value);
     if (!key) {
       return "-";
@@ -39,6 +43,10 @@ const DashboardWidgets = (() => {
   }
 
   function formatDateShort(value) {
+    if (window.formatDisplayDate) {
+      return window.formatDisplayDate(value).replace(/, \d{4}$/, "");
+    }
+
     const key = normalizeDate(value);
     if (!key) {
       return "-";

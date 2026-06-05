@@ -93,7 +93,7 @@ async function loadCaseDetails() {
         <div class="detail-item">
           <p><strong>${update.update_type}</strong></p>
           <p>${update.content}</p>
-          <p class="muted">${update.created_at}</p>
+          <p class="muted">${formatDisplayDateTime(update.created_at)}</p>
         </div>
       `).join("")
     : "<p>No timeline updates yet.</p>";
@@ -101,7 +101,7 @@ async function loadCaseDetails() {
   const hearings = res.timeline.hearings.map(item => `
     <div class="detail-item">
       <p><strong>Hearing</strong> ${badge(item.status)}</p>
-      <p>${item.scheduled_date} ${item.scheduled_time} at ${item.location || "-"}</p>
+      <p>${formatDisplayDateWithTime(item.scheduled_date, item.scheduled_time)} at ${item.location || "-"}</p>
     </div>
   `).join("");
 
@@ -115,7 +115,7 @@ async function loadCaseDetails() {
   const evidence = res.timeline.evidence.map(item => `
     <div class="detail-item">
       <p><strong>${item.original_name || item.file_name}</strong> ${badge(item.review_status || "pending")}</p>
-      <p>Uploaded: ${item.uploaded_at || "-"}</p>
+      <p>Uploaded: ${formatDisplayDateTime(item.uploaded_at)}</p>
       <p>${item.review_notes || "No review notes yet."}</p>
       <p><a href="http://localhost:5000${item.file_path}" target="_blank">Open File</a></p>
     </div>

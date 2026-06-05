@@ -607,7 +607,7 @@ async function loadCaseDetails() {
       <div class="case-list-row"><strong>Reported By</strong><span>${c.reported_by_first_name} ${c.reported_by_last_name} - ${c.reported_by_role_label || getRoleLabel(c.reported_by_role)}</span></div>
       <div class="case-list-row"><strong>Violation</strong><span>${c.violation_type}</span></div>
       <div class="case-list-row"><strong>Severity</strong><span>${badge(c.severity_level)}</span></div>
-      <div class="case-list-row"><strong>Incident Date</strong><span>${c.incident_date}</span></div>
+      <div class="case-list-row"><strong>Incident Date</strong><span>${formatDisplayDate(c.incident_date)}</span></div>
       <div class="case-list-row"><strong>Location</strong><span>${c.location || "-"}</span></div>
       <div class="case-list-row"><strong>Academic Context</strong><span>${c.program || "-"} / ${c.year_level || "-"} / ${c.section || "-"}</span></div>
       <div class="case-list-row"><strong>Assigned To</strong><span>${c.assigned_to_first_name ? `${c.assigned_to_first_name} ${c.assigned_to_last_name} - ${c.assigned_to_role_label || getRoleLabel(c.assigned_to_role)}` : "Unassigned"}</span></div>
@@ -624,7 +624,7 @@ async function loadCaseDetails() {
       <p><strong>${update.update_type}</strong> ${badge(update.role)}</p>
       <p>${update.content}</p>
       <p class="muted">By ${update.first_name} ${update.last_name}</p>
-      <p class="muted">${update.created_at}</p>
+      <p class="muted">${formatDisplayDateTime(update.created_at)}</p>
     </div>
   `);
 
@@ -636,7 +636,7 @@ async function loadCaseDetails() {
           <div class="evidence-file-title-row">
             <div>
               <strong>${escapeHtml(evidence.original_name || evidence.file_name || "Evidence file")}</strong>
-              <p>${escapeHtml(formatFileSize(evidence.file_size))} | Uploaded ${escapeHtml(evidence.uploaded_at || "-")}</p>
+              <p>${escapeHtml(formatFileSize(evidence.file_size))} | Uploaded ${escapeHtml(formatDisplayDateTime(evidence.uploaded_at))}</p>
             </div>
             ${badge(evidence.review_status || "pending")}
           </div>
@@ -667,7 +667,7 @@ async function loadCaseDetails() {
 
   renderItems("hearingList", res.timeline.hearings, "No hearings scheduled.", hearing => `
     <div class="detail-item">
-      <p><strong>${hearing.scheduled_date} ${hearing.scheduled_time}</strong> ${badge(hearing.status)}</p>
+      <p><strong>${formatDisplayDateWithTime(hearing.scheduled_date, hearing.scheduled_time)}</strong> ${badge(hearing.status)}</p>
       <p>${hearing.location || "-"}</p>
       <p>${hearing.outcome || "No outcome yet."}</p>
       <p class="muted">Created by ${hearing.created_by_first_name} ${hearing.created_by_last_name} - ${hearing.created_by_role_label || getRoleLabel(hearing.created_by_role)}</p>
@@ -678,7 +678,7 @@ async function loadCaseDetails() {
     <div class="detail-item">
       <p><strong>${sanction.sanction_type}</strong> ${badge(sanction.status)}</p>
       <p>${sanction.description || "-"}</p>
-      <p>${sanction.start_date || "-"} to ${sanction.end_date || "-"}</p>
+      <p>${formatDisplayDateRange(sanction.start_date, sanction.end_date)}</p>
       <p class="muted">Assigned by ${sanction.assigned_by_first_name} ${sanction.assigned_by_last_name} - ${sanction.assigned_by_role_label || getRoleLabel(sanction.assigned_by_role)}</p>
     </div>
   `);
@@ -704,7 +704,7 @@ async function loadCaseDetails() {
     <div class="detail-item">
       <p><strong>${note.note_type}</strong></p>
       <p>${note.note}</p>
-      <p>Status: ${note.status} | Follow-up: ${note.follow_up_date || "-"}</p>
+      <p>Status: ${note.status} | Follow-up: ${formatDisplayDate(note.follow_up_date)}</p>
       <p class="muted">${note.first_name} ${note.last_name} - ${note.role_label || getRoleLabel(note.role)}</p>
       <p class="muted">By ${note.first_name} ${note.last_name}</p>
     </div>

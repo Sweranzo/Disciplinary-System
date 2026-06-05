@@ -345,7 +345,7 @@ async function loadProfile() {
   const sanctions = res.sanctions.map(item => `
     <div class="detail-item">
       <p><strong>${item.sanction_type}</strong> ${badge(item.status)}</p>
-      <p>${item.start_date || "-"} to ${item.end_date || "-"}</p>
+      <p>${formatDisplayDateRange(item.start_date, item.end_date)}</p>
     </div>
   `).join("");
 
@@ -355,7 +355,7 @@ async function loadProfile() {
     ? res.hearings.map(item => `
         <div class="detail-item">
           <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
-          <p>${item.scheduled_date} ${item.scheduled_time} at ${item.location || "-"}</p>
+          <p>${formatDisplayDateWithTime(item.scheduled_date, item.scheduled_time)} at ${item.location || "-"}</p>
         </div>
       `).join("")
     : "<p>No hearings found.</p>";
@@ -377,7 +377,7 @@ async function loadProfile() {
       <div class="detail-item">
         <p><strong>${note.case_number}</strong> ${badge(note.status)}</p>
         <p>${String(note.note_type).replaceAll("_", " ")}: ${note.note}</p>
-        <p class="muted">Follow-up: ${note.follow_up_date || "-"} | Recorded ${note.created_at || "-"}</p>
+        <p class="muted">Follow-up: ${formatDisplayDate(note.follow_up_date)} | Recorded ${formatDisplayDateTime(note.created_at)}</p>
         <div class="action-row">
           <a href="case-details.html?id=${note.case_id}"><button type="button">Open Case Notes</button></a>
         </div>

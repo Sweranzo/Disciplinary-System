@@ -97,8 +97,8 @@ function renderHearings(items) {
       <td>${h.case_number}</td>
       <td>${h.first_name} ${h.last_name} (${h.student_number})</td>
       <td>${h.violation_type}</td>
-      <td>${h.scheduled_date}</td>
-      <td>${h.scheduled_time}</td>
+      <td>${formatDisplayDate(h.scheduled_date)}</td>
+      <td>${formatDisplayTime(h.scheduled_time)}</td>
       <td>${h.location || "-"}</td>
       <td>${badge(h.status)}</td>
       <td><a href="case-details.html?id=${h.case_id}"><button type="button">Open Case</button></a></td>

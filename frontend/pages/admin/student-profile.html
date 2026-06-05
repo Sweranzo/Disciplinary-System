@@ -334,7 +334,7 @@ async function loadProfile() {
       <div class="detail-item">
         <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
         <p>${item.violation_type} | ${badge(item.severity_level)}</p>
-        <p>Incident date: ${item.incident_date}</p>
+        <p>Incident date: ${formatDisplayDate(item.incident_date)}</p>
       </div>
     `
   );
@@ -345,8 +345,8 @@ async function loadProfile() {
     item => `
       <div class="detail-item">
         <p><strong>${item.sanction_type}</strong> ${badge(item.status)}</p>
-        <p>Schedule: ${item.start_date || "-"} to ${item.end_date || "-"}</p>
-        <p class="muted">Recorded on ${item.created_at}</p>
+        <p>Schedule: ${formatDisplayDateRange(item.start_date, item.end_date)}</p>
+        <p class="muted">Recorded on ${formatDisplayDateTime(item.created_at)}</p>
       </div>
     `
   );
@@ -358,7 +358,7 @@ async function loadProfile() {
       <div class="detail-item">
         <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
         <p>${item.violation_type}</p>
-        <p>${item.scheduled_date} ${item.scheduled_time} at ${item.location || "-"}</p>
+        <p>${formatDisplayDateWithTime(item.scheduled_date, item.scheduled_time)} at ${item.location || "-"}</p>
       </div>
     `
   );
