@@ -1,34 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Notifications</title>
-  <link rel="stylesheet" href="../../css/styles.css" />
+  <link rel="stylesheet" href="../../css/styles.css">
 </head>
 <body>
 
 <div class="dashboard-container">
   <div class="topbar">
-    <h1>Notifications</h1>
     <div>
-      <a href="dashboard.html"><button>Back</button></a>
-      <button onclick="logout()">Logout</button>
+      <h1>Notifications</h1>
+      <p class="muted">Opening the notification center...</p>
     </div>
-  </div>
-
-  <div class="card">
-    <h2>Recent Notifications</h2>
-
-    <div id="notifContainer">
-      <p>Loading...</p>
+    <div class="action-row">
+      <a href="../common/notifications.html"><button type="button">Open Notifications</button></a>
+      <button onclick="logout()" type="button">Logout</button>
     </div>
   </div>
 </div>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
-
 <script>
 requireAuth();
 
@@ -38,36 +32,7 @@ if (!user || user.role !== "student") {
   logout();
 }
 
-async function loadNotifications() {
-  const container = document.getElementById("notifContainer");
-
-  try {
-    const res = await apiRequest("/auth/notifications", "GET", null, true);
-
-    if (!res.success) {
-      container.innerHTML = `<p>${res.message}</p>`;
-      return;
-    }
-
-    if (!res.notifications || res.notifications.length === 0) {
-      container.innerHTML = "<p>No notifications yet.</p>";
-      return;
-    }
-
-    container.innerHTML = res.notifications.map(n => `
-      <div class="update-item">
-        <p><strong>${n.title}</strong></p>
-        <p>${n.message}</p>
-        <p class="muted">${formatDisplayDateTime(n.created_at)}</p>
-      </div>
-    `).join("");
-
-  } catch (err) {
-    container.innerHTML = "<p>Failed to load notifications.</p>";
-  }
-}
-
-loadNotifications();
+window.location.href = "../common/notifications.html";
 </script>
 
 </body>

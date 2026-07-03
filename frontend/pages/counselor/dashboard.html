@@ -6,104 +6,75 @@
   <title>Guidance Counselor Dashboard</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="role-dashboard-page counselor-care-page">
 
-<div class="dashboard-container dash-shell">
-  <div class="dash-hero">
-    <section class="dash-welcome">
-      <span class="eyebrow">Guidance Counselor Workspace</span>
-      <h1>Student Support Dashboard</h1>
-      <p>Review visible cases, intervention notes, follow-up schedules, and hearings that may need guidance support.</p>
-      <div class="dash-actions" style="margin-top:22px;">
-        <a href="cases.html"><button>Case Queue</button></a>
-        <a href="student-profile.html"><button class="secondary">Student Profiles</button></a>
+<div class="dashboard-container role-dashboard-shell">
+  <header class="counselor-care-header role-dashboard-hero">
+    <div class="counselor-profile-mark">
+      <div class="admin-profile-avatar" id="counselorInitials">GC</div>
+      <div>
+        <span class="eyebrow">Guidance and Student Support</span>
+        <h1>Care workspace for <span id="counselorName">Counselor</span></h1>
+        <p>Prioritize active follow-ups, prepare for student meetings, and document support progress.</p>
       </div>
-    </section>
+    </div>
+    <div class="role-dashboard-side">
+      <div data-dashboard-weather></div>
+      <div class="role-dashboard-actions">
+        <a class="role-action primary" href="cases.html">Open Support Queue</a>
+        <a class="role-action" href="student-profile.html">Find a Student</a>
+      </div>
+    </div>
+  </header>
 
-    <aside class="dash-profile-card">
-      <div class="admin-profile-head">
-        <div class="admin-profile-avatar" id="counselorInitials">GC</div>
+  <section class="role-metric-grid counselor-metric-grid" id="counselorMetrics"></section>
+
+  <section class="counselor-board">
+    <div class="role-panel counselor-followup-panel">
+      <div class="role-panel-head">
         <div>
-          <strong id="counselorName">Counselor</strong>
-          <span>Guidance Counselor / Student Support</span>
+          <span class="role-kicker">Caseload</span>
+          <h2>Students Requiring Follow-Up</h2>
+          <p>Open cases available for guidance support and intervention.</p>
+        </div>
+        <a href="cases.html">View caseload</a>
+      </div>
+      <div id="followUpCases">Loading...</div>
+    </div>
+
+    <aside class="role-panel counselor-agenda-panel">
+      <div class="role-panel-head">
+        <div>
+          <span class="role-kicker">Today and next</span>
+          <h2>Support Agenda</h2>
+          <p>Planned follow-ups and hearings.</p>
         </div>
       </div>
-      <div class="admin-profile-info">
-        <div><strong>Email</strong><span id="counselorEmail">-</span></div>
-        <div><strong>User ID</strong><span id="counselorId">-</span></div>
-        <div><strong>Role</strong><span>Guidance Counselor</span></div>
-        <div><strong>Focus</strong><span>Interventions / follow-ups</span></div>
+      <div id="meetingCalendarList">Loading...</div>
+    </aside>
+  </section>
+
+  <section class="role-panel counselor-progress-panel support-plan-widget">
+    <div class="role-panel-head">
+      <div>
+        <span class="role-kicker">Intervention progress</span>
+        <h2>Support Plan Status</h2>
+        <p>Planned, ongoing, and completed counselor actions.</p>
       </div>
-    </aside>
-  </div>
-
-  <section class="dash-metrics" id="counselorMetrics"></section>
-
-  <div class="dash-grid-main">
-    <main class="dash-stack">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Support Analytics</h2>
-            <p class="muted">Case status and counselor note progress.</p>
-          </div>
-        </div>
-        <div class="case-analytics-grid">
-          <div class="case-analytics-block case-analytics-donut-block">
-            <span class="case-analytics-label">Visible Cases</span>
-            <div id="statusChart"></div>
-          </div>
-          <div class="case-analytics-block">
-            <span class="case-analytics-label">Case Status</span>
-            <div id="statusLegend"></div>
-          </div>
-          <div class="case-analytics-block">
-            <span class="case-analytics-label">Intervention Progress</span>
-            <div id="interventionChart"></div>
-          </div>
-        </div>
-        <div id="counselorAnalyticsSummary" class="case-analytics-summary"></div>
-      </section>
-
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Cases Requiring Follow-Up</h2>
-            <p class="muted">Open cases that may need behavior monitoring or recommendations.</p>
-          </div>
-          <a href="cases.html"><button class="secondary">View All</button></a>
-        </div>
-        <div id="followUpCases">Loading...</div>
-      </section>
-    </main>
-
-    <aside class="dash-stack">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Support Calendar</h2>
-            <p class="muted">Scheduled hearings and counselor follow-up dates.</p>
-          </div>
-        </div>
-        <div id="meetingCalendar"></div>
-      </section>
-
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Upcoming Support Items</h2>
-            <p class="muted">Hearings and planned follow-ups on your calendar.</p>
-          </div>
-        </div>
-        <div id="meetingCalendarList">Loading...</div>
-      </section>
-    </aside>
-  </div>
+      <div class="counselor-account-line"><span id="counselorEmail">-</span><small id="counselorId">-</small></div>
+    </div>
+    <div class="counselor-progress-layout">
+      <div id="interventionChart"></div>
+      <div id="statusLegend"></div>
+      <div id="counselorAnalyticsSummary" class="case-analytics-summary"></div>
+    </div>
+  </section>
 </div>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/dashboard-widgets.js"></script>
+<script src="../../js/core/dashboard-weather.js"></script>
 <script>
 requireAuth();
 
@@ -114,6 +85,7 @@ if (!user || user.role !== "guidance_counselor") {
 }
 
 const W = DashboardWidgets;
+DashboardWeather.mountAll();
 document.getElementById("counselorName").textContent = getUserFullName(user);
 const counselorAvatar = document.getElementById("counselorInitials");
 const counselorAvatarUrl = getAvatarUrl(user);
@@ -145,14 +117,84 @@ function noteToEvent(note) {
   };
 }
 
+function getSegmentValue(segments, label) {
+  const found = segments.find(segment => segment.label.toLowerCase() === label.toLowerCase());
+  return Number(found?.value || 0);
+}
+
+function renderSupportPlanStatus({ statusCounts, interventionCounts, activeCases, activeFollowUps, completedFollowUps, scheduledHearings }) {
+  const caseSegments = W.toSegments(statusCounts, ["pending", "under_investigation", "hearing_scheduled", "hearing_overdue", "resolved", "dismissed"], { includeZeros: true });
+  const interventionSegments = W.toSegments(interventionCounts, ["planned", "ongoing", "completed"], { includeZeros: true });
+  const planned = getSegmentValue(interventionSegments, "Planned");
+  const ongoing = getSegmentValue(interventionSegments, "Ongoing");
+  const completed = getSegmentValue(interventionSegments, "Completed");
+  const totalInterventions = planned + ongoing + completed;
+  const completionRate = totalInterventions ? Math.round((completed / totalInterventions) * 100) : 0;
+  const activeLoad = activeCases.length + activeFollowUps.length + scheduledHearings.length;
+  const maxCaseCount = Math.max(...caseSegments.map(item => Number(item.value || 0)), 1);
+
+  document.getElementById("interventionChart").innerHTML = `
+    <div class="support-plan-focus">
+      <div class="support-plan-orbit" style="--progress:${completionRate * 3.6}deg;">
+        <div>
+          <strong>${completionRate}%</strong>
+          <span>completed</span>
+        </div>
+      </div>
+      <div class="support-plan-focus-copy">
+        <span class="support-plan-chip">Action readiness</span>
+        <h3>${totalInterventions ? `${completed} of ${totalInterventions} actions completed` : "No support actions logged yet"}</h3>
+        <p>${activeLoad} active item${activeLoad === 1 ? "" : "s"} need counselor visibility across cases, follow-ups, and hearings.</p>
+      </div>
+    </div>
+    <div class="support-plan-progress-strip" aria-label="Intervention status distribution">
+      <span style="--width:${totalInterventions ? (planned / totalInterventions) * 100 : 0}%; --tone:#d94870" title="Planned: ${planned}"></span>
+      <span style="--width:${totalInterventions ? (ongoing / totalInterventions) * 100 : 0}%; --tone:#5577b8" title="Ongoing: ${ongoing}"></span>
+      <span style="--width:${totalInterventions ? (completed / totalInterventions) * 100 : 0}%; --tone:#6ea076" title="Completed: ${completed}"></span>
+    </div>
+    <div class="support-plan-mini-legend">
+      <span><i style="background:#d94870"></i>Planned ${planned}</span>
+      <span><i style="background:#5577b8"></i>Ongoing ${ongoing}</span>
+      <span><i style="background:#6ea076"></i>Completed ${completed}</span>
+    </div>
+  `;
+
+  document.getElementById("statusLegend").innerHTML = `
+    <div class="support-status-stack">
+      ${caseSegments.map(item => {
+        const value = Number(item.value || 0);
+        const width = value ? Math.max(10, (value / maxCaseCount) * 100) : 0;
+        return `
+          <a class="support-status-row" href="cases.html" style="--status-color:${item.color}; --status-width:${width}%;" aria-label="${W.escapeHtml(item.label)} cases: ${value}">
+            <span class="support-status-dot"></span>
+            <strong>${W.escapeHtml(item.label)}</strong>
+            <em>${value}</em>
+            <i></i>
+          </a>
+        `;
+      }).join("")}
+    </div>
+  `;
+
+  W.renderSummary("counselorAnalyticsSummary", [
+    { label: "Open Cases", value: activeCases.length },
+    { label: "Active Follow-Ups", value: activeFollowUps.length },
+    { label: "Completed Notes", value: completedFollowUps.length },
+    { label: "Hearings", value: scheduledHearings.length }
+  ]);
+}
+
 function renderDashboard({ dashboard, cases, interventions, hearings }) {
   const activeCases = cases.filter(item => W.isOpenStatus(item.status));
   const activeFollowUps = interventions.filter(item => ["planned", "ongoing"].includes(item.status));
-  const scheduledHearings = hearings.filter(item => item.status === "scheduled");
+  const scheduledHearings = hearings.filter(item => item.status === "scheduled" && !item.has_overdue_hearing);
   const completedFollowUps = interventions.filter(item => item.status === "completed");
-  const statusCounts = W.groupBy(cases, "status");
+  const displayCases = cases.map(item => ({
+    ...item,
+    display_status: item.operational_status || item.status
+  }));
+  const statusCounts = W.groupBy(displayCases, "display_status");
   const interventionCounts = W.groupBy(interventions, "status");
-  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"];
   const events = [
     ...scheduledHearings.map(hearingToEvent),
     ...activeFollowUps.filter(note => note.follow_up_date).map(noteToEvent)
@@ -165,21 +207,12 @@ function renderDashboard({ dashboard, cases, interventions, hearings }) {
     { icon: "NT", label: "Counselor Notes", value: interventions.length, help: "Interventions and recommendations" }
   ]);
 
-  W.renderDonut("statusChart", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No visible cases yet");
-  W.renderStatusList("statusLegend", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No status data yet");
-  W.renderBars("interventionChart", W.toSegments(interventionCounts, ["planned", "ongoing", "completed"], { includeZeros: true }), "No counselor notes yet");
-  W.renderSummary("counselorAnalyticsSummary", [
-    { label: "Open Cases", value: activeCases.length },
-    { label: "Active Follow-Ups", value: activeFollowUps.length },
-    { label: "Completed Notes", value: completedFollowUps.length },
-    { label: "Hearings", value: scheduledHearings.length }
-  ]);
-  W.renderCalendar("meetingCalendar", events);
+  renderSupportPlanStatus({ statusCounts, interventionCounts, activeCases, activeFollowUps, completedFollowUps, scheduledHearings });
   W.renderUpcoming("meetingCalendarList", events, "No upcoming hearings or follow-ups");
 
   W.renderList("followUpCases", activeCases.slice(0, 6), "No active counselor-visible cases.", item => `
     <a class="dash-case-row" href="case-details.html?id=${item.id}">
-      <span class="badge ${item.status}">${W.labelize(item.status)}</span>
+      <span class="badge ${item.operational_status || item.status}">${W.labelize(item.operational_status || item.status)}</span>
       <div>
         <strong>${W.escapeHtml(item.case_number)} | ${W.escapeHtml(item.first_name)} ${W.escapeHtml(item.last_name)}</strong>
         <p>${W.escapeHtml(item.violation_type)} | ${W.labelize(item.severity_level)} | ${W.formatDate(item.incident_date)}</p>

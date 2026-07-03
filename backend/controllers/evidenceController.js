@@ -1,7 +1,19 @@
 const path = require("path");
 const pool = require("../config/db");
 const { logAudit } = require("../utils/auditLogger");
-const { getActorContext, getCaseForAccess, getCaseStatusRecord, isCaseClosed } = require("./caseController");
+const {
+  getActorContext,
+  getCaseForAccess,
+  getCaseStatusRecord,
+  requireCaseMutationAccess,
+  isCaseClosed
+} = require("./caseController");
+const {
+  createWorkflowEvent,
+  labelize,
+  notifyCaseStakeholders,
+  refreshCaseWorkflow
+} = require("../utils/caseWorkflow");
 
 function formatRoleLabel(role = "") {
   return String(role || "")
@@ -13,7 +25,7 @@ function formatRoleLabel(role = "") {
 
 async function uploadEvidence(req, res) {
   try {
-    const { caseId } = req.body;
+    const { caseId, evidenceCategory, evidencePurpose, sourceLabel } = req.body;
 
     if (!caseId || !req.file) {
       return res.status(400).json({
@@ -40,6 +52,14 @@ async function uploadEvidence(req, res) {
       });
     }
 
+    const mutationAccess = await requireCaseMutationAccess(caseId, req.user);
+    if (!mutationAccess.allowed) {
+      return res.status(mutationAccess.status).json({
+        success: false,
+        message: mutationAccess.message
+      });
+    }
+
     const relativePath = `/uploads/evidence/${req.file.filename}`;
 
     const [result] = await pool.query(
@@ -53,9 +73,12 @@ async function uploadEvidence(req, res) {
         file_type,
         original_name,
         file_size,
+        evidence_category,
+        evidence_purpose,
+        source_label,
         review_status
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
       `,
       [
         caseId,
@@ -64,7 +87,10 @@ async function uploadEvidence(req, res) {
         relativePath,
         req.file.mimetype || null,
         req.file.originalname,
-        req.file.size
+        req.file.size,
+        evidenceCategory || "other",
+        evidencePurpose || null,
+        sourceLabel || null
       ]
     );
 
@@ -77,9 +103,29 @@ async function uploadEvidence(req, res) {
       ipAddress: req.ip
     });
 
+    await createWorkflowEvent({
+      caseId,
+      userId: req.user.id,
+      eventType: "evidence_uploaded",
+      title: "Evidence uploaded",
+      details: `${req.file.originalname || req.file.filename} was uploaded for review.`
+    });
+
+    const workflow = await refreshCaseWorkflow(caseId);
+
+    await notifyCaseStakeholders({
+      caseId,
+      title: "Evidence Uploaded",
+      message: `New evidence was uploaded for ${caseItem.case_number}. Next action: ${workflow?.next_action_label || "Review Evidence"}.`,
+      type: "evidence",
+      includeStudentParents: false,
+      excludeUserId: req.user.id
+    });
+
     return res.status(201).json({
       success: true,
-      message: "Evidence uploaded successfully."
+      message: "Evidence uploaded successfully.",
+      workflow
     });
   } catch (error) {
     console.error("Upload evidence error:", error);
@@ -113,6 +159,9 @@ async function getCaseEvidence(req, res) {
         ce.file_type,
         ce.original_name,
         ce.file_size,
+        ce.evidence_category,
+        ce.evidence_purpose,
+        ce.source_label,
         ce.review_status,
         ce.review_notes,
         ce.reviewed_at,
@@ -188,6 +237,14 @@ async function reviewEvidence(req, res) {
       });
     }
 
+    const mutationAccess = await requireCaseMutationAccess(rows[0].case_id, req.user);
+    if (!mutationAccess.allowed) {
+      return res.status(mutationAccess.status).json({
+        success: false,
+        message: mutationAccess.message
+      });
+    }
+
     await pool.query(
       `
       UPDATE case_evidence
@@ -210,9 +267,29 @@ async function reviewEvidence(req, res) {
       ipAddress: req.ip
     });
 
+    await createWorkflowEvent({
+      caseId: rows[0].case_id,
+      userId: req.user.id,
+      eventType: "evidence_reviewed",
+      title: "Evidence reviewed",
+      details: `Evidence was marked ${labelize(reviewStatus)}.${reviewNotes ? ` Notes: ${reviewNotes}` : ""}`,
+      metadata: { reviewStatus }
+    });
+
+    const workflow = await refreshCaseWorkflow(rows[0].case_id);
+
+    await notifyCaseStakeholders({
+      caseId: rows[0].case_id,
+      title: "Evidence Reviewed",
+      message: `Evidence for ${rows[0].case_number} was marked ${labelize(reviewStatus)}. Next action: ${workflow?.next_action_label || "Review Case"}.`,
+      type: "evidence",
+      excludeUserId: req.user.id
+    });
+
     return res.json({
       success: true,
-      message: "Evidence reviewed successfully."
+      message: "Evidence reviewed successfully.",
+      workflow
     });
   } catch (error) {
     console.error("Review evidence error:", error);
@@ -234,6 +311,9 @@ async function getAllEvidence(req, res) {
         ce.file_path,
         ce.original_name,
         ce.file_size,
+        ce.evidence_category,
+        ce.evidence_purpose,
+        ce.source_label,
         ce.review_status,
         ce.review_notes,
         ce.reviewed_at,

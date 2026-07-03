@@ -1,165 +1,244 @@
-# DB Changes
+# Database Schema and Migration Notes
 
-## New SQL File
-- [001_core_modules.sql](C:\Users\PC user\Documents\Thesis 2026\new disciplinary system project - Copy (2)\database\migrations\001_core_modules.sql)
-- [002_identity_management.sql](C:\Users\PC user\Documents\Thesis 2026\new disciplinary system project - Copy (2)\database\migrations\002_identity_management.sql)
-- [003_profile_settings.sql](C:\Users\PC user\Documents\Thesis 2026\new disciplinary system project - Copy (2)\database\migrations\003_profile_settings.sql)
+## Current Database
 
-## What This Migration Adds
+The application uses the MySQL database:
 
-### `case_evidence`
-- `original_name`
-- `file_size`
-- `review_status`
-- `review_notes`
-- `reviewed_by_user_id`
-- `reviewed_at`
+```text
+disciplinary_system
+```
 
-Purpose:
-- support evidence upload metadata
-- allow discipline/admin review workflow
-- record who reviewed evidence and when
+The current consolidated schema is:
 
-### `appeals`
-- `decision_notes`
-- `reviewed_by_user_id`
-- `reviewed_at`
+```text
+database/schema.sql
+```
 
-Purpose:
-- support appeals board decisions and review history
+It contains the current table definitions and the features introduced by
+migrations `001` through `008`.
 
-### New table: `counselor_interventions`
-- links counselor notes directly to:
-  - case
-  - student
-  - counselor user
-- supports:
-  - intervention notes
-  - behavior notes
-  - recommendations
-  - follow-up tracking
+The current restored/upgraded database baseline should have 30 tables. Key
+tables from the migration history include:
 
-### New indexes
-- cases by status, student, reporter, assignee
-- hearings by case/status/date
-- sanctions by student/status
-- appeals by case/status
-- evidence by case/review status
-- counselor interventions by case/status
+```text
+student_parents
+case_evidence
+case_report_drafts
+case_workflow_events
+email_logs
+case_conversations
+conversation_participants
+case_messages
+```
 
-Purpose:
-- improve filtering and dashboard/case-center queries
+## Most Important Rule
 
-## Manual Apply Steps
+Choose only one database setup path.
 
-1. Back up the current `disciplinary_system` database.
-2. Open MySQL client or phpMyAdmin SQL editor.
-3. Run the contents of:
-   - [001_core_modules.sql](C:\Users\PC user\Documents\Thesis 2026\new disciplinary system project - Copy (2)\database\migrations\001_core_modules.sql)
-4. Confirm the following exist after execution:
-   - new columns on `case_evidence`
-   - new columns on `appeals`
-   - new table `counselor_interventions`
-   - the new indexes
+## Codex Handoff Rule
 
-## Notes
-- The updated backend code expects these schema changes to exist before the new evidence, appeal-review, and counselor note features are used.
-- No duplicate core tables were introduced; the migration extends the existing schema instead of replacing it.
-- The sanctions monitoring redesign did not require any additional database changes beyond the existing migration above.
+Whenever a change affects the database schema, seed data, required uploads,
+environment variables, backup steps, restore steps, or startup procedure, update
+this file in the same change.
 
-## `002_identity_management.sql`
+Also update these files when the change affects transfer or laptop setup:
 
-### What This Migration Adds
+- [SETUP_STEPS.md](SETUP_STEPS.md)
+- [TRANSFER_CHECKLIST.md](TRANSFER_CHECKLIST.md)
 
-### `students`
-- allows `user_id` to be nullable
-- adds:
-  - `first_name`
-  - `middle_name`
-  - `last_name`
-  - `email`
-  - `record_status`
+Each new migration must be recorded under `Migration History` with:
 
-Purpose:
-- support profile-only student records without a login account
-- keep student identity data available even when no `users` row exists yet
-- support later account linking without losing the profile
+- the migration filename
+- what tables, columns, indexes, or constraints changed
+- whether existing data is modified
+- backup or restore notes needed before running it
+- verification queries for Codex to run after import or upgrade
 
-### `parents`
-- allows `user_id` to be nullable
-- adds:
-  - `first_name`
-  - `middle_name`
-  - `last_name`
-  - `email`
-  - `record_status`
+UI-only changes do not need a database migration. If a UI change depends on
+existing data, note that dependency here only when setup or restore behavior
+changes.
 
-Purpose:
-- support parent/guardian records without forcing account creation
-- preserve parent identity and contact data outside the `users` table
-- allow later parent account creation and linking
+### Restore an existing installation
 
-### Foreign key behavior updates
-- `students.user_id` now uses `ON DELETE SET NULL`
-- `parents.user_id` now uses `ON DELETE SET NULL`
+Import the complete `mysqldump` backup.
 
-Purpose:
-- if a linked account is removed later, the student or parent profile can remain in the system
+Do not run `schema.sql` or migrations afterward. The dump already contains the
+database structure and records.
 
-### Link integrity
-- adds unique index `idx_student_parent_unique` on `student_parents(student_id, parent_id)`
+This is the correct path when moving the current working laptop data to another
+device.
 
-Purpose:
-- prevent duplicate parent-student links
+### Create a new empty installation
 
-### Additional indexes
-- `idx_students_record_status`
-- `idx_parents_record_status`
+Create the database and run `database/schema.sql` once.
 
-Purpose:
-- improve admin filtering for active/inactive profile-only and linked-account records
+Do not run migrations `001` through `008` afterward because the consolidated
+schema already includes them.
 
-## Updated Manual Apply Steps
+### Upgrade an older installation
 
-1. Back up the current `disciplinary_system` database.
-2. Open MySQL client or phpMyAdmin SQL editor.
-3. Run:
-   - [001_core_modules.sql](C:\Users\PC user\Documents\Thesis 2026\new disciplinary system project - Copy (2)\database\migrations\001_core_modules.sql)
-   - [002_identity_management.sql](C:\Users\PC user\Documents\Thesis 2026\new disciplinary system project - Copy (2)\database\migrations\002_identity_management.sql)
-4. Confirm the following after execution:
-   - `students.user_id` is nullable
-   - `parents.user_id` is nullable
-   - `students` contains identity fields and `record_status`
-   - `parents` contains identity fields and `record_status`
-   - duplicate `student_parents` links are blocked by the unique index
+Back up the database first, identify the last migration previously applied, and
+run only the newer migration files in numeric order.
 
-## Admin Identity Notes
-- QR generation did not require a new table; the existing `students.qr_token` field is reused.
-- QR image rendering is generated dynamically by the backend from the stored token.
-- The new admin identity module depends on the migration above before profile-only students and parents will work correctly.
+Do not run `database/schema.sql` against an older database with real records.
+That file is for brand-new empty installs only.
 
-## `003_profile_settings.sql`
+## Migration History
 
-### What This Migration Adds
+### `001_core_modules.sql`
 
-### `users`
-- adds:
-  - `avatar_path`
+Adds or extends:
 
-Purpose:
-- support top-right user profiles for all roles
-- allow each account to upload and display a profile photo/avatar
-- support the shared profile settings page without changing the existing role structure
+- evidence review metadata
+- appeal decision metadata
+- `counselor_interventions`
+- indexes for case, hearing, sanction, appeal, evidence, and counselor queries
 
-## Updated Manual Apply Steps
+### `002_identity_management.sql`
 
-1. Back up the current `disciplinary_system` database.
-2. Open MySQL client or phpMyAdmin SQL editor.
-3. Run:
-   - [001_core_modules.sql](C:\Users\PC user\Documents\Thesis 2026\new disciplinary system project - Copy (2)\database\migrations\001_core_modules.sql)
-   - [002_identity_management.sql](C:\Users\PC user\Documents\Thesis 2026\new disciplinary system project - Copy (2)\database\migrations\002_identity_management.sql)
-   - [003_profile_settings.sql](C:\Users\PC user\Documents\Thesis 2026\new disciplinary system project - Copy (2)\database\migrations\003_profile_settings.sql)
-4. Confirm the following after execution:
-   - `users.avatar_path` exists
-   - avatar image uploads can be stored under `backend/uploads/avatars`
-   - `/api/auth/me` returns `avatar_url` for accounts with uploaded profile photos
+Adds:
+
+- profile-only student and parent records
+- nullable student and parent account links
+- student and parent identity fields
+- record statuses
+- safer `ON DELETE SET NULL` account behavior
+- duplicate parent/student link prevention
+
+### `003_profile_settings.sql`
+
+Adds:
+
+- `users.avatar_path`
+
+Profile image files are stored under:
+
+```text
+backend/uploads/avatars
+```
+
+### `004_sms_notifications.sql`
+
+Adds or extends:
+
+- SMS notification records
+- provider and delivery metadata
+- parent notification tracking
+
+### `005_case_workflow.sql`
+
+Adds:
+
+- review and workflow statuses
+- next-action tracking
+- acknowledgements
+- workflow event history
+- additional hearing outcome fields
+- notification metadata
+
+### `006_formal_case_process.sql`
+
+Adds:
+
+- report drafts
+- witnesses and statements
+- policy rules and case policy references
+- structured case decisions and approvals
+- hearing attendees
+- SLA rules and escalation fields
+- case packet exports
+- expanded evidence and appeal lifecycle fields
+
+### `007_student_email_notifications.sql`
+
+Adds:
+
+- student email delivery logs
+- explicit `missed` hearing status
+- indexes for email audit review by case, student, and creation time
+
+### `008_case_messaging.sql`
+
+Adds:
+
+- case-linked conversations
+- conversation participants with read tracking
+- message records for secure role-aware case threads
+
+## Safe Migration Procedure
+
+Before applying any migration:
+
+1. Stop application writes.
+2. Export the complete database.
+3. Copy `backend/uploads`.
+4. Confirm the backup files are readable.
+5. Record row counts for all operational tables.
+6. Apply only the required migration.
+7. Restart the backend.
+8. Run the verification queries and regression checklist.
+
+Never use `DROP DATABASE`, `DROP TABLE`, destructive `ALTER TABLE`, or a fresh
+`schema.sql` import on a database with real records unless a verified backup
+exists and the user explicitly confirms the target data is disposable.
+
+Full backup and restore commands are documented in:
+
+- [SETUP_STEPS.md](SETUP_STEPS.md)
+- [TRANSFER_CHECKLIST.md](TRANSFER_CHECKLIST.md)
+
+## Verification Queries
+
+After restoring or upgrading:
+
+```sql
+USE disciplinary_system;
+SHOW TABLES;
+
+SELECT COUNT(*) FROM users;
+SELECT COUNT(*) FROM students;
+SELECT COUNT(*) FROM parents;
+SELECT COUNT(*) FROM student_parents;
+SELECT COUNT(*) FROM cases;
+SELECT COUNT(*) FROM case_evidence;
+SELECT COUNT(*) FROM hearings;
+SELECT COUNT(*) FROM sanctions;
+SELECT COUNT(*) FROM appeals;
+SELECT COUNT(*) FROM notifications;
+SELECT COUNT(*) FROM sms_logs;
+SELECT COUNT(*) FROM email_logs;
+SELECT COUNT(*) FROM case_conversations;
+SELECT COUNT(*) FROM conversation_participants;
+SELECT COUNT(*) FROM case_messages;
+```
+
+Confirm these important objects exist:
+
+```sql
+SHOW COLUMNS FROM users LIKE 'avatar_path';
+SHOW COLUMNS FROM cases LIKE 'workflow_status';
+SHOW COLUMNS FROM cases LIKE 'next_action';
+SHOW COLUMNS FROM cases LIKE 'escalation_level';
+SHOW COLUMNS FROM case_evidence LIKE 'evidence_category';
+SHOW COLUMNS FROM sanctions LIKE 'completion_evidence_path';
+SHOW COLUMNS FROM hearings LIKE 'outcome';
+SHOW COLUMNS FROM email_logs LIKE 'email_address';
+SHOW COLUMNS FROM case_messages LIKE 'body';
+SHOW TABLES LIKE 'counselor_interventions';
+SHOW TABLES LIKE 'case_workflow_events';
+SHOW TABLES LIKE 'case_report_drafts';
+SHOW TABLES LIKE 'case_decisions';
+SHOW TABLES LIKE 'sms_logs';
+SHOW TABLES LIKE 'email_logs';
+SHOW TABLES LIKE 'case_conversations';
+SHOW TABLES LIKE 'conversation_participants';
+SHOW TABLES LIKE 'case_messages';
+```
+
+Optional table-count check:
+
+```sql
+SELECT COUNT(*) AS table_count
+FROM information_schema.tables
+WHERE table_schema = 'disciplinary_system';
+```

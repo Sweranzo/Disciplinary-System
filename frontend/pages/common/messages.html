@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Messages</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Messages</span>
+      <h1 style="margin-top:16px;">Case Conversations</h1>
+      <p class="muted">Secure message threads tied to disciplinary cases you are allowed to access.</p>
+    </div>
+    <div class="action-row">
+      <button type="button" id="refreshMessagesBtn" class="secondary compact-btn">Refresh</button>
+      <button onclick="logout()" class="compact-btn" type="button">Logout</button>
+    </div>
+  </div>
+
+  <div class="summary-band">
+    <div class="summary-chip"><strong>Threads</strong><span id="threadCount">0</span></div>
+    <div class="summary-chip"><strong>Unread</strong><span id="unreadThreadCount">0</span></div>
+    <div class="summary-chip"><strong>Recent</strong><span id="recentThreadCount">0</span></div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Inbox</h2>
+        <p class="muted">Open a thread to continue the conversation inside the case page.</p>
+      </div>
+    </div>
+    <div class="toolbar">
+      <input type="search" id="messageSearch" placeholder="Search case, student, or latest message">
+      <select id="messageFilter">
+        <option value="">All Threads</option>
+        <option value="unread">Unread Only</option>
+      </select>
+    </div>
+    <div id="messageInbox" class="message-inbox-list">
+      <div class="empty-state">Loading conversations...</div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+let conversations = [];
+const currentUser = getUser();
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function casePath(caseId) {
+  const id = encodeURIComponent(caseId);
+  switch (currentUser?.role) {
+    case "student":
+      return `../student/case-details.html?id=${id}#caseMessagesSection`;
+    case "teacher":
+      return `../teacher/case-details.html?id=${id}#caseMessagesSection`;
+    case "discipline_officer":
+      return `../discipline/case-details.html?id=${id}#caseMessagesSection`;
+    case "guidance_counselor":
+      return `../counselor/case-details.html?id=${id}#caseMessagesSection`;
+    case "admin":
+      return `../admin/case-details.html?id=${id}#caseMessagesSection`;
+    case "parent":
+      return `../parent/case-details.html?id=${id}#caseMessagesSection`;
+    default:
+      return "#";
+  }
+}
+
+function formatWhen(value) {
+  return typeof formatDisplayDateTime === "function"
+    ? formatDisplayDateTime(value, "No messages yet")
+    : (value || "No messages yet");
+}
+
+function senderName(item) {
+  return [item.latest_sender_first_name, item.latest_sender_last_name].filter(Boolean).join(" ").trim() || "No sender yet";
+}
+
+function filteredConversations() {
+  const search = document.getElementById("messageSearch").value.trim().toLowerCase();
+  const filter = document.getElementById("messageFilter").value;
+
+  return conversations.filter(item => {
+    const haystack = [
+      item.case_number,
+      item.violation_type,
+      item.student_number,
+      item.student_first_name,
+      item.student_last_name,
+      item.latest_message
+    ].join(" ").toLowerCase();
+
+    if (search && !haystack.includes(search)) return false;
+    if (filter === "unread" && Number(item.unread_count || 0) <= 0) return false;
+    return true;
+  });
+}
+
+function renderSummary(rows) {
+  const recentCutoff = new Date();
+  recentCutoff.setDate(recentCutoff.getDate() - 7);
+
+  document.getElementById("threadCount").textContent = rows.length;
+  document.getElementById("unreadThreadCount").textContent = rows.filter(item => Number(item.unread_count || 0) > 0).length;
+  document.getElementById("recentThreadCount").textContent = rows.filter(item => {
+    const value = item.latest_message_at || item.updated_at;
+    const date = new Date(value);
+    return !Number.isNaN(date.getTime()) && date >= recentCutoff;
+  }).length;
+}
+
+function renderInbox() {
+  const list = document.getElementById("messageInbox");
+  const rows = filteredConversations();
+  renderSummary(rows);
+
+  if (!rows.length) {
+    list.innerHTML = `<div class="empty-state">No conversations match the current filters.</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map(item => {
+    const unread = Number(item.unread_count || 0);
+    const studentName = [item.student_first_name, item.student_last_name].filter(Boolean).join(" ").trim();
+    return `
+      <a class="message-inbox-card ${unread ? "unread" : ""}" href="${casePath(item.case_id)}">
+        <div class="message-inbox-icon">${unread ? unread : "0"}</div>
+        <div class="message-inbox-body">
+          <div class="message-inbox-title">
+            <strong>${escapeHtml(item.case_number || "Case")}</strong>
+            <span>${escapeHtml(formatWhen(item.latest_message_at || item.updated_at))}</span>
+          </div>
+          <p>${escapeHtml(studentName || item.student_number || "Student")} · ${escapeHtml(item.violation_type || "Case conversation")}</p>
+          <small>${escapeHtml(senderName(item))}: ${escapeHtml(item.latest_message || "No messages yet.")}</small>
+        </div>
+      </a>
+    `;
+  }).join("");
+}
+
+async function loadInbox() {
+  const res = await apiRequest("/messages/conversations", "GET", null, true);
+  if (!res.success) {
+    document.getElementById("messageInbox").innerHTML = `<div class="empty-state">${escapeHtml(res.message || "Unable to load conversations.")}</div>`;
+    return;
+  }
+
+  conversations = res.conversations || [];
+  renderInbox();
+}
+
+document.getElementById("messageSearch").addEventListener("input", renderInbox);
+document.getElementById("messageFilter").addEventListener("change", renderInbox);
+document.getElementById("refreshMessagesBtn").addEventListener("click", loadInbox);
+
+loadInbox();
+</script>
+</body>
+</html>

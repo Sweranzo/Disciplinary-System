@@ -1,7 +1,20 @@
 const pool = require("../config/db");
 const { logAudit } = require("../utils/auditLogger");
-const { sendSms } = require("../utils/smsService");
-const { getActorContext, getCaseForAccess, getCaseStatusRecord, isCaseClosed } = require("./caseController");
+const { sendSms, renderSmsTemplate } = require("../utils/smsService");
+const { sendParentEmail } = require("../utils/emailService");
+const {
+  getActorContext,
+  getCaseForAccess,
+  getCaseStatusRecord,
+  requireCaseMutationAccess,
+  isCaseClosed
+} = require("./caseController");
+const {
+  createWorkflowEvent,
+  labelize,
+  notifyCaseStakeholders,
+  refreshCaseWorkflow
+} = require("../utils/caseWorkflow");
 
 function toDateOnly(value) {
   if (!value) {
@@ -55,17 +68,25 @@ async function notifySanctionStakeholders({
   parentMessage,
   studentTitle,
   studentMessage,
-  smsMessage
+  smsTemplateKey = null,
+  smsTemplateData = {},
+  parentEmailSubject = null,
+  parentEmailMessage = null,
+  actorUserId = null,
+  ipAddress = null
 }) {
   const notifiedStudentUsers = new Set();
   const notifiedParentUsers = new Set();
+  const emailedParents = new Set();
   const [recipientRows] = await pool.query(
     `
     SELECT
       su.id AS student_user_id,
       p.id AS parent_id,
       p.phone_number,
+      p.email AS parent_email,
       pu.id AS parent_user_id,
+      pu.email AS account_email,
       COALESCE(pu.first_name, p.first_name) AS parent_first_name,
       COALESCE(pu.last_name, p.last_name) AS parent_last_name
     FROM cases c
@@ -90,13 +111,35 @@ async function notifySanctionStakeholders({
       notifiedParentUsers.add(row.parent_user_id);
     }
 
-    if (row.parent_id && row.phone_number && smsMessage) {
+    if (parentEmailSubject && parentEmailMessage && row.parent_id && !emailedParents.has(row.parent_id)) {
+      await sendParentEmail({
+        caseId,
+        parent: {
+          parent_id: row.parent_id,
+          parent_user_id: row.parent_user_id,
+          parent_email: row.parent_email,
+          account_email: row.account_email,
+          first_name: row.parent_first_name,
+          last_name: row.parent_last_name
+        },
+        subject: parentEmailSubject,
+        message: parentEmailMessage
+      });
+      emailedParents.add(row.parent_id);
+    }
+
+    if (row.parent_id && row.phone_number && smsTemplateKey) {
       const parentName = `${row.parent_first_name || "Parent"} ${row.parent_last_name || ""}`.trim();
       await sendSms({
         caseId,
         parentId: row.parent_id,
         phoneNumber: row.phone_number,
-        message: `Dear ${parentName}, ${smsMessage}`
+        message: renderSmsTemplate(smsTemplateKey, {
+          ...smsTemplateData,
+          parentName
+        }),
+        userId: actorUserId,
+        ipAddress
       });
     }
   }
@@ -168,6 +211,14 @@ async function createSanction(req, res) {
       });
     }
 
+    const mutationAccess = await requireCaseMutationAccess(caseId, req.user);
+    if (!mutationAccess.allowed) {
+      return res.status(mutationAccess.status).json({
+        success: false,
+        message: mutationAccess.message
+      });
+    }
+
     const nextStatus = normalizeSanctionStatus(status);
 
     const [result] = await pool.query(
@@ -188,15 +239,6 @@ async function createSanction(req, res) {
       ]
     );
 
-    await pool.query(
-      `
-      UPDATE cases
-      SET status = 'resolved'
-      WHERE id = ?
-      `,
-      [caseId]
-    );
-
     await logAudit({
       userId: req.user.id,
       action: "CREATE_SANCTION",
@@ -206,18 +248,55 @@ async function createSanction(req, res) {
       ipAddress: req.ip
     });
 
+    await createWorkflowEvent({
+      caseId,
+      userId: req.user.id,
+      eventType: "sanction_issued",
+      title: "Sanction issued",
+      details: `${labelize(sanctionType)} sanction was issued with status ${labelize(nextStatus)}.`,
+      metadata: { sanctionId: result.insertId, sanctionType, status: nextStatus }
+    });
+
+    const workflow = await refreshCaseWorkflow(caseId);
+
     await notifySanctionStakeholders({
       caseId,
       studentTitle: "Sanction Assigned",
       studentMessage: `A sanction was assigned for case ${caseItem.case_number}. Please review the sanction details in the portal.`,
       parentTitle: "Sanction Assigned for Your Child",
       parentMessage: `A sanction was assigned for case ${caseItem.case_number}. Please review the sanction details in the portal.`,
-      smsMessage: `Philtech-GMA Sanction Notice: A ${String(sanctionType).replaceAll("_", " ")} sanction was assigned for case ${caseItem.case_number}.${startDate ? ` Start: ${startDate}.` : ""}${endDate ? ` End: ${endDate}.` : ""}`
+      smsTemplateKey: "sanctionAssigned",
+      smsTemplateData: {
+        caseNumber: caseItem.case_number,
+        sanctionType: String(sanctionType).replaceAll("_", " "),
+        startDate: startDate || "",
+        endDate: endDate || "",
+        startDateSentence: startDate ? ` Start: ${startDate}.` : "",
+        endDateSentence: endDate ? ` End: ${endDate}.` : ""
+      },
+      parentEmailSubject: `Sanction Assigned for Your Child: ${caseItem.case_number}`,
+      parentEmailMessage:
+        `A sanction was assigned for case ${caseItem.case_number}.\n\n`
+        + `Sanction: ${String(sanctionType).replaceAll("_", " ")}.${startDate ? `\nStart: ${startDate}.` : ""}${endDate ? `\nEnd: ${endDate}.` : ""}\n\n`
+        + "Please log in to the parent portal or contact the school office for details.\n\n"
+        + "Philtech-GMA Disciplinary Office",
+      actorUserId: req.user.id,
+      ipAddress: req.ip
+    });
+
+    await notifyCaseStakeholders({
+      caseId,
+      title: "Sanction Issued",
+      message: `A sanction was issued for ${caseItem.case_number}. Next action: ${workflow?.next_action_label || "Closure Checklist"}.`,
+      type: "sanction",
+      includeStudentParents: false,
+      excludeUserId: req.user.id
     });
 
     return res.json({
       success: true,
-      message: "Sanction assigned successfully. The case decision is now resolved, and sanction completion can continue from the monitoring workspace."
+      message: "Sanction assigned successfully. Complete the case closure checklist when all requirements are done.",
+      workflow
     });
 
   } catch (error) {
@@ -294,6 +373,8 @@ async function getParentSanctions(req, res) {
     const [rows] = await pool.query(
       `
       SELECT 
+        s.id,
+        s.case_id,
         s.sanction_type,
         s.description,
         s.status,
@@ -466,10 +547,18 @@ async function updateSanction(req, res) {
     }
 
     const caseStatus = await getCaseStatusRecord(sanction.case_id);
-    if (caseStatus && String(caseStatus.status || "").toLowerCase() === "dismissed") {
+    if (caseStatus && isCaseClosed(caseStatus.status)) {
       return res.status(400).json({
         success: false,
-        message: "Dismissed cases are read-only."
+        message: "Resolved or dismissed cases are read-only."
+      });
+    }
+
+    const mutationAccess = await requireCaseMutationAccess(sanction.case_id, req.user);
+    if (!mutationAccess.allowed) {
+      return res.status(mutationAccess.status).json({
+        success: false,
+        message: mutationAccess.message
       });
     }
 
@@ -505,18 +594,56 @@ async function updateSanction(req, res) {
       ipAddress: req.ip
     });
 
+    await createWorkflowEvent({
+      caseId: sanction.case_id,
+      userId: req.user.id,
+      eventType: "sanction_updated",
+      title: "Sanction updated",
+      details: `Sanction status changed to ${labelize(nextStatus)}.`,
+      metadata: { sanctionId: Number(id), status: nextStatus }
+    });
+
+    const workflow = await refreshCaseWorkflow(sanction.case_id);
+
     await notifySanctionStakeholders({
       caseId: sanction.case_id,
       studentTitle: "Sanction Updated",
       studentMessage: `Sanction details for case ${sanction.case_number} were updated. Current status: ${nextStatus}.`,
       parentTitle: "Sanction Update for Your Child",
       parentMessage: `Sanction details for case ${sanction.case_number} were updated. Current status: ${nextStatus}.`,
-      smsMessage: `Philtech-GMA Sanction Update: Case ${sanction.case_number} sanction is now ${nextStatus.replaceAll("_", " ")}.${startDate ? ` Start: ${startDate}.` : ""}${endDate ? ` End: ${endDate}.` : ""}`
+      smsTemplateKey: "sanctionUpdated",
+      smsTemplateData: {
+        caseNumber: sanction.case_number,
+        status: nextStatus.replaceAll("_", " "),
+        startDate: startDate || "",
+        endDate: endDate || "",
+        startDateSentence: startDate ? ` Start: ${startDate}.` : "",
+        endDateSentence: endDate ? ` End: ${endDate}.` : ""
+      },
+      parentEmailSubject: `Sanction Update for Your Child: ${sanction.case_number}`,
+      parentEmailMessage:
+        `Sanction details for case ${sanction.case_number} were updated.\n\n`
+        + `Current status: ${nextStatus.replaceAll("_", " ")}.${startDate ? `\nStart: ${startDate}.` : ""}${endDate ? `\nEnd: ${endDate}.` : ""}\n\n`
+        + "Please log in to the parent portal or contact the school office for details.\n\n"
+        + "Philtech-GMA Disciplinary Office",
+      actorUserId: req.user.id,
+      ipAddress: req.ip
+    });
+
+    await notifyCaseStakeholders({
+      caseId: sanction.case_id,
+      title: "Sanction Updated",
+      message: `Sanction details for ${sanction.case_number} were updated. Current status: ${labelize(nextStatus)}.`,
+      type: "sanction",
+      includeStudentParents: false,
+      includeStaff: true,
+      excludeUserId: req.user.id
     });
 
     return res.json({
       success: true,
-      message: "Sanction updated successfully."
+      message: "Sanction updated successfully.",
+      workflow
     });
   } catch (error) {
     console.error("Update sanction error:", error);

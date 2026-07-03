@@ -1,6 +1,15 @@
 const pool = require("../config/db");
 const { getActorContext } = require("./caseController");
 
+function addOperationalHearingStatus(item) {
+  const hasOverdueHearing = Number(item.has_overdue_hearing) === 1;
+  return {
+    ...item,
+    has_overdue_hearing: hasOverdueHearing,
+    operational_status: hasOverdueHearing ? "hearing_overdue" : item.status
+  };
+}
+
 async function getMyStudentHearings(req, res) {
   try {
     const context = await getActorContext(req.user);
@@ -23,6 +32,11 @@ async function getMyStudentHearings(req, res) {
         h.scheduled_time,
         h.location,
         h.status,
+        (
+          h.status = 'scheduled'
+          AND TIMESTAMP(h.scheduled_date, COALESCE(h.scheduled_time, '23:59:59'))
+            < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+        ) AS has_overdue_hearing,
         c.case_number,
         c.violation_type
       FROM hearings h
@@ -35,7 +49,7 @@ async function getMyStudentHearings(req, res) {
 
     return res.json({
       success: true,
-      hearings: rows
+      hearings: rows.map(addOperationalHearingStatus)
     });
   } catch (error) {
     console.error("Get student hearings error:", error);
@@ -68,14 +82,19 @@ async function getParentChildHearings(req, res) {
         h.scheduled_time,
         h.location,
         h.status,
+        (
+          h.status = 'scheduled'
+          AND TIMESTAMP(h.scheduled_date, COALESCE(h.scheduled_time, '23:59:59'))
+            < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+        ) AS has_overdue_hearing,
         c.case_number,
         c.violation_type,
-        su.first_name,
-        su.last_name,
+        COALESCE(su.first_name, s.first_name) AS first_name,
+        COALESCE(su.last_name, s.last_name) AS last_name,
         s.student_number
       FROM student_parents sp
       JOIN students s ON sp.student_id = s.id
-      JOIN users su ON s.user_id = su.id
+      LEFT JOIN users su ON s.user_id = su.id
       JOIN cases c ON c.student_id = s.id
       JOIN hearings h ON h.case_id = c.id
       WHERE sp.parent_id = ?
@@ -86,7 +105,7 @@ async function getParentChildHearings(req, res) {
 
     return res.json({
       success: true,
-      hearings: rows
+      hearings: rows.map(addOperationalHearingStatus)
     });
   } catch (error) {
     console.error("Get parent hearings error:", error);

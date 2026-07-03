@@ -3,6 +3,7 @@ const router = express.Router();
 
 const {
   getAllStudents,
+  getStudentFilterOptions,
   lookupStudentForReporting,
   getStudentProfileById,
   getMyStudentProfile,
@@ -10,6 +11,7 @@ const {
   updateStudentProfile,
   createStudent,
   deactivateStudent,
+  activateStudent,
   getParentOptions,
   linkParentToStudent
 } = require("../controllers/studentController");
@@ -21,6 +23,13 @@ router.get(
   verifyToken,
   allowRoles("admin", "discipline_officer", "guidance_counselor"),
   getAllStudents
+);
+
+router.get(
+  "/filter-options",
+  verifyToken,
+  allowRoles("admin", "discipline_officer", "guidance_counselor"),
+  getStudentFilterOptions
 );
 
 router.get(
@@ -77,6 +86,13 @@ router.put(
   verifyToken,
   allowRoles("admin"),
   deactivateStudent
+);
+
+router.put(
+  "/:id/activate",
+  verifyToken,
+  allowRoles("admin"),
+  activateStudent
 );
 
 router.post(

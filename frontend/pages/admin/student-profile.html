@@ -6,7 +6,7 @@
   <title>Student Profile</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="admin-page">
 
 <div class="dashboard-container student-profile-workspace">
   <div class="student-profile-topbar">
@@ -146,6 +146,7 @@ if (!user || !["admin", "discipline_officer", "guidance_counselor"].includes(use
 }
 
 const studentId = new URLSearchParams(window.location.search).get("id");
+let currentProfileStudent = null;
 
 function badge(value) {
   return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
@@ -182,6 +183,86 @@ function studentAvatarMarkup(student) {
   return `<span class="student-avatar student-profile-avatar student-avatar-fallback" aria-label="${fullName} avatar placeholder">${getInitials(student)}</span>`;
 }
 
+function safeFilePart(value) {
+  return String(value || "student")
+    .trim()
+    .replace(/[^a-z0-9_-]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    || "student";
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [header, encodedData] = String(dataUrl || "").split(",");
+  const mimeMatch = header.match(/^data:([^;]+);base64$/);
+
+  if (!mimeMatch || !encodedData) {
+    throw new Error("Invalid QR image data.");
+  }
+
+  const binary = atob(encodedData);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], { type: mimeMatch[1] });
+}
+
+async function downloadStudentQr(dataUrl, studentNumber) {
+  if (!dataUrl) {
+    alert("QR is not available for this student.");
+    return;
+  }
+
+  const fileName = `${safeFilePart(studentNumber)}-qr.png`;
+
+  try {
+    const blob = dataUrlToBlob(dataUrl);
+
+    if (window.showSaveFilePicker) {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: fileName,
+        types: [{
+          description: "PNG image",
+          accept: { "image/png": [".png"] }
+        }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = objectUrl;
+    link.download = fileName;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.dispatchEvent(new MouseEvent("click", {
+      bubbles: false,
+      cancelable: true,
+      view: window
+    }));
+    link.remove();
+
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+  } catch (error) {
+    if (error.name === "AbortError") {
+      return;
+    }
+    alert("Unable to download the QR image.");
+  }
+}
+
+function downloadCurrentStudentQr(event) {
+  event?.preventDefault();
+  event?.stopPropagation();
+  void downloadStudentQr(currentProfileStudent?.qr_code_data_url, currentProfileStudent?.student_number);
+}
+
 async function loadParentOptions() {
   const res = await apiRequest("/students/parent-options", "GET", null, true);
   const select = document.getElementById("linkParentId");
@@ -211,6 +292,7 @@ async function loadProfile() {
   }
 
   const student = res.student;
+  currentProfileStudent = student;
   const fullName = getStudentFullName(student);
   studentInfo.dataset.accountBannerApplied = "no";
   document.getElementById("profileMeta").innerHTML =
@@ -235,7 +317,7 @@ async function loadProfile() {
         <div class="student-hero-actions">
           <button type="button" onclick="const editCard = document.querySelector('.student-edit-card'); if (editCard) { editCard.open = true; editCard.scrollIntoView({ behavior: 'smooth', block: 'start' }); }">Edit</button>
           <button type="button" class="secondary" onclick="document.getElementById('status').value='inactive'; document.getElementById('saveBtn').click();">Deactivate</button>
-          <button type="button" class="secondary" onclick="window.print()">Print QR</button>
+          <button type="button" class="secondary" onclick="downloadCurrentStudentQr(event)">Download QR</button>
           <button type="button" class="secondary" onclick="window.print()">Generate Report</button>
         </div>
       </div>
@@ -332,7 +414,7 @@ async function loadProfile() {
     "No case history found for this student.",
     item => `
       <div class="detail-item">
-        <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
+        <p><strong>${item.case_number}</strong> ${badge(item.operational_status || item.status)}</p>
         <p>${item.violation_type} | ${badge(item.severity_level)}</p>
         <p>Incident date: ${formatDisplayDate(item.incident_date)}</p>
       </div>
@@ -356,7 +438,7 @@ async function loadProfile() {
     "No hearings scheduled.",
     item => `
       <div class="detail-item">
-        <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
+        <p><strong>${item.case_number}</strong> ${badge(item.operational_status || item.status)}</p>
         <p>${item.violation_type}</p>
         <p>${formatDisplayDateWithTime(item.scheduled_date, item.scheduled_time)} at ${item.location || "-"}</p>
       </div>

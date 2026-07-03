@@ -6,7 +6,7 @@
   <title>Sanctions Monitoring</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="admin-page">
 
 <div class="dashboard-container">
   <div class="topbar">
@@ -17,7 +17,6 @@
     </div>
     <div class="action-row">
       <a href="dashboard.html"><button class="secondary">Back</button></a>
-      <button id="exportBtn">Export List</button>
       <button onclick="logout()">Logout</button>
     </div>
   </div>
@@ -163,8 +162,8 @@
     <p id="result" class="muted"></p>
     <div class="modal-actions">
       <button id="closeSanctionModalBtn" class="secondary compact-btn" type="button">Close</button>
-      <button id="markCompleteBtn" class="secondary compact-btn" type="button">Mark Complete</button>
-      <button id="updateBtn" class="compact-btn" type="button">Save Changes</button>
+      <button id="markCompleteBtn" class="secondary compact-btn" type="button" data-internet-feature="Sanction completion saves locally, but parent SMS notices need internet to send.">Mark Complete</button>
+      <button id="updateBtn" class="compact-btn" type="button" data-internet-feature="Sanction updates save locally, but parent SMS notices need internet to send.">Save Changes</button>
     </div>
   </div>
 </div>
@@ -395,41 +394,9 @@ async function markFulfilled(id) {
   await saveSanctionUpdate("fulfilled");
 }
 
-function exportCsv() {
-  const rows = applyFilters(sanctionRows);
-  const header = ["Sanction ID", "Case Number", "Student", "Student Number", "Type", "Status", "Start Date", "End Date", "Assigned By", "Description"];
-  const body = rows.map(item => [
-    `SAN-${String(item.id).padStart(4, "0")}`,
-    item.case_number,
-    `${item.first_name} ${item.last_name}`,
-    item.student_number,
-    item.sanction_type,
-    item.status,
-    item.start_date || "",
-    item.end_date || "",
-    getAssignedBy(item),
-    item.description || ""
-  ]);
-
-  const csv = [header, ...body]
-    .map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(","))
-    .join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "sanctions-monitoring.csv";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
 document.getElementById("updateBtn").addEventListener("click", () => saveSanctionUpdate());
 document.getElementById("markCompleteBtn").addEventListener("click", () => saveSanctionUpdate("fulfilled"));
 document.getElementById("closeSanctionModalBtn").addEventListener("click", () => closeModal("sanctionModal"));
-document.getElementById("exportBtn").addEventListener("click", exportCsv);
 ["search", "statusFilter", "typeFilter"].forEach(id => {
   document.getElementById(id).addEventListener("input", renderAll);
   document.getElementById(id).addEventListener("change", renderAll);

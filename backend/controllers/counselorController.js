@@ -1,6 +1,12 @@
 const pool = require("../config/db");
 const { logAudit } = require("../utils/auditLogger");
 const { getCaseStatusRecord, isCaseClosed } = require("./caseController");
+const {
+  createWorkflowEvent,
+  labelize,
+  notifyCaseStakeholders,
+  refreshCaseWorkflow
+} = require("../utils/caseWorkflow");
 
 function buildAvatarUrl(avatarPath) {
   if (!avatarPath) {
@@ -129,7 +135,17 @@ async function getCounselorCases(req, res) {
         c.assigned_to_user_id,
         assignee.first_name AS assigned_to_first_name,
         assignee.last_name AS assigned_to_last_name,
-        assignee.role AS assigned_to_role
+        assignee.role AS assigned_to_role,
+        EXISTS (
+          SELECT 1
+          FROM hearings overdue_hearing
+          WHERE overdue_hearing.case_id = c.id
+            AND overdue_hearing.status = 'scheduled'
+            AND TIMESTAMP(
+              overdue_hearing.scheduled_date,
+              COALESCE(overdue_hearing.scheduled_time, '23:59:59')
+            ) < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+        ) AS has_overdue_hearing
       FROM cases c
       JOIN students s ON c.student_id = s.id
       LEFT JOIN users u ON s.user_id = u.id
@@ -142,6 +158,9 @@ async function getCounselorCases(req, res) {
       success: true,
       cases: rows.map(item => ({
         ...item,
+        has_overdue_hearing: Number(item.has_overdue_hearing) === 1,
+        operational_status: Number(item.has_overdue_hearing) === 1 ? "hearing_overdue" : item.status,
+        operational_status_label: Number(item.has_overdue_hearing) === 1 ? "Hearing Overdue" : labelize(item.status),
         student_avatar_url: buildAvatarUrl(item.student_avatar_path),
         assigned_to_role_label: formatRoleLabel(item.assigned_to_role),
         support_scope: item.assigned_to_user_id
@@ -286,9 +305,28 @@ async function createCounselorIntervention(req, res) {
       ipAddress: req.ip
     });
 
+    await createWorkflowEvent({
+      caseId,
+      userId: req.user.id,
+      eventType: "counselor_note",
+      title: "Counselor follow-up recorded",
+      details: `${labelize(finalType)} marked ${labelize(finalStatus)}.${followUpDate ? ` Follow-up date: ${followUpDate}.` : ""}`,
+      metadata: { interventionId: result.insertId, status: finalStatus }
+    });
+
+    const workflow = await refreshCaseWorkflow(caseId);
+
+    await notifyCaseStakeholders({
+      caseId,
+      title: "Counselor Follow-up Recorded",
+      message: `${caseRows[0].case_number} has a ${labelize(finalType)} support update marked ${labelize(finalStatus)}.${followUpDate ? ` Follow-up date: ${followUpDate}.` : ""}`,
+      excludeUserId: req.user.id
+    });
+
     return res.status(201).json({
       success: true,
-      message: "Counselor note saved successfully."
+      message: "Counselor note saved successfully.",
+      workflow
     });
   } catch (error) {
     console.error("Create intervention error:", error);
@@ -306,9 +344,10 @@ async function updateCounselorIntervention(req, res) {
 
     const [rows] = await pool.query(
       `
-      SELECT id
-      FROM counselor_interventions
-      WHERE id = ? AND counselor_user_id = ?
+      SELECT ci.id, ci.case_id, c.case_number
+      FROM counselor_interventions ci
+      JOIN cases c ON c.id = ci.case_id
+      WHERE ci.id = ? AND ci.counselor_user_id = ?
       LIMIT 1
       `,
       [id, req.user.id]
@@ -342,6 +381,9 @@ async function updateCounselorIntervention(req, res) {
     const allowedTypes = ["intervention", "behavior_note", "recommendation", "follow_up"];
     const allowedStatuses = ["planned", "ongoing", "completed"];
 
+    const finalType = allowedTypes.includes(noteType) ? noteType : "intervention";
+    const finalStatus = allowedStatuses.includes(status) ? status : "planned";
+
     await pool.query(
       `
       UPDATE counselor_interventions
@@ -353,17 +395,38 @@ async function updateCounselorIntervention(req, res) {
       WHERE id = ?
       `,
       [
-        allowedTypes.includes(noteType) ? noteType : "intervention",
+        finalType,
         note,
-        allowedStatuses.includes(status) ? status : "planned",
+        finalStatus,
         followUpDate || null,
         id
       ]
     );
 
+    const workflow = caseRows.length ? await refreshCaseWorkflow(caseRows[0].case_id) : null;
+
+    if (caseRows.length) {
+      await createWorkflowEvent({
+        caseId: caseRows[0].case_id,
+        userId: req.user.id,
+        eventType: "counselor_note_updated",
+        title: "Counselor follow-up updated",
+        details: `${labelize(finalType)} marked ${labelize(finalStatus)}.${followUpDate ? ` Follow-up date: ${followUpDate}.` : ""}`,
+        metadata: { interventionId: Number(id), status: finalStatus }
+      });
+
+      await notifyCaseStakeholders({
+        caseId: caseRows[0].case_id,
+        title: "Counselor Follow-up Updated",
+        message: `${rows[0].case_number} counselor support is now ${labelize(finalStatus)}.${followUpDate ? ` Follow-up date: ${followUpDate}.` : ""}`,
+        excludeUserId: req.user.id
+      });
+    }
+
     return res.json({
       success: true,
-      message: "Counselor note updated successfully."
+      message: "Counselor note updated successfully.",
+      workflow
     });
   } catch (error) {
     console.error("Update intervention error:", error);

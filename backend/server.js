@@ -14,6 +14,8 @@ const evidenceRoutes = require("./routes/evidenceRoutes");
 const appealRoutes = require("./routes/appealRoutes");
 const counselorRoutes = require("./routes/counselorRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const caseProcessRoutes = require("./routes/caseProcessRoutes");
+const messageRoutes = require("./routes/messageRoutes");
 const app = express();
 
 
@@ -40,6 +42,8 @@ app.use("/api/evidence", evidenceRoutes);
 app.use("/api/appeals", appealRoutes);
 app.use("/api/counselor", counselorRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/case-process", caseProcessRoutes);
+app.use("/api/messages", messageRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

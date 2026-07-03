@@ -1,0 +1,34 @@
+Email log error: Error: Table 'disciplinary_system.email_logs' doesn't exist
+    at PromisePool.query (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\mysql2\lib\promise\pool.js:36:22)
+    at logEmail (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\utils\emailService.js:75:14)
+    at safeLogEmail (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\utils\emailService.js:99:11)
+    at sendEmail (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\utils\emailService.js:170:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async createStudent (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\controllers\adminIdentityController.js:1259:27) {
+  code: 'ER_NO_SUCH_TABLE',
+  errno: 1146,
+  sql: '\n' +
+    '    INSERT INTO email_logs\n' +
+    '    (case_id, student_id, parent_id, user_id, recipient_role, email_address, subject, message, delivery_status, failure_reason, sent_at)\n' +
+    "    VALUES (NULL, 236, NULL, 617, 'student', 'joshuapogiacc23@gmail.com', 'Your Philtech-GMA Portal Account', 'Dear Joshua Halal Garcia,\\n\\nYour Philtech-GMA Disciplinary System portal account has been created.\\n\\nRole: student\\nUsername: joshuag2345\\nTemporary Password: C2he9F0Q80\\nLogin Link: http://127.0.0.1:5500/frontend/pages/auth/login.html\\n\\nPlease log in and change your password after your first successful login. Keep these credentials private.\\n\\nPhiltech-GMA Disciplinary Office', 'sent', NULL, '2026-06-20 03:25:39.198')\n" +
+    '    ',
+  sqlState: '42S02',
+  sqlMessage: "Table 'disciplinary_system.email_logs' doesn't exist"
+}
+Email log error: Error: Table 'disciplinary_system.email_logs' doesn't exist
+    at PromisePool.query (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\mysql2\lib\promise\pool.js:36:22)
+    at logEmail (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\utils\emailService.js:75:14)
+    at safeLogEmail (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\utils\emailService.js:99:11)
+    at sendEmail (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\utils\emailService.js:170:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async createStudent (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\controllers\adminIdentityController.js:1259:27) {
+  code: 'ER_NO_SUCH_TABLE',
+  errno: 1146,
+  sql: '\n' +
+    '    INSERT INTO email_logs\n' +
+    '    (case_id, student_id, parent_id, user_id, recipient_role, email_address, subject, message, delivery_status, failure_reason, sent_at)\n' +
+    "    VALUES (NULL, NULL, 222, 618, 'parent', 'shiorirakuen@gmail.com', 'Your Philtech-GMA Portal Account', 'Dear Shiori Rakuen Saisumi,\\n\\nYour Philtech-GMA Disciplinary System portal account has been created.\\n\\nRole: parent\\nUsername: shioris\\nTemporary Password: tqOInsri0K\\nLogin Link: http://127.0.0.1:5500/frontend/pages/auth/login.html\\n\\nPlease log in and change your password after your first successful login. Keep these credentials private.\\n\\nPhiltech-GMA Disciplinary Office', 'sent', NULL, '2026-06-20 03:25:41.815')\n" +
+    '    ',
+  sqlState: '42S02',
+  sqlMessage: "Table 'disciplinary_system.email_logs' doesn't exist"
+}

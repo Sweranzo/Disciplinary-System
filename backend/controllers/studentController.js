@@ -53,9 +53,48 @@ async function getAllStudents(req, res) {
       params.push(req.query.status);
     }
 
+    if (req.query.academicLevel && ["college", "shs"].includes(req.query.academicLevel)) {
+      whereClause += whereClause ? " AND s.academic_level = ?" : " WHERE s.academic_level = ?";
+      params.push(req.query.academicLevel);
+    }
+
+    if (req.query.program) {
+      whereClause += whereClause ? " AND s.program = ?" : " WHERE s.program = ?";
+      params.push(req.query.program);
+    }
+
+    if (req.query.yearLevel) {
+      whereClause += whereClause ? " AND s.year_level = ?" : " WHERE s.year_level = ?";
+      params.push(req.query.yearLevel);
+    }
+
+    if (req.query.section) {
+      whereClause += whereClause ? " AND s.section = ?" : " WHERE s.section = ?";
+      params.push(req.query.section);
+    }
+
+    if (req.query.accountType === "with_account") {
+      whereClause += whereClause ? " AND s.user_id IS NOT NULL" : " WHERE s.user_id IS NOT NULL";
+    } else if (req.query.accountType === "profile_only") {
+      whereClause += whereClause ? " AND s.user_id IS NULL" : " WHERE s.user_id IS NULL";
+    }
+
     const [countRows] = await pool.query(
       `
       SELECT COUNT(*) AS total
+      FROM students s
+      LEFT JOIN users u ON s.user_id = u.id
+      ${whereClause}
+      `,
+      params
+    );
+
+    const [summaryRows] = await pool.query(
+      `
+      SELECT
+        SUM(CASE WHEN s.user_id IS NOT NULL THEN 1 ELSE 0 END) AS with_account,
+        SUM(CASE WHEN s.user_id IS NULL THEN 1 ELSE 0 END) AS profile_only,
+        SUM(CASE WHEN COALESCE(u.status, s.record_status) = 'inactive' THEN 1 ELSE 0 END) AS inactive
       FROM students s
       LEFT JOIN users u ON s.user_id = u.id
       ${whereClause}
@@ -111,6 +150,11 @@ async function getAllStudents(req, res) {
     return res.json({
       success: true,
       students,
+      summary: {
+        withAccount: Number(summaryRows[0]?.with_account || 0),
+        profileOnly: Number(summaryRows[0]?.profile_only || 0),
+        inactive: Number(summaryRows[0]?.inactive || 0)
+      },
       pagination: {
         page,
         limit,
@@ -121,6 +165,64 @@ async function getAllStudents(req, res) {
   } catch (error) {
     console.error("Get students error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
+  }
+}
+
+async function getStudentFilterOptions(req, res) {
+  try {
+    const params = [];
+    let whereClause = "WHERE 1 = 1";
+
+    if (req.query.academicLevel && ["college", "shs"].includes(req.query.academicLevel)) {
+      whereClause += " AND academic_level = ?";
+      params.push(req.query.academicLevel);
+    }
+
+    const [programRows] = await pool.query(
+      `
+      SELECT DISTINCT program AS value
+      FROM students
+      ${whereClause}
+      AND program IS NOT NULL
+      AND program <> ''
+      ORDER BY program
+      `,
+      params
+    );
+
+    const [yearRows] = await pool.query(
+      `
+      SELECT DISTINCT year_level AS value
+      FROM students
+      ${whereClause}
+      AND year_level IS NOT NULL
+      AND year_level <> ''
+      ORDER BY year_level
+      `,
+      params
+    );
+
+    const [sectionRows] = await pool.query(
+      `
+      SELECT DISTINCT section AS value
+      FROM students
+      ${whereClause}
+      AND section IS NOT NULL
+      AND section <> ''
+      ORDER BY section
+      `,
+      params
+    );
+
+    return res.json({
+      success: true,
+      programs: programRows.map(row => row.value),
+      yearLevels: yearRows.map(row => row.value),
+      sections: sectionRows.map(row => row.value)
+    });
+  } catch (error) {
+    console.error("Get student filter options error:", error);
+    return res.status(500).json({ success: false, message: "Server error while fetching student filter options." });
   }
 }
 
@@ -165,7 +267,8 @@ async function lookupStudentForReporting(req, res) {
         COALESCE(u.middle_name, s.middle_name) AS middle_name,
         COALESCE(u.last_name, s.last_name) AS last_name,
         COALESCE(u.email, s.email) AS email,
-        COALESCE(u.status, s.record_status) AS status
+        COALESCE(u.status, s.record_status) AS status,
+        u.avatar_path
       FROM students s
       LEFT JOIN users u ON s.user_id = u.id
       ${whereClause}
@@ -186,7 +289,8 @@ async function lookupStudentForReporting(req, res) {
       success: true,
       student: {
         ...student,
-        full_name: [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ")
+        full_name: [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" "),
+        avatar_url: buildAvatarUrl(student.avatar_path)
       }
     });
   } catch (error) {
@@ -272,15 +376,28 @@ async function getStudentProfileById(req, res) {
     const [recentCases] = await pool.query(
       `
       SELECT
-        id,
-        case_number,
-        violation_type,
-        severity_level,
-        status,
-        incident_date
-      FROM cases
-      WHERE student_id = ?
-      ORDER BY created_at DESC
+        c.id,
+        c.case_number,
+        c.violation_type,
+        c.severity_level,
+        c.status,
+        c.incident_date,
+        EXISTS (
+          SELECT 1
+          FROM hearings overdue_hearing
+          WHERE overdue_hearing.case_id = c.id
+            AND overdue_hearing.status = 'scheduled'
+            AND TIMESTAMP(
+              overdue_hearing.scheduled_date,
+              COALESCE(overdue_hearing.scheduled_time, '23:59:59')
+            ) < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+        ) AS has_overdue_hearing,
+        reporter.first_name AS reported_by_first_name,
+        reporter.last_name AS reported_by_last_name
+      FROM cases c
+      JOIN users reporter ON c.reported_by_user_id = reporter.id
+      WHERE c.student_id = ?
+      ORDER BY c.created_at DESC
       LIMIT 10
       `,
       [id]
@@ -311,6 +428,13 @@ async function getStudentProfileById(req, res) {
         h.scheduled_time,
         h.location,
         h.status,
+        (
+          h.status = 'scheduled'
+          AND TIMESTAMP(
+            h.scheduled_date,
+            COALESCE(h.scheduled_time, '23:59:59')
+          ) < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+        ) AS has_overdue_hearing,
         c.case_number,
         c.violation_type
       FROM hearings h
@@ -344,9 +468,17 @@ async function getStudentProfileById(req, res) {
       success: true,
       student,
       parents,
-      recentCases,
+      recentCases: recentCases.map(item => ({
+        ...item,
+        has_overdue_hearing: Number(item.has_overdue_hearing) === 1,
+        operational_status: Number(item.has_overdue_hearing) === 1 ? "hearing_overdue" : item.status
+      })),
       sanctions,
-      hearings,
+      hearings: hearings.map(item => ({
+        ...item,
+        has_overdue_hearing: Number(item.has_overdue_hearing) === 1,
+        operational_status: Number(item.has_overdue_hearing) === 1 ? "hearing_overdue" : item.status
+      })),
       appeals
     });
   } catch (error) {
@@ -652,6 +784,37 @@ async function deactivateStudent(req, res) {
   }
 }
 
+async function activateStudent(req, res) {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await pool.query(
+      `
+      SELECT user_id
+      FROM students
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ success: false, message: "Student not found." });
+    }
+
+    if (rows[0].user_id) {
+      await pool.query(`UPDATE users SET status = 'active' WHERE id = ?`, [rows[0].user_id]);
+    }
+
+    await pool.query(`UPDATE students SET record_status = 'active' WHERE id = ?`, [id]);
+
+    return res.json({ success: true, message: "Student activated successfully." });
+  } catch (error) {
+    console.error("Activate student error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+}
+
 async function getParentOptions(req, res) {
   try {
     const [rows] = await pool.query(
@@ -713,6 +876,7 @@ async function linkParentToStudent(req, res) {
 
 module.exports = {
   getAllStudents,
+  getStudentFilterOptions,
   lookupStudentForReporting,
   getStudentProfileById,
   getMyStudentProfile,
@@ -720,6 +884,7 @@ module.exports = {
   updateStudentProfile,
   createStudent,
   deactivateStudent,
+  activateStudent,
   getParentOptions,
   linkParentToStudent
 };

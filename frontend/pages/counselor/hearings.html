@@ -16,7 +16,60 @@
     </div>
     <div class="action-row">
       <a href="dashboard.html"><button class="secondary">Back</button></a>
+      <button type="button" id="todayBtn">Today</button>
       <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="summary-grid-compact page-section">
+    <div class="summary-card-compact">
+      <strong>All Hearings</strong>
+      <span id="totalHearings">0</span>
+      <small>Visible to counselor support work.</small>
+    </div>
+    <div class="summary-card-compact">
+      <strong>Scheduled</strong>
+      <span id="scheduledCount">0</span>
+      <small>Active hearing events.</small>
+    </div>
+    <div class="summary-card-compact">
+      <strong>This Month</strong>
+      <span id="monthCount">0</span>
+      <small>Events in the selected calendar month.</small>
+    </div>
+    <div class="summary-card-compact">
+      <strong>Completed / Cancelled</strong>
+      <span id="closedCount">0</span>
+      <small>Closed hearing records.</small>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="calendar-shell">
+      <div class="calendar-toolbar">
+        <div class="calendar-nav">
+          <button type="button" class="secondary" id="prevMonthBtn">Previous</button>
+          <div class="calendar-month-label" id="monthLabel">Month Year</div>
+          <button type="button" class="secondary" id="nextMonthBtn">Next</button>
+        </div>
+        <div class="toolbar" style="margin-bottom:0;">
+          <input type="search" id="hearingSearch" placeholder="Search case, student, violation, location">
+          <select id="statusFilter">
+            <option value="">All Events</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="hearing_overdue">Overdue</option>
+          </select>
+        </div>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+      <div class="legend-row">
+        <span class="legend-item"><span class="legend-swatch scheduled"></span>Scheduled</span>
+        <span class="legend-item"><span class="legend-swatch overdue"></span>Overdue</span>
+        <span class="legend-item"><span class="legend-swatch completed"></span>Completed</span>
+        <span class="legend-item"><span class="legend-swatch cancelled"></span>Cancelled</span>
+      </div>
     </div>
   </div>
 
@@ -28,15 +81,6 @@
       </div>
     </div>
     <div class="table-wrap">
-      <div class="toolbar">
-        <input type="search" id="hearingSearch" placeholder="Search case, student, violation, location">
-        <select id="statusFilter">
-          <option value="">All Statuses</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-      </div>
       <table>
         <thead>
           <tr>
@@ -58,6 +102,22 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="hearingModal">
+  <div class="modal-card">
+    <div class="card-header">
+      <div>
+        <h2>Hearing Details</h2>
+        <p class="muted">Review the selected hearing, then open the case if follow-up notes are needed.</p>
+      </div>
+    </div>
+    <div id="hearingPreview" class="key-value"></div>
+    <div class="modal-actions">
+      <button id="closeHearingModalBtn" type="button" class="secondary compact-btn">Close</button>
+      <a id="hearingCaseLink" href="#"><button type="button" class="compact-btn">Open Case</button></a>
+    </div>
+  </div>
+</div>
+
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
 <script>
@@ -66,7 +126,58 @@ const user = getUser();
 if (!user || user.role !== "guidance_counselor") { alert("Access denied"); logout(); }
 
 function badge(value) {
-  return `<span class="badge ${value}">${String(value || "-").replaceAll("_", " ")}</span>`;
+  const normalized = String(value || "scheduled").toLowerCase().replaceAll(" ", "_");
+  return `<span class="badge ${normalized}">${String(value || "-").replaceAll("_", " ")}</span>`;
+}
+
+let allHearings = [];
+let currentMonth = new Date();
+currentMonth.setDate(1);
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function normalizeScheduleDate(value) {
+  if (!value) return "";
+  const raw = String(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return raw.slice(0, 10);
+  return [
+    parsed.getFullYear(),
+    String(parsed.getMonth() + 1).padStart(2, "0"),
+    String(parsed.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
+function toDateOnly(value) {
+  if (!value) return null;
+  const date = new Date(`${normalizeScheduleDate(value)}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function isSameDay(a, b) {
+  return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function getHearingDateTime(item) {
+  if (!item?.scheduled_date) return null;
+  const timePart = item.scheduled_time ? String(item.scheduled_time).slice(0, 8) : "23:59:59";
+  const date = new Date(`${normalizeScheduleDate(item.scheduled_date)}T${timePart}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isOverdueHearing(item) {
+  const scheduledAt = getHearingDateTime(item);
+  return item?.operational_status === "hearing_overdue" || (item?.status === "scheduled" && scheduledAt && scheduledAt.getTime() < Date.now());
 }
 
 async function loadHearings() {
@@ -79,10 +190,68 @@ async function loadHearings() {
   }
 
   allHearings = res.hearings || [];
-  applyFilters();
+  renderAll();
 }
 
-let allHearings = [];
+function renderSummary(items) {
+  const month = currentMonth.getMonth();
+  const year = currentMonth.getFullYear();
+  document.getElementById("totalHearings").textContent = items.length;
+  document.getElementById("scheduledCount").textContent = items.filter(item => item.status === "scheduled" && !isOverdueHearing(item)).length;
+  document.getElementById("closedCount").textContent = items.filter(item => ["completed", "cancelled"].includes(item.status)).length;
+  document.getElementById("monthCount").textContent = items.filter(item => {
+    const date = toDateOnly(item.scheduled_date);
+    return date && date.getMonth() === month && date.getFullYear() === year;
+  }).length;
+}
+
+function renderCalendar(items) {
+  const calendarGrid = document.getElementById("calendarGrid");
+  const monthLabel = document.getElementById("monthLabel");
+  const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+  const gridStart = new Date(monthStart);
+  gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+  const today = toDateOnly(new Date());
+  monthLabel.textContent = currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  let html = weekdays.map(day => `<div class="calendar-weekday">${day}</div>`).join("");
+
+  for (let index = 0; index < 42; index += 1) {
+    const day = new Date(gridStart);
+    day.setDate(gridStart.getDate() + index);
+    const dayHearings = items
+      .filter(item => isSameDay(toDateOnly(item.scheduled_date), day))
+      .sort((a, b) => String(a.scheduled_time || "").localeCompare(String(b.scheduled_time || "")));
+    const dayClasses = [
+      "calendar-day",
+      day.getMonth() !== currentMonth.getMonth() ? "other-month" : "",
+      isSameDay(day, today) ? "today" : "",
+      dayHearings.length ? "has-events" : "",
+      dayHearings.some(isOverdueHearing) ? "has-overdue" : ""
+    ].filter(Boolean).join(" ");
+
+    html += `
+      <div class="${dayClasses}">
+        <div class="calendar-day-number">${day.getDate()}</div>
+        <div class="calendar-event-list">
+          ${dayHearings.length
+            ? dayHearings.slice(0, 3).map(item => `
+                <button type="button" class="calendar-event ${escapeHtml(item.status)} ${isOverdueHearing(item) ? "overdue" : ""}" onclick="selectHearing(${Number(item.id)})">
+                  <strong>${escapeHtml(formatDisplayTime(item.scheduled_time))}</strong>
+                  <span>${escapeHtml(item.case_number)}</span>
+                  ${isOverdueHearing(item) ? `<em>Overdue</em>` : ""}
+                </button>
+              `).join("")
+            : `<span class="calendar-empty-hint">No hearings</span>`
+          }
+          ${dayHearings.length > 3 ? `<span class="calendar-day-more">+${dayHearings.length - 3} more</span>` : ""}
+        </div>
+      </div>
+    `;
+  }
+
+  calendarGrid.innerHTML = html;
+}
 
 function renderHearings(items) {
   const table = document.getElementById("hearingTable");
@@ -93,25 +262,26 @@ function renderHearings(items) {
   }
 
   table.innerHTML = items.map(h => `
-    <tr>
-      <td>${h.case_number}</td>
-      <td>${h.first_name} ${h.last_name} (${h.student_number})</td>
-      <td>${h.violation_type}</td>
-      <td>${formatDisplayDate(h.scheduled_date)}</td>
-      <td>${formatDisplayTime(h.scheduled_time)}</td>
-      <td>${h.location || "-"}</td>
-      <td>${badge(h.status)}</td>
+    <tr class="${isOverdueHearing(h) ? "hearing-row-overdue" : ""}">
+      <td>${escapeHtml(h.case_number)}</td>
+      <td>${escapeHtml(h.first_name)} ${escapeHtml(h.last_name)} (${escapeHtml(h.student_number)})</td>
+      <td>${escapeHtml(h.violation_type)}</td>
+      <td>${escapeHtml(formatDisplayDate(h.scheduled_date))}</td>
+      <td>${escapeHtml(formatDisplayTime(h.scheduled_time))}</td>
+      <td>${escapeHtml(h.location || "-")}</td>
+      <td>${isOverdueHearing(h) ? badge("hearing_overdue") : badge(h.status)}</td>
       <td><a href="case-details.html?id=${h.case_id}"><button type="button">Open Case</button></a></td>
     </tr>
   `).join("");
 }
 
-function applyFilters() {
+function getFilteredHearings() {
   const search = document.getElementById("hearingSearch").value.trim().toLowerCase();
   const status = document.getElementById("statusFilter").value;
 
-  renderHearings(allHearings.filter(h => {
-    const matchesStatus = !status || h.status === status;
+  return allHearings.filter(h => {
+    const operationalStatus = isOverdueHearing(h) ? "hearing_overdue" : h.status;
+    const matchesStatus = !status || h.status === status || operationalStatus === status;
     const matchesSearch = !search || [
       h.case_number,
       h.first_name,
@@ -123,11 +293,57 @@ function applyFilters() {
     ].some(value => String(value || "").toLowerCase().includes(search));
 
     return matchesStatus && matchesSearch;
-  }));
+  });
 }
 
-document.getElementById("hearingSearch").addEventListener("input", applyFilters);
-document.getElementById("statusFilter").addEventListener("change", applyFilters);
+function renderAll() {
+  const items = getFilteredHearings();
+  renderSummary(items);
+  renderCalendar(items);
+  renderHearings(items);
+}
+
+function openModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.add("open");
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.remove("open");
+}
+
+function selectHearing(id) {
+  const item = allHearings.find(row => Number(row.id) === Number(id));
+  if (!item) return;
+  document.getElementById("hearingCaseLink").href = `case-details.html?id=${item.case_id}`;
+  document.getElementById("hearingPreview").innerHTML = `
+    <div class="key-value-row"><strong>Case</strong><span>${escapeHtml(item.case_number)}</span></div>
+    <div class="key-value-row"><strong>Student</strong><span>${escapeHtml(item.first_name)} ${escapeHtml(item.last_name)} (${escapeHtml(item.student_number)})</span></div>
+    <div class="key-value-row"><strong>Violation</strong><span>${escapeHtml(item.violation_type || "-")}</span></div>
+    <div class="key-value-row"><strong>Date & Time</strong><span>${escapeHtml(formatDisplayDateWithTime(item.scheduled_date, item.scheduled_time))}</span></div>
+    <div class="key-value-row"><strong>Location</strong><span>${escapeHtml(item.location || "Location not set")}</span></div>
+    <div class="key-value-row"><strong>Status</strong><span>${isOverdueHearing(item) ? badge("hearing_overdue") : badge(item.status)}</span></div>
+  `;
+  openModal("hearingModal");
+}
+
+document.getElementById("prevMonthBtn").addEventListener("click", () => {
+  currentMonth.setMonth(currentMonth.getMonth() - 1);
+  renderAll();
+});
+document.getElementById("nextMonthBtn").addEventListener("click", () => {
+  currentMonth.setMonth(currentMonth.getMonth() + 1);
+  renderAll();
+});
+document.getElementById("todayBtn").addEventListener("click", () => {
+  currentMonth = new Date();
+  currentMonth.setDate(1);
+  renderAll();
+});
+document.getElementById("hearingSearch").addEventListener("input", renderAll);
+document.getElementById("statusFilter").addEventListener("change", renderAll);
+document.getElementById("closeHearingModalBtn").addEventListener("click", () => closeModal("hearingModal"));
 loadHearings();
 </script>
 

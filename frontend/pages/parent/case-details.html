@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Child Case Details</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container case-detail-workspace">
+  <div class="topbar">
+    <div>
+      <h1 id="caseTitle">Case Details</h1>
+      <p class="muted" id="caseMeta">Review the official notice, current procedure status, and recorded actions.</p>
+    </div>
+    <div class="action-row">
+      <a href="cases.html"><button class="secondary" type="button">Back to Cases</button></a>
+      <button onclick="logout()" type="button">Logout</button>
+    </div>
+  </div>
+
+  <div id="caseContent" class="page-section">Loading...</div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/case-messages.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "parent") {
+  alert("Access denied");
+  logout();
+}
+
+const caseId = new URLSearchParams(window.location.search).get("id");
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function badge(value) {
+  const safe = String(value || "-");
+  return `<span class="badge ${escapeHtml(safe.toLowerCase().replaceAll(" ", "_"))}">${escapeHtml(safe.replaceAll("_", " "))}</span>`;
+}
+
+function labelize(value) {
+  return String(value || "-").replaceAll("_", " ");
+}
+
+function renderWorkflowTimeline(items = []) {
+  if (!items.length) {
+    return `<div class="empty-state">No procedure history recorded yet.</div>`;
+  }
+
+  return `<div class="workflow-timeline-list">${items.map(event => `
+    <div class="workflow-timeline-item">
+      <strong>${escapeHtml(event.title || labelize(event.event_type))}</strong>
+      <p>${escapeHtml(event.details || "")}</p>
+      <small>${formatDisplayDateTime(event.created_at)}</small>
+    </div>
+  `).join("")}</div>`;
+}
+
+function renderFormalProcess(process = {}) {
+  const policies = process.policies || [];
+  const decisions = process.decisions || [];
+  return `
+    <section class="card page-section">
+      <div class="card-header">
+        <div>
+          <h2>Policy and Decision Record</h2>
+          <p class="muted">Official policy references and formal decisions for this case.</p>
+        </div>
+      </div>
+      <div class="split-grid">
+        <div>
+          <h3>Policy Basis</h3>
+          ${policies.length ? `<div class="detail-list">${policies.map(item => `
+            <div class="detail-item">
+              <p><strong>${escapeHtml(item.policy_code ? `${item.policy_code}: ${item.title}` : item.title)}</strong></p>
+              <p class="muted">${escapeHtml(item.notes || "No additional policy notes.")}</p>
+            </div>
+          `).join("")}</div>` : `<div class="empty-state">No policy reference recorded yet.</div>`}
+        </div>
+        <div>
+          <h3>Formal Decisions</h3>
+          ${decisions.length ? `<div class="detail-list">${decisions.map(item => `
+            <div class="detail-item">
+              <p><strong>${escapeHtml(labelize(item.finding))}</strong> ${badge(item.status)}</p>
+              <p>${escapeHtml(item.basis || "No decision basis recorded.")}</p>
+              <p class="muted">${escapeHtml(item.recommended_action || "No recommended action recorded.")}</p>
+            </div>
+          `).join("")}</div>` : `<div class="empty-state">No formal decision recorded yet.</div>`}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderCase(caseItem, timeline, process) {
+  const acknowledgements = timeline.acknowledgements || [];
+  const acknowledged = acknowledgements.some(item => Number(item.user_id) === Number(user.id));
+
+  return `
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>Official Case Notice</h2>
+          <p class="muted">This case is connected to your linked student record.</p>
+        </div>
+        ${badge(caseItem.operational_status || caseItem.status)}
+      </div>
+      <div class="case-list-grid">
+        <div><strong>Case Number</strong><span>${escapeHtml(caseItem.case_number)}</span></div>
+        <div><strong>Student</strong><span>${escapeHtml(`${caseItem.first_name || ""} ${caseItem.last_name || ""}`.trim())} (${escapeHtml(caseItem.student_number)})</span></div>
+        <div><strong>Violation</strong><span>${escapeHtml(caseItem.violation_type)}</span></div>
+        <div><strong>Severity</strong><span>${badge(caseItem.severity_level)}</span></div>
+        <div><strong>Incident Date</strong><span>${formatDisplayDate(caseItem.incident_date)}</span></div>
+        <div><strong>Location</strong><span>${escapeHtml(caseItem.location || "-")}</span></div>
+        <div><strong>Next Required Action</strong><span>${escapeHtml(caseItem.next_action_label || labelize(caseItem.next_action))}</span></div>
+        <div><strong>Notice Status</strong><span>${acknowledged ? "Acknowledged" : "Not acknowledged"}</span></div>
+      </div>
+      <div class="detail-item" style="margin-top:16px;">
+        <p><strong>Description</strong></p>
+        <p>${escapeHtml(caseItem.description || "No description recorded.")}</p>
+      </div>
+      <div class="detail-item" style="margin-top:16px;">
+        <p><strong>Next Step</strong></p>
+        <p>${escapeHtml(caseItem.next_action_notes || "The school office will update this case as it moves forward.")}</p>
+        ${acknowledged ? "" : `<button id="acknowledgeCaseBtn" type="button" class="secondary">Acknowledge Notice</button>`}
+        <p id="acknowledgeResult" class="muted"></p>
+      </div>
+    </section>
+
+    <section class="card page-section">
+      <div class="card-header">
+        <div>
+          <h2>Hearing Schedule</h2>
+          <p class="muted">Current and completed hearing records for this case.</p>
+        </div>
+      </div>
+      ${(timeline.hearings || []).length ? `<div class="detail-list">${timeline.hearings.map(hearing => `
+        <div class="detail-item">
+          <p><strong>${formatDisplayDateWithTime(hearing.scheduled_date, hearing.scheduled_time)}</strong> ${badge(hearing.operational_status || hearing.status)}</p>
+          <p>${escapeHtml(hearing.location || "Location not set")}</p>
+          <p class="muted">${escapeHtml(hearing.outcome || "No outcome recorded yet.")}</p>
+        </div>
+      `).join("")}</div>` : `<div class="empty-state">No hearing scheduled for this case.</div>`}
+    </section>
+
+    <section class="card page-section">
+      <div class="card-header">
+        <div>
+          <h2>Procedure History</h2>
+          <p class="muted">Major workflow events recorded for this case.</p>
+        </div>
+      </div>
+      ${renderWorkflowTimeline(timeline.workflowEvents || [])}
+    </section>
+
+    ${renderFormalProcess(process)}
+
+    <section class="card page-section">
+      <div class="card-header">
+        <div>
+          <h2>Parent Response</h2>
+          <p class="muted">Record your acknowledgement, concern, or clarification for the official case process.</p>
+        </div>
+      </div>
+      <textarea id="parentStatementContent" placeholder="Write your response or clarification here."></textarea>
+      <div class="action-row">
+        <button id="submitParentStatementBtn" type="button" class="secondary">Submit Response</button>
+        <span id="parentStatementResult" class="muted"></span>
+      </div>
+    </section>
+  `;
+}
+
+function wireAcknowledgement() {
+  const button = document.getElementById("acknowledgeCaseBtn");
+  if (!button) return;
+
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    button.textContent = "Acknowledging...";
+    const res = await apiRequest(`/cases/${caseId}/acknowledge`, "POST", {}, true);
+    document.getElementById("acknowledgeResult").textContent = res.success ? "Notice acknowledged." : res.message;
+    if (res.success) {
+      loadCaseDetails();
+    } else {
+      button.disabled = false;
+      button.textContent = "Acknowledge Notice";
+    }
+  });
+}
+
+function wireParentStatement() {
+  const button = document.getElementById("submitParentStatementBtn");
+  if (!button) return;
+
+  button.addEventListener("click", async () => {
+    const content = document.getElementById("parentStatementContent").value.trim();
+    const result = document.getElementById("parentStatementResult");
+    const res = await apiRequest(`/case-process/cases/${caseId}/statements`, "POST", {
+      subjectRole: "parent",
+      statementType: "parent_response",
+      content
+    }, true);
+    result.textContent = res.success ? "Parent response submitted." : res.message;
+    if (res.success) {
+      document.getElementById("parentStatementContent").value = "";
+    }
+  });
+}
+
+async function loadCaseDetails() {
+  const container = document.getElementById("caseContent");
+  if (!caseId) {
+    container.innerHTML = `<div class="empty-state">No case selected.</div>`;
+    return;
+  }
+
+  const [res, processRes] = await Promise.all([
+    apiRequest(`/cases/${encodeURIComponent(caseId)}`, "GET", null, true),
+    apiRequest(`/case-process/cases/${encodeURIComponent(caseId)}`, "GET", null, true)
+  ]);
+  if (!res.success) {
+    container.innerHTML = `<div class="empty-state">${escapeHtml(res.message || "Unable to load case.")}</div>`;
+    return;
+  }
+
+  document.getElementById("caseTitle").textContent = res.case.case_number || "Case Details";
+  document.getElementById("caseMeta").textContent = `${res.case.violation_type || "Case"} | ${formatDisplayDate(res.case.incident_date)}`;
+  container.innerHTML = renderCase(res.case, res.timeline || {}, processRes.success ? processRes : {});
+  wireAcknowledgement();
+  wireParentStatement();
+}
+
+loadCaseDetails();
+</script>
+
+</body>
+</html>

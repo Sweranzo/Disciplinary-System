@@ -36,6 +36,7 @@
         <option value="pending">Pending</option>
         <option value="under_investigation">Under Investigation</option>
         <option value="hearing_scheduled">Hearing Scheduled</option>
+        <option value="hearing_overdue">Hearing Overdue</option>
         <option value="dismissed">Dismissed</option>
         <option value="resolved">Resolved</option>
       </select>
@@ -62,7 +63,7 @@
       </div>
     </div>
     <div class="table-wrap">
-      <table>
+      <table class="discipline-case-table">
         <thead>
           <tr>
             <th>Case</th>
@@ -70,14 +71,19 @@
             <th>Violation</th>
             <th>Severity</th>
             <th>Status</th>
+            <th>Next Action</th>
             <th>Assigned</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody id="casesTable">
-          <tr><td colspan="7">Loading...</td></tr>
+          <tr><td colspan="8">Loading...</td></tr>
         </tbody>
       </table>
+    </div>
+    <div class="topbar" style="margin-top:16px; padding:14px 18px;">
+      <button id="prevBtn" class="secondary" type="button">Previous</button>
+      <button id="nextBtn" type="button">Next</button>
     </div>
   </div>
 </div>
@@ -111,6 +117,14 @@ if (!user || user.role !== "discipline_officer") {
 }
 
 let currentPreviewCase = null;
+let currentPage = 1;
+let totalPages = 1;
+const initialFilters = new URLSearchParams(window.location.search);
+const activeOnly = initialFilters.get("activeOnly") === "true";
+
+if (initialFilters.get("assigned")) {
+  document.getElementById("assigned").value = initialFilters.get("assigned");
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -127,6 +141,23 @@ function badge(value) {
 
 function isUnassigned(caseItem) {
   return !caseItem.assigned_to_first_name;
+}
+
+function getCaseStatus(caseItem) {
+  return caseItem.status;
+}
+
+function getCaseNextAction(caseItem) {
+  return caseItem.operational_next_action || caseItem.next_action || "review_report";
+}
+
+function getHearingScheduleText(caseItem) {
+  if (!caseItem.scheduled_hearing_date) return "";
+  return formatDisplayDateWithTime(
+    caseItem.scheduled_hearing_date,
+    caseItem.scheduled_hearing_time,
+    ""
+  );
 }
 
 function renderCaseActions(caseItem) {
@@ -151,9 +182,9 @@ function renderCaseActions(caseItem) {
 async function loadCases() {
   const table = document.getElementById("casesTable");
   const query = new URLSearchParams({
-    page: 1,
-    limit: 25,
-    activeOnly: "true",
+    page: currentPage,
+    limit: 10,
+    activeOnly: activeOnly ? "true" : "",
     search: document.getElementById("search").value,
     status: document.getElementById("status").value,
     severity: document.getElementById("severity").value,
@@ -163,25 +194,37 @@ async function loadCases() {
   const res = await apiRequest(`/cases/all?${query.toString()}`, "GET", null, true);
 
   if (!res.success) {
-    table.innerHTML = `<tr><td colspan="7">${res.message}</td></tr>`;
+    table.innerHTML = `<tr><td colspan="8">${res.message}</td></tr>`;
     return;
   }
 
+  totalPages = res.pagination.totalPages || 1;
   document.getElementById("paginationInfo").textContent =
-    `${res.pagination.total} active cases in queue`;
+    `Page ${res.pagination.page} of ${totalPages} | ${res.pagination.total} ${activeOnly ? "active" : "total"} cases`;
 
   if (!res.cases.length) {
-    table.innerHTML = `<tr><td colspan="7">No cases found.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="8">No cases found.</td></tr>`;
     return;
   }
 
   table.innerHTML = res.cases.map(c => `
-    <tr>
+    <tr class="${c.has_overdue_hearing ? "case-row-hearing-overdue" : ""}">
       <td><strong>${escapeHtml(c.case_number)}</strong></td>
       <td>${escapeHtml(c.first_name)} ${escapeHtml(c.last_name)}<br><span class="muted">${escapeHtml(c.student_number)}</span></td>
       <td>${escapeHtml(c.violation_type)}</td>
       <td>${badge(c.severity_level)}</td>
-      <td>${badge(c.status)}</td>
+      <td class="case-status-column">
+        <div class="case-status-stack">
+          ${badge(getCaseStatus(c))}
+          ${c.has_overdue_hearing ? `
+            <span class="case-status-schedule">
+              <small>${badge("hearing_overdue")}</small>
+              <strong>${escapeHtml(getHearingScheduleText(c))}</strong>
+            </span>
+          ` : ""}
+        </div>
+      </td>
+      <td>${badge(getCaseNextAction(c))}</td>
       <td>${c.assigned_to_first_name ? `${escapeHtml(c.assigned_to_first_name)} ${escapeHtml(c.assigned_to_last_name)}` : badge("unassigned")}</td>
       <td>${renderCaseActions(c)}</td>
     </tr>
@@ -232,6 +275,7 @@ async function openCasePreview(caseId) {
       <div><strong>Severity</strong><span>${badge(c.severity_level)}</span></div>
       <div><strong>Date Reported</strong><span>${escapeHtml(formatDisplayDate(c.incident_date))}</span></div>
       <div><strong>Assigned</strong><span>${c.assigned_to_first_name ? `${escapeHtml(c.assigned_to_first_name)} ${escapeHtml(c.assigned_to_last_name)}` : "Unassigned"}</span></div>
+      <div><strong>Next Action</strong><span>${badge(c.next_action || "review_report")}</span></div>
     </div>
     <div class="detail-item" style="margin-top:16px;">
       <p><strong>Incident Summary</strong></p>
@@ -246,11 +290,15 @@ function closeCasePreview() {
 }
 
 ["search", "status", "severity", "assigned"].forEach(id => {
-  document.getElementById(id).addEventListener("change", loadCases);
+  document.getElementById(id).addEventListener("change", () => {
+    currentPage = 1;
+    loadCases();
+  });
 });
 
 document.getElementById("search").addEventListener("keydown", event => {
   if (event.key === "Enter") {
+    currentPage = 1;
     loadCases();
   }
 });
@@ -260,7 +308,22 @@ document.getElementById("clearFiltersBtn").addEventListener("click", () => {
   document.getElementById("status").value = "";
   document.getElementById("severity").value = "";
   document.getElementById("assigned").value = "";
+  currentPage = 1;
   loadCases();
+});
+
+document.getElementById("prevBtn").addEventListener("click", () => {
+  if (currentPage > 1) {
+    currentPage -= 1;
+    loadCases();
+  }
+});
+
+document.getElementById("nextBtn").addEventListener("click", () => {
+  if (currentPage < totalPages) {
+    currentPage += 1;
+    loadCases();
+  }
 });
 
 document.getElementById("closePreviewBtn").addEventListener("click", closeCasePreview);
@@ -275,8 +338,6 @@ document.getElementById("casePreviewModal").addEventListener("click", event => {
   }
 });
 
-document.getElementById("status").value = "";
-document.getElementById("assigned").value = "";
 loadCases();
 </script>
 

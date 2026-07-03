@@ -21,12 +21,12 @@
   </div>
 
   <div class="counselor-workspace page-section">
-    <aside class="counselor-queue-panel">
+    <section class="counselor-queue-panel">
       <div class="counselor-panel-head">
         <div>
           <span class="eyebrow">Support Queue</span>
           <h2>Student Cases</h2>
-          <p class="muted">Browse cases where guidance support, recommendations, or follow-up planning may be needed.</p>
+          <p class="muted">Browse counselor-visible cases. Open a card to review student context and record support actions.</p>
         </div>
         <button id="refreshBtn" type="button" class="secondary compact-btn">Refresh</button>
       </div>
@@ -39,6 +39,7 @@
             <option value="pending">Pending</option>
             <option value="under_investigation">Under Investigation</option>
             <option value="hearing_scheduled">Hearing Scheduled</option>
+            <option value="hearing_overdue">Hearing Overdue</option>
             <option value="resolved">Resolved</option>
             <option value="dismissed">Dismissed</option>
           </select>
@@ -66,56 +67,67 @@
 
       <div id="queueSummary" class="counselor-queue-summary">Loading cases...</div>
       <div id="casesList" class="counselor-case-list">Loading...</div>
-    </aside>
+    </section>
+  </div>
+</div>
 
-    <main class="counselor-workspace-panel">
-      <div id="caseWorkspace" class="counselor-empty-workspace">
-        <span class="eyebrow">Case Workspace</span>
-        <h2>Select a case to begin</h2>
-        <p class="muted">Choose a student case from the queue to review context, add intervention notes, schedule follow-ups, and track counseling actions.</p>
+<div class="modal-backdrop" id="caseSupportModal">
+  <div class="modal-card modal-card-wide counselor-case-modal">
+    <div class="card-header">
+      <div>
+        <span class="eyebrow">Case Support Workspace</span>
+        <h2>Student Support Details</h2>
+        <p class="muted">Review selected case context, interventions, recommendations, and follow-up planning.</p>
       </div>
+      <button id="closeCaseSupportModalBtn" type="button" class="secondary compact-btn">Close</button>
+    </div>
 
-      <input type="hidden" id="selectedCaseId">
-      <section id="counselorActionForm" class="counselor-action-form" style="display:none;">
-        <div class="card-header">
-          <div>
-            <h2>Counseling Action</h2>
-            <p class="muted">Record a support action, recommendation, behavior observation, or follow-up plan.</p>
-          </div>
+    <input type="hidden" id="selectedCaseId">
+    <div id="caseWorkspace" class="counselor-empty-workspace">
+      <span class="eyebrow">Case Workspace</span>
+      <h2>Select a case to begin</h2>
+      <p class="muted">Choose a student case from the queue to review context, add intervention notes, schedule follow-ups, and track counseling actions.</p>
+    </div>
+
+    <section id="counselorActionForm" class="counselor-action-form" style="display:none;">
+      <div class="card-header">
+        <div>
+          <h2>Counseling Action</h2>
+          <p class="muted">Record a support action, recommendation, behavior observation, or follow-up plan.</p>
         </div>
-        <div class="form-grid">
-          <div class="field-stack">
-            <label for="remarkType">Action Type</label>
-            <select id="remarkType">
-              <option value="intervention">Intervention</option>
-              <option value="behavior_note">Behavior Note</option>
-              <option value="recommendation">Recommendation</option>
-              <option value="follow_up">Follow-up</option>
-            </select>
-          </div>
-          <div class="field-stack">
-            <label for="remarkStatus">Support Status</label>
-            <select id="remarkStatus">
-              <option value="planned">Planned</option>
-              <option value="ongoing">Ongoing</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
-          <div class="field-stack">
-            <label for="remarkFollowUpDate">Follow-up Date</label>
-            <input type="date" id="remarkFollowUpDate">
-          </div>
+      </div>
+      <div class="form-grid">
+        <div class="field-stack">
+          <label for="remarkType">Action Type</label>
+          <select id="remarkType">
+            <option value="intervention">Intervention</option>
+            <option value="behavior_note">Behavior Note</option>
+            <option value="recommendation">Recommendation</option>
+            <option value="follow_up">Follow-up</option>
+          </select>
         </div>
         <div class="field-stack">
-          <label for="remarkNote">Support Note</label>
-          <textarea id="remarkNote" placeholder="Document student context, counseling action, recommendation, or planned follow-up."></textarea>
+          <label for="remarkStatus">Support Status</label>
+          <select id="remarkStatus">
+            <option value="planned">Planned</option>
+            <option value="ongoing">Ongoing</option>
+            <option value="completed">Completed</option>
+          </select>
         </div>
-        <div class="action-row">
-          <button id="saveRemarkBtn" type="button">Save Counseling Action</button>
-          <span id="remarkResult" class="muted"></span>
+        <div class="field-stack">
+          <label for="remarkFollowUpDate">Follow-up Date</label>
+          <input type="date" id="remarkFollowUpDate">
         </div>
-      </section>
-    </main>
+      </div>
+      <div class="field-stack">
+        <label for="remarkNote">Support Note</label>
+        <textarea id="remarkNote" placeholder="Document student context, counseling action, recommendation, or planned follow-up."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button id="saveRemarkBtn" type="button">Save Counseling Action</button>
+        <span id="remarkResult" class="muted"></span>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -201,6 +213,20 @@ function renderSelectedStudentAvatar(item) {
   `;
 }
 
+function renderCaseCardAvatar(item) {
+  const fullName = escapeHtml(getStudentName(item));
+
+  if (item.student_avatar_url) {
+    return `
+      <span class="counselor-case-avatar has-image">
+        <img src="${escapeHtml(item.student_avatar_url)}" alt="${fullName} avatar">
+      </span>
+    `;
+  }
+
+  return `<span class="counselor-case-avatar">${escapeHtml(getStudentInitials(item))}</span>`;
+}
+
 function getCaseNotes(caseId) {
   return allInterventions.filter(note => Number(note.case_id) === Number(caseId));
 }
@@ -220,24 +246,39 @@ function renderQueue(items) {
     const owner = item.assigned_to_first_name
       ? `${item.assigned_to_first_name} ${item.assigned_to_last_name || ""}`.trim()
       : "Unassigned";
+    const status = item.operational_status || item.status;
+    const severity = item.severity_level || "none";
+    const supportStatus = item.follow_up_status || "none";
+    const studentName = getStudentName(item);
     return `
-      <button type="button" class="counselor-case-card ${isActive ? "is-active" : ""}" onclick="selectCase(${item.id})">
+      <button type="button" class="counselor-case-card ${isActive ? "is-active" : ""}" data-status="${escapeHtml(status)}" onclick="selectCase(${item.id})">
+        <span class="counselor-card-status-rail"></span>
         <div class="counselor-case-card-head">
-          <div>
-            <strong>${escapeHtml(item.case_number)}</strong>
-            <span>${escapeHtml(getStudentName(item))}</span>
+          <div class="counselor-case-student">
+            ${renderCaseCardAvatar(item)}
+            <div>
+              <strong>${escapeHtml(studentName)}</strong>
+              <span>${escapeHtml(item.case_number)}</span>
+            </div>
           </div>
-          ${badge(item.status)}
+          ${badge(status)}
         </div>
-        <div class="counselor-case-issue">${escapeHtml(item.violation_type || "-")}</div>
+        <div class="counselor-case-issue">
+          <span>${escapeHtml(item.violation_type || "-")}</span>
+          <small>${escapeHtml(formatDate(item.incident_date))}</small>
+        </div>
         <div class="counselor-case-meta">
-          <span>${badge(item.severity_level)}</span>
-          <span>${badge(item.follow_up_status || "none")}</span>
-          <span>${escapeHtml(formatDate(item.incident_date))}</span>
+          ${badge(severity)}
+          ${badge(supportStatus)}
+          <span class="counselor-note-count">${Number(item.note_count || 0)} action${Number(item.note_count || 0) === 1 ? "" : "s"}</span>
         </div>
         <div class="counselor-case-footer">
-          <span>${escapeHtml(item.student_number || "-")}</span>
-          <span>${escapeHtml(owner)}</span>
+          <span><strong>ID</strong>${escapeHtml(item.student_number || "-")}</span>
+          <span><strong>Owner</strong>${escapeHtml(owner)}</span>
+        </div>
+        <div class="counselor-card-action-row">
+          <span>Open support workspace</span>
+          <strong>View</strong>
         </div>
       </button>
     `;
@@ -261,12 +302,13 @@ function getFilteredCases() {
       item.violation_type,
       item.severity_level,
       item.status,
+      item.operational_status,
       item.follow_up_status,
       item.support_scope
     ].some(value => String(value || "").toLowerCase().includes(search));
 
     return matchesSearch
-      && (!status || item.status === status)
+      && (!status || (item.operational_status || item.status) === status)
       && (!severity || item.severity_level === severity)
       && (!followUp || item.follow_up_status === followUp)
       && (!scope || item.support_scope === scope);
@@ -275,6 +317,16 @@ function getFilteredCases() {
 
 function applySearch() {
   renderQueue(getFilteredCases());
+}
+
+function openModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.add("open");
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.remove("open");
 }
 
 function mergeInterventionState() {
@@ -316,6 +368,7 @@ function selectCase(caseId) {
       </div>
     `;
     document.getElementById("counselorActionForm").style.display = "none";
+    closeModal("caseSupportModal");
     applySearch();
     return;
   }
@@ -404,6 +457,7 @@ function selectCase(caseId) {
   `;
   document.getElementById("counselorActionForm").style.display = "grid";
   document.getElementById("remarkResult").textContent = "";
+  openModal("caseSupportModal");
   applySearch();
 }
 
@@ -429,10 +483,7 @@ async function loadCases() {
   allInterventions = interventionsRes.success ? interventionsRes.interventions : [];
   mergeInterventionState();
   applySearch();
-  if (!selectedCase) {
-    const firstOpenCase = allCases.find(item => !["resolved", "dismissed"].includes(String(item.status)));
-    selectCase(firstOpenCase?.id || allCases[0].id);
-  } else {
+  if (selectedCase && document.getElementById("caseSupportModal").classList.contains("open")) {
     selectCase(selectedCase.id);
   }
 }
@@ -443,6 +494,17 @@ document.getElementById("severityFilter").addEventListener("change", applySearch
 document.getElementById("followUpFilter").addEventListener("change", applySearch);
 document.getElementById("scopeFilter").addEventListener("change", applySearch);
 document.getElementById("refreshBtn").addEventListener("click", loadCases);
+document.getElementById("closeCaseSupportModalBtn").addEventListener("click", () => closeModal("caseSupportModal"));
+document.getElementById("caseSupportModal").addEventListener("click", event => {
+  if (event.target.id === "caseSupportModal") {
+    closeModal("caseSupportModal");
+  }
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    closeModal("caseSupportModal");
+  }
+});
 document.getElementById("saveRemarkBtn").addEventListener("click", async () => {
   const caseId = document.getElementById("selectedCaseId").value;
   const note = document.getElementById("remarkNote").value.trim();

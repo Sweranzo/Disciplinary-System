@@ -6,7 +6,7 @@
   <title>Hearing & Meeting Calendar</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="admin-page">
 
 <div class="dashboard-container">
   <div class="topbar">
@@ -26,7 +26,7 @@
     <div class="summary-card-compact">
       <strong>All Hearings</strong>
       <span id="totalHearings">0</span>
-      <small>Across scheduled, completed, and cancelled records.</small>
+      <small>Across scheduled, completed, cancelled, and missed records.</small>
     </div>
     <div class="summary-card-compact">
       <strong>Scheduled</strong>
@@ -39,7 +39,7 @@
       <small>Events inside the active calendar month.</small>
     </div>
     <div class="summary-card-compact">
-      <strong>Completed / Cancelled</strong>
+      <strong>Closed Hearings</strong>
       <span id="closedCount">0</span>
       <small>Closed hearing records and prior outcomes.</small>
     </div>
@@ -60,6 +60,7 @@
             <option value="scheduled">Scheduled</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
+            <option value="missed">Missed</option>
           </select>
         </div>
       </div>
@@ -68,8 +69,10 @@
 
       <div class="legend-row">
         <span class="legend-item"><span class="legend-swatch scheduled"></span>Scheduled</span>
+        <span class="legend-item"><span class="legend-swatch overdue"></span>Overdue</span>
         <span class="legend-item"><span class="legend-swatch completed"></span>Completed</span>
         <span class="legend-item"><span class="legend-swatch cancelled"></span>Cancelled</span>
+        <span class="legend-item"><span class="legend-swatch missed"></span>Missed</span>
       </div>
     </div>
   </div>
@@ -81,6 +84,8 @@
         <p class="muted">Operational table for reviewing event details, opening case context, and selecting a record for updates.</p>
       </div>
     </div>
+
+    <div id="overdueHearingNotice" class="hearing-overdue-notice" style="display:none;"></div>
 
     <div class="table-wrap">
       <table>
@@ -136,6 +141,19 @@
           <option value="scheduled">Scheduled</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
+          <option value="missed">Missed</option>
+        </select>
+      </div>
+      <div class="field-stack">
+        <label for="finding">Hearing Finding</label>
+        <select id="finding">
+          <option value="pending">Pending</option>
+          <option value="admitted">Admitted</option>
+          <option value="denied">Denied</option>
+          <option value="resolved">Resolved</option>
+          <option value="dismissed">Dismissed</option>
+          <option value="sanction_recommended">Sanction Recommended</option>
+          <option value="counseling_recommended">Counseling Recommended</option>
         </select>
       </div>
     </div>
@@ -143,11 +161,16 @@
       <label for="outcome">Outcome / Attendance Notes</label>
       <textarea id="outcome" placeholder="Document attendance, final outcome, reschedule reasons, or follow-up remarks."></textarea>
     </div>
+    <div class="field-stack" style="margin-top:16px;">
+      <label for="recommendation">Recommendation</label>
+      <textarea id="recommendation" placeholder="Document sanction, counseling, dismissal, or follow-up recommendation."></textarea>
+    </div>
     <p id="result" class="muted"></p>
     <div class="modal-actions">
       <button id="closeHearingModalBtn" type="button" class="secondary compact-btn">Close</button>
-      <button id="markHearingCompleteBtn" type="button" class="secondary compact-btn">Mark Complete</button>
-      <button id="updateBtn" type="button" class="compact-btn">Save Changes</button>
+      <button id="markHearingCompleteBtn" type="button" class="secondary compact-btn" data-internet-feature="Hearing completion saves locally, but SMS and email notices need internet to send.">Mark Complete</button>
+      <button id="markHearingMissedBtn" type="button" class="secondary compact-btn" data-internet-feature="Missed hearing notices need internet for SMS and email delivery.">Mark Missed</button>
+      <button id="updateBtn" type="button" class="compact-btn" data-internet-feature="Hearing updates save locally, but SMS and email notices need internet to send.">Save Changes</button>
     </div>
   </div>
 </div>
@@ -189,6 +212,33 @@ function escapeHtml(value) {
 function badge(value) {
   const normalized = String(value || "scheduled").toLowerCase().replaceAll(" ", "_");
   return `<span class="badge ${normalized}">${String(value || "scheduled").replaceAll("_", " ")}</span>`;
+}
+
+function getHearingDateTime(item) {
+  if (!item?.scheduled_date) return null;
+  const datePart = String(item.scheduled_date).slice(0, 10);
+  const timePart = item.scheduled_time ? String(item.scheduled_time).slice(0, 8) : "23:59:59";
+  const date = new Date(`${datePart}T${timePart}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isOverdueHearing(item) {
+  const scheduledAt = getHearingDateTime(item);
+  return item?.status === "scheduled" && scheduledAt && scheduledAt.getTime() < Date.now();
+}
+
+function getOverdueText(item) {
+  const scheduledAt = getHearingDateTime(item);
+  if (!scheduledAt) return "Overdue";
+  const elapsed = Date.now() - scheduledAt.getTime();
+  const days = Math.floor(elapsed / 86400000);
+  if (days >= 1) return `Overdue by ${days} day${days === 1 ? "" : "s"}`;
+  const hours = Math.max(1, Math.floor(elapsed / 3600000));
+  return `Overdue by ${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
+function hearingStatusBadge(item) {
+  return isOverdueHearing(item) ? `<span class="badge overdue">Overdue</span>` : badge(item.status);
 }
 
 function formatDate(value) {
@@ -244,11 +294,32 @@ function renderSummary(rows) {
 
   document.getElementById("totalHearings").textContent = rows.length;
   document.getElementById("scheduledCount").textContent = rows.filter(item => item.status === "scheduled").length;
-  document.getElementById("closedCount").textContent = rows.filter(item => ["completed", "cancelled"].includes(item.status)).length;
+  document.getElementById("closedCount").textContent = rows.filter(item => ["completed", "cancelled", "missed"].includes(item.status)).length;
   document.getElementById("monthCount").textContent = rows.filter(item => {
     const date = toDateOnly(item.scheduled_date);
     return date && date.getMonth() === month && date.getFullYear() === year;
   }).length;
+}
+
+function renderOverdueNotice(rows) {
+  const notice = document.getElementById("overdueHearingNotice");
+  if (!notice) return;
+
+  const overdue = rows.filter(isOverdueHearing);
+  if (!overdue.length) {
+    notice.style.display = "none";
+    notice.innerHTML = "";
+    return;
+  }
+
+  notice.style.display = "flex";
+  notice.innerHTML = `
+    <div>
+      <strong>${overdue.length} overdue hearing${overdue.length === 1 ? "" : "s"}</strong>
+      <span>Needs result, cancellation, or a new schedule.</span>
+    </div>
+    <small>Staff warning only. Notify student or parent after updating the hearing.</small>
+  `;
 }
 
 function renderCalendar(rows) {
@@ -272,20 +343,29 @@ function renderCalendar(rows) {
       .filter(item => isSameDay(toDateOnly(item.scheduled_date), day))
       .sort((a, b) => String(a.scheduled_time || "").localeCompare(String(b.scheduled_time || "")));
 
+    const dayClasses = [
+      "calendar-day",
+      day.getMonth() !== currentMonth.getMonth() ? "other-month" : "",
+      isSameDay(day, today) ? "today" : "",
+      dayHearings.length ? "has-events" : "",
+      dayHearings.some(isOverdueHearing) ? "has-overdue" : ""
+    ].filter(Boolean).join(" ");
+
     html += `
-      <div class="calendar-day ${day.getMonth() !== currentMonth.getMonth() ? "other-month" : ""} ${isSameDay(day, today) ? "today" : ""}">
+      <div class="${dayClasses}">
         <div class="calendar-day-number">${day.getDate()}</div>
         <div class="calendar-event-list">
           ${dayHearings.length
             ? dayHearings.slice(0, 3).map(item => `
-                <button type="button" class="calendar-event ${item.status}" onclick="selectHearing(${item.id})">
+                <button type="button" class="calendar-event ${item.status} ${isOverdueHearing(item) ? "overdue" : ""}" onclick="selectHearing(${item.id})">
                   <strong>${escapeHtml(formatTime(item.scheduled_time))}</strong>
                   <span>${escapeHtml(item.case_number)}</span>
+                  ${isOverdueHearing(item) ? `<em>Overdue</em>` : ""}
                 </button>
               `).join("")
-            : ""
+            : `<span class="calendar-empty-hint">No hearings</span>`
           }
-          ${dayHearings.length > 3 ? `<span class="muted">+${dayHearings.length - 3} more</span>` : ""}
+          ${dayHearings.length > 3 ? `<span class="calendar-day-more">+${dayHearings.length - 3} more</span>` : ""}
         </div>
       </div>
     `;
@@ -303,16 +383,19 @@ function renderTable(rows) {
   }
 
   const sorted = [...rows].sort((a, b) => {
+    const overdueSort = Number(isOverdueHearing(b)) - Number(isOverdueHearing(a));
+    if (overdueSort) return overdueSort;
     const left = `${a.scheduled_date || ""} ${a.scheduled_time || ""}`;
     const right = `${b.scheduled_date || ""} ${b.scheduled_time || ""}`;
     return left.localeCompare(right);
   });
 
   table.innerHTML = sorted.map(item => `
-    <tr>
+    <tr class="${isOverdueHearing(item) ? "hearing-row-overdue" : ""}">
       <td>
         <strong>${escapeHtml(formatDate(item.scheduled_date))}</strong><br>
         <span class="muted">${escapeHtml(formatTime(item.scheduled_time))}</span>
+        ${isOverdueHearing(item) ? `<br><span class="hearing-overdue-text">${escapeHtml(getOverdueText(item))}</span>` : ""}
       </td>
       <td>
         <strong>${escapeHtml(item.case_number)}</strong><br>
@@ -323,7 +406,8 @@ function renderTable(rows) {
         <span class="muted">${escapeHtml(item.location || "Location not set")}</span>
       </td>
       <td>
-        ${badge(item.status)}<br>
+        ${hearingStatusBadge(item)}<br>
+        ${isOverdueHearing(item) ? `<span class="muted">Needs result or reschedule</span><br>` : ""}
         <span class="muted">Case: ${escapeHtml(item.case_status || "-")}</span><br>
         <span class="muted">Created by ${escapeHtml(item.created_by_first_name || "-")} ${escapeHtml(item.created_by_last_name || "")}${item.created_by_role_label ? ` - ${escapeHtml(item.created_by_role_label)}` : ""}</span>
       </td>
@@ -340,6 +424,7 @@ function renderTable(rows) {
 function renderAll() {
   const rows = getFilteredHearings();
   renderSummary(rows);
+  renderOverdueNotice(rows);
   renderCalendar(rows);
   renderTable(rows);
 }
@@ -366,9 +451,11 @@ function updatePreview(item) {
     <div class="key-value-row"><strong>Violation</strong><span>${escapeHtml(item.violation_type || "-")}</span></div>
       <div class="key-value-row"><strong>Date & Time</strong><span>${escapeHtml(formatDate(item.scheduled_date))} at ${escapeHtml(formatTime(item.scheduled_time))}</span></div>
       <div class="key-value-row"><strong>Location</strong><span>${escapeHtml(item.location || "-")}</span></div>
-      <div class="key-value-row"><strong>Status</strong><span>${badge(item.status)}</span></div>
+      <div class="key-value-row"><strong>Status</strong><span>${hearingStatusBadge(item)}</span></div>
+      <div class="key-value-row"><strong>Finding</strong><span>${badge(item.finding || "pending")}</span></div>
       <div class="key-value-row"><strong>Created By</strong><span>${escapeHtml(item.created_by_first_name || "-")} ${escapeHtml(item.created_by_last_name || "")}${item.created_by_role_label ? ` - ${escapeHtml(item.created_by_role_label)}` : ""}</span></div>
       <div class="key-value-row"><strong>Outcome</strong><span>${escapeHtml(item.outcome || "No notes recorded yet.")}</span></div>
+      <div class="key-value-row"><strong>Recommendation</strong><span>${escapeHtml(item.recommendation || "No recommendation recorded yet.")}</span></div>
     `;
 }
 
@@ -378,7 +465,9 @@ function clearSelection() {
   document.getElementById("scheduledTime").value = "";
   document.getElementById("location").value = "";
   document.getElementById("status").value = "scheduled";
+  document.getElementById("finding").value = "pending";
   document.getElementById("outcome").value = "";
+  document.getElementById("recommendation").value = "";
   document.getElementById("result").textContent = "";
   updatePreview(null);
 }
@@ -392,7 +481,9 @@ function selectHearing(id) {
   document.getElementById("scheduledTime").value = item.scheduled_time ? String(item.scheduled_time).slice(0, 5) : "";
   document.getElementById("location").value = item.location || "";
   document.getElementById("status").value = item.status || "scheduled";
+  document.getElementById("finding").value = item.finding || "pending";
   document.getElementById("outcome").value = item.outcome || "";
+  document.getElementById("recommendation").value = item.recommendation || "";
   document.getElementById("result").textContent = "";
   updatePreview(item);
   openModal("hearingModal");
@@ -434,7 +525,9 @@ async function saveHearingWithStatus(forceStatus = null) {
     scheduledTime: document.getElementById("scheduledTime").value,
     location: document.getElementById("location").value.trim(),
     status: forceStatus || document.getElementById("status").value,
-    outcome: document.getElementById("outcome").value.trim()
+    outcome: document.getElementById("outcome").value.trim(),
+    finding: document.getElementById("finding").value,
+    recommendation: document.getElementById("recommendation").value.trim()
   }, true);
 
   result.textContent = res.success ? "Hearing updated." : res.message;
@@ -447,6 +540,7 @@ async function saveHearingWithStatus(forceStatus = null) {
 
 document.getElementById("updateBtn").addEventListener("click", saveHearing);
 document.getElementById("markHearingCompleteBtn").addEventListener("click", () => saveHearingWithStatus("completed"));
+document.getElementById("markHearingMissedBtn").addEventListener("click", () => saveHearingWithStatus("missed"));
 document.getElementById("closeHearingModalBtn").addEventListener("click", () => {
   closeModal("hearingModal");
   clearSelection();

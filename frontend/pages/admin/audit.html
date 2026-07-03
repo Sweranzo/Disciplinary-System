@@ -6,7 +6,7 @@
   <title>Audit Log Viewer</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="admin-page">
 
 <div class="dashboard-container">
   <div class="topbar">
@@ -51,6 +51,8 @@
         <option value="sanctions">Sanctions</option>
         <option value="appeals">Appeals</option>
         <option value="notifications">Notifications</option>
+        <option value="sms_logs">SMS Logs</option>
+        <option value="system_settings">System Settings</option>
       </select>
       <button id="applyBtn" class="compact-btn" type="button">Apply</button>
       <button id="clearBtn" class="secondary compact-btn" type="button">Clear</button>
@@ -138,11 +140,11 @@ function renderTable(logs) {
   table.innerHTML = logs.map(log => `
     <tr>
       <td>${formatDateTime(log.created_at)}</td>
-      <td>${formatActor(log)}<br><span class="muted">${log.username || "-"}</span></td>
-      <td><span class="badge">${log.action}</span></td>
-      <td>${log.target_table || "-"}${log.target_id ? `<br><span class="muted">#${log.target_id}</span>` : ""}</td>
-      <td>${log.details || "-"}</td>
-      <td><span class="code-text">${log.ip_address || "-"}</span></td>
+      <td>${escapeHtml(formatActor(log))}<br><span class="muted">${escapeHtml(log.username || "-")}</span></td>
+      <td><span class="badge">${escapeHtml(log.action)}</span></td>
+      <td>${escapeHtml(log.target_table || "-")}${log.target_id ? `<br><span class="muted">#${escapeHtml(log.target_id)}</span>` : ""}</td>
+      <td>${escapeHtml(log.details || "-")}</td>
+      <td><span class="code-text">${escapeHtml(log.ip_address || "-")}</span></td>
     </tr>
   `).join("");
 }
@@ -151,7 +153,7 @@ function populateActionOptions(options) {
   const select = document.getElementById("actionFilter");
   const selected = select.value;
   select.innerHTML = `<option value="">All Actions</option>` + (options || []).map(option => `
-    <option value="${option.action}" ${selected === option.action ? "selected" : ""}>${option.action}</option>
+    <option value="${escapeHtml(option.action)}" ${selected === option.action ? "selected" : ""}>${escapeHtml(option.action)}</option>
   `).join("");
 }
 

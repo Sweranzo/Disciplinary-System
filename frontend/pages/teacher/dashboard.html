@@ -6,104 +6,75 @@
   <title>Teacher Dashboard</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="role-dashboard-page teacher-workbench-page">
 
-<div class="dashboard-container dash-shell">
-  <div class="dash-hero">
-    <section class="dash-welcome">
-      <span class="eyebrow">Teacher Workspace</span>
-      <h1>Welcome back, <span id="teacherName">Teacher</span></h1>
-      <p>Report incidents, monitor students you reported, track meeting dates, and follow case progress from one working dashboard.</p>
-      <div class="dash-actions" style="margin-top:22px;">
-        <a href="report-case.html"><button>Report Incident</button></a>
-        <a href="cases.html"><button class="secondary">Open My Cases</button></a>
+<div class="dashboard-container role-dashboard-shell">
+  <header class="teacher-report-banner role-dashboard-hero">
+    <div class="teacher-identity">
+      <div class="admin-profile-avatar" id="teacherInitials">T</div>
+      <div>
+        <span class="eyebrow">Teacher Workspace</span>
+        <h1>Hello, <span id="teacherName">Teacher</span></h1>
+        <p>Document classroom incidents clearly, then follow the reports already in your care.</p>
       </div>
-    </section>
+    </div>
+    <div class="role-dashboard-side">
+      <div data-dashboard-weather></div>
+      <a class="teacher-report-action" href="report-case.html">
+        <span>+</span>
+        <div><strong>Report an Incident</strong><small>Start a new student report</small></div>
+      </a>
+    </div>
+  </header>
 
-    <aside class="dash-profile-card">
-      <div class="admin-profile-head">
-        <div class="admin-profile-avatar" id="teacherInitials">T</div>
+  <section class="role-metric-grid teacher-metric-grid" id="teacherMetrics"></section>
+
+  <div class="teacher-dashboard-grid">
+    <main class="role-panel teacher-case-panel">
+      <div class="role-panel-head">
         <div>
-          <strong id="teacherFullName">Teacher</strong>
-          <span>Teacher / Classroom Reporter</span>
+          <span class="role-kicker">Your reports</span>
+          <h2>Recent Student Cases</h2>
+          <p>Updates on incidents you reported or cases assigned to you.</p>
         </div>
+        <a href="cases.html">Open all cases</a>
       </div>
-      <div class="admin-profile-info">
-        <div><strong>Email</strong><span id="teacherEmail">-</span></div>
-        <div><strong>User ID</strong><span id="teacherId">-</span></div>
-        <div><strong>Role</strong><span>Classroom Teacher</span></div>
-        <div><strong>Scope</strong><span>Reported / assigned cases</span></div>
-      </div>
-    </aside>
-  </div>
-
-  <section class="dash-metrics" id="teacherMetrics"></section>
-
-  <div class="dash-grid-main">
-    <main class="dash-stack">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Case Overview</h2>
-            <p class="muted">Status and severity distribution for cases visible to you.</p>
-          </div>
-        </div>
-        <div class="case-analytics-grid">
-          <div class="case-analytics-block case-analytics-donut-block">
-            <span class="case-analytics-label">Relevant Cases</span>
-            <div id="statusChart"></div>
-          </div>
-          <div class="case-analytics-block">
-            <span class="case-analytics-label">Status Distribution</span>
-            <div id="statusLegend"></div>
-          </div>
-          <div class="case-analytics-block">
-            <span class="case-analytics-label">Severity Distribution</span>
-            <div id="severityChart"></div>
-          </div>
-        </div>
-        <div id="teacherAnalyticsSummary" class="case-analytics-summary"></div>
-      </section>
-
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Recent Student Cases</h2>
-            <p class="muted">Students connected to reports or assignments in your workspace.</p>
-          </div>
-          <a href="cases.html"><button class="secondary">View All</button></a>
-        </div>
-        <div id="recentCases">Loading...</div>
-      </section>
+      <div id="recentCases">Loading...</div>
     </main>
 
-    <aside class="dash-stack">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Meeting Calendar</h2>
-            <p class="muted">Pending meetings and hearings for reported students.</p>
-          </div>
+    <aside class="role-panel teacher-schedule-panel">
+      <div class="role-panel-head">
+        <div>
+          <span class="role-kicker">Attendance</span>
+          <h2>Upcoming Meetings</h2>
+          <p>Hearings connected to your reports.</p>
         </div>
-        <div id="meetingCalendar"></div>
-      </section>
-
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Upcoming Meetings</h2>
-            <p class="muted">Dates related to your reported or assigned cases.</p>
-          </div>
-        </div>
-        <div id="meetingCalendarList">Loading...</div>
-      </section>
+      </div>
+      <div id="meetingCalendarList">Loading...</div>
     </aside>
   </div>
+
+  <section class="teacher-progress-panel role-panel">
+    <div class="role-panel-head">
+      <div>
+        <span class="role-kicker">Report outcomes</span>
+        <h2>My Reporting Snapshot</h2>
+        <p>A compact view of where your submitted cases currently stand.</p>
+      </div>
+      <div class="teacher-account-line"><strong id="teacherFullName">Teacher</strong><span id="teacherEmail">-</span></div>
+    </div>
+    <div class="teacher-progress-layout">
+      <div id="statusLegend"></div>
+      <div id="severityChart"></div>
+      <div id="teacherAnalyticsSummary" class="case-analytics-summary"></div>
+    </div>
+  </section>
 </div>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/dashboard-widgets.js"></script>
+<script src="../../js/core/dashboard-weather.js"></script>
 <script>
 requireAuth();
 
@@ -114,6 +85,7 @@ if (!user || user.role !== "teacher") {
 }
 
 const W = DashboardWidgets;
+DashboardWeather.mountAll();
 document.getElementById("teacherName").textContent = user.first_name || "Teacher";
 document.getElementById("teacherFullName").textContent = getUserFullName(user);
 const teacherAvatar = document.getElementById("teacherInitials");
@@ -124,7 +96,6 @@ if (teacherAvatarUrl) {
   teacherAvatar.textContent = `${user.first_name?.[0] || "T"}${user.last_name?.[0] || ""}`.toUpperCase();
 }
 document.getElementById("teacherEmail").textContent = user.email || "-";
-document.getElementById("teacherId").textContent = user.employee_or_student_id || "-";
 
 function hearingToEvent(item) {
   return {
@@ -138,12 +109,16 @@ function hearingToEvent(item) {
 
 function renderTeacherDashboard({ cases, hearings, sanctions }) {
   const activeCases = cases.filter(item => W.isOpenStatus(item.status));
-  const scheduledHearings = hearings.filter(item => item.status === "scheduled");
+  const scheduledHearings = hearings.filter(item => item.status === "scheduled" && !item.has_overdue_hearing);
   const activeSanctions = sanctions.filter(item => item.status === "active");
   const uniqueStudents = new Set(cases.map(item => item.student_number).filter(Boolean));
-  const statusCounts = W.groupBy(cases, "status");
+  const displayCases = cases.map(item => ({
+    ...item,
+    display_status: item.operational_status || item.status
+  }));
+  const statusCounts = W.groupBy(displayCases, "display_status");
   const severityCounts = W.groupBy(cases, "severity_level");
-  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"];
+  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "hearing_overdue", "resolved", "dismissed"];
   const caseSeverities = ["minor", "major", "grave"];
   const events = scheduledHearings.map(hearingToEvent);
 
@@ -154,7 +129,6 @@ function renderTeacherDashboard({ cases, hearings, sanctions }) {
     { icon: "ST", label: "Students Involved", value: uniqueStudents.size, help: "Distinct students in your scope" }
   ]);
 
-  W.renderDonut("statusChart", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No cases yet");
   W.renderStatusList("statusLegend", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No status data yet");
   W.renderBars("severityChart", W.toSegments(severityCounts, caseSeverities, { includeZeros: true }), "No severity data yet");
   W.renderSummary("teacherAnalyticsSummary", [
@@ -163,7 +137,6 @@ function renderTeacherDashboard({ cases, hearings, sanctions }) {
     { label: "Resolved", value: statusCounts.resolved || 0 },
     { label: "Active Sanctions", value: activeSanctions.length }
   ]);
-  W.renderCalendar("meetingCalendar", events);
   W.renderUpcoming("meetingCalendarList", events, "No pending student meetings or hearings");
 
   W.renderList(
@@ -171,8 +144,8 @@ function renderTeacherDashboard({ cases, hearings, sanctions }) {
     cases.slice(0, 6),
     "No student cases found.",
     item => `
-      <a class="dash-case-row" href="cases.html">
-        <span class="badge ${item.status}">${W.labelize(item.status)}</span>
+      <a class="dash-case-row teacher-case-row" href="case-details.html?id=${encodeURIComponent(item.id)}">
+        <span class="badge ${item.operational_status || item.status}">${W.labelize(item.operational_status || item.status)}</span>
         <div>
           <strong>${W.escapeHtml(item.case_number)} | ${W.escapeHtml(item.first_name)} ${W.escapeHtml(item.last_name)}</strong>
           <p>${W.escapeHtml(item.violation_type)} | ${W.labelize(item.severity_level)} | ${W.formatDate(item.incident_date)}</p>

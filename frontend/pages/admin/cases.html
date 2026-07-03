@@ -6,7 +6,7 @@
   <title>Admin Case Management</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="admin-page">
 
 <div class="dashboard-container">
   <div class="topbar">
@@ -37,6 +37,7 @@
         <option value="pending">Pending</option>
         <option value="under_investigation">Under Investigation</option>
         <option value="hearing_scheduled">Hearing Scheduled</option>
+        <option value="hearing_overdue">Hearing Overdue</option>
         <option value="dismissed">Dismissed</option>
         <option value="resolved">Resolved</option>
       </select>
@@ -69,12 +70,13 @@
             <th>Violation</th>
             <th>Severity</th>
             <th>Status</th>
+            <th>Next Action</th>
             <th>Assigned To</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody id="casesTable">
-          <tr><td colspan="7">Loading...</td></tr>
+          <tr><td colspan="8">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -117,7 +119,7 @@ async function loadCases() {
   const res = await apiRequest(`/cases/all?${query.toString()}`, "GET", null, true);
 
   if (!res.success) {
-    table.innerHTML = `<tr><td colspan="7">${res.message}</td></tr>`;
+    table.innerHTML = `<tr><td colspan="8">${res.message}</td></tr>`;
     return;
   }
 
@@ -126,7 +128,7 @@ async function loadCases() {
     `Page ${res.pagination.page} of ${totalPages} | ${res.pagination.total} total cases`;
 
   if (!res.cases.length) {
-    table.innerHTML = `<tr><td colspan="7">No cases found.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="8">No cases found.</td></tr>`;
     return;
   }
 
@@ -136,7 +138,8 @@ async function loadCases() {
       <td>${c.first_name} ${c.last_name}<br><span class="muted">${c.student_number}</span></td>
       <td>${c.violation_type}</td>
       <td>${badge(c.severity_level)}</td>
-      <td>${badge(c.status)}</td>
+      <td>${badge(c.operational_status || c.status)}</td>
+      <td>${badge(c.operational_next_action || c.next_action || "review_report")}</td>
       <td>${c.assigned_to_first_name ? `${c.assigned_to_first_name} ${c.assigned_to_last_name}` : "-"}</td>
       <td><a href="case-details.html?id=${c.id}"><button type="button">Open</button></a></td>
     </tr>

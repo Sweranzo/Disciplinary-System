@@ -10,6 +10,7 @@ const LucideIcons = (() => {
     "file-warning": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path>',
     "folder-open": '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6A2 2 0 0 1 18.46 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"></path>',
     bell: '<path d="M10.27 21a2 2 0 0 0 3.46 0"></path><path d="M3.26 15.33A2 2 0 0 0 5 18h14a2 2 0 0 0 1.74-2.67C20.22 13.98 19 13 19 10a7 7 0 1 0-14 0c0 3-1.22 3.98-1.74 5.33Z"></path>',
+    messageSquare: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path>',
     settings: '<path d="M9.67 2.93a2.25 2.25 0 0 1 4.66 0 2.25 2.25 0 0 0 3.38 1.46 2.25 2.25 0 0 1 2.33 4.04 2.25 2.25 0 0 0 0 3.9 2.25 2.25 0 0 1-2.33 4.04 2.25 2.25 0 0 0-3.38 1.46 2.25 2.25 0 0 1-4.66 0 2.25 2.25 0 0 0-3.38-1.46 2.25 2.25 0 0 1-2.33-4.04 2.25 2.25 0 0 0 0-3.9 2.25 2.25 0 0 1 2.33-4.04 2.25 2.25 0 0 0 3.38-1.46Z"></path><circle cx="12" cy="12" r="3"></circle>',
     sun: '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path>',
     moon: '<path d="M20.99 13.49A9 9 0 1 1 10.51 3.01 7 7 0 0 0 20.99 13.49Z"></path>',
@@ -37,6 +38,11 @@ const LucideIcons = (() => {
 window.LucideIcons = LucideIcons;
 
 const THEME_STORAGE_KEY = "disciplineTheme";
+let notificationCaseLookup = new Map();
+
+function isAuthPage() {
+  return document.body?.classList.contains("auth-page");
+}
 
 function getStoredTheme() {
   try {
@@ -108,8 +114,6 @@ function injectAuthThemeToggle() {
   if (!document.body.classList.contains("auth-page") || document.querySelector(".auth-theme-toggle")) {
     return;
   }
-
-  document.body.appendChild(createThemeToggle("auth-theme-toggle"));
 }
 
 function injectFallbackThemeToggle() {
@@ -126,10 +130,10 @@ function injectFallbackThemeToggle() {
   document.body.appendChild(createThemeToggle("page-theme-toggle"));
 }
 
-applyTheme(getPreferredTheme());
+applyTheme(isAuthPage() ? "light" : getPreferredTheme());
 
 window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.("change", event => {
-  if (!getStoredTheme()) {
+  if (!getStoredTheme() && !isAuthPage()) {
     applyTheme(event.matches ? "dark" : "light");
   }
 });
@@ -270,6 +274,29 @@ function getPrimaryTopbars() {
   return results;
 }
 
+function getPrimaryPageIntros() {
+  const selectors = [
+    ".dashboard-container > .topbar",
+    ".dashboard-container > .student-profile-topbar",
+    ".dashboard-container > .account-center-topbar",
+    ".dashboard-container > .students-page-hero"
+  ];
+
+  const seen = new Set();
+  const results = [];
+
+  selectors.forEach(selector => {
+    document.querySelectorAll(selector).forEach(element => {
+      if (!seen.has(element)) {
+        seen.add(element);
+        results.push(element);
+      }
+    });
+  });
+
+  return results;
+}
+
 function getPageTitleText() {
   const path = window.location.pathname.replace(/\\/g, "/");
   if (path.endsWith("/dashboard.html")) {
@@ -290,6 +317,81 @@ function getPageSubtitleText(user) {
 
   return document.querySelector(".dashboard-container > .topbar p")?.textContent?.trim()
     || "Manage records, activity, and student support workflows.";
+}
+
+function collapseRedundantPageIntros() {
+  const path = window.location.pathname.replace(/\\/g, "/");
+  const appHeader = document.querySelector(".app-top-header");
+
+  if (!appHeader || path.endsWith("/dashboard.html")) {
+    return;
+  }
+
+  const appTitle = appHeader.querySelector(".app-top-title h1");
+  const appSubtitle = appHeader.querySelector(".app-top-title p");
+
+  getPrimaryPageIntros().forEach(intro => {
+    if (intro.dataset.appHeaderConsumed === "true") {
+      return;
+    }
+
+    const sourceTitle = intro.querySelector("h1");
+    if (!sourceTitle) {
+      return;
+    }
+
+    const sourceSubtitle = intro.querySelector("p");
+    const syncHeaderCopy = () => {
+      const titleText = sourceTitle.textContent?.trim();
+      const subtitleText = sourceSubtitle?.textContent?.trim();
+      if (titleText && appTitle) {
+        appTitle.textContent = titleText;
+      }
+      if (subtitleText && appSubtitle) {
+        appSubtitle.textContent = subtitleText;
+      }
+    };
+
+    syncHeaderCopy();
+
+    if ("MutationObserver" in window) {
+      const observer = new MutationObserver(syncHeaderCopy);
+      observer.observe(sourceTitle, { childList: true, characterData: true, subtree: true });
+      if (sourceSubtitle) {
+        observer.observe(sourceSubtitle, { childList: true, characterData: true, subtree: true });
+      }
+    }
+
+    const titleGroup = Array.from(intro.children).find(child => child.contains(sourceTitle));
+    if (titleGroup) {
+      titleGroup.hidden = true;
+    }
+
+    const visibleChildren = Array.from(intro.children).filter(child => {
+      if (child.hidden) {
+        return false;
+      }
+
+      if (child.matches(".action-row:empty")) {
+        child.remove();
+        return false;
+      }
+
+      return true;
+    });
+    const hasUsefulControls = visibleChildren.some(child =>
+      child.matches("a[href], button, input, select, textarea")
+      || child.querySelector("a[href], button, input, select, textarea")
+    );
+
+    if (!hasUsefulControls) {
+      intro.hidden = true;
+    } else {
+      intro.classList.add("app-source-actions-only");
+    }
+
+    intro.dataset.appHeaderConsumed = "true";
+  });
 }
 
 function getAvatarUrl(user) {
@@ -357,10 +459,13 @@ function getRoleNavItems(role) {
         { label: "Student Records", path: "admin/students.html" },
         { label: "Accounts", path: "admin/accounts.html" },
         { label: "Audit Log", path: "admin/audit.html" },
+        { label: "SMS Settings", path: "admin/sms-settings.html" },
+        { label: "Email Settings", path: "admin/email-settings.html" },
         { label: "Hearings", path: "admin/hearings.html" },
         { label: "Sanctions", path: "admin/sanctions.html" },
         { label: "Appeals", path: "admin/appeals.html" },
         { label: "Evidence", path: "admin/evidence.html" },
+        { label: "Messages", path: "common/messages.html" },
         { label: "Notifications", path: "common/notifications.html" }
       ];
     case "discipline_officer":
@@ -371,6 +476,7 @@ function getRoleNavItems(role) {
         { label: "Sanctions", path: "discipline/sanctions.html" },
         { label: "Appeals", path: "discipline/appeals.html" },
         { label: "Evidence", path: "discipline/evidence.html" },
+        { label: "Messages", path: "common/messages.html" },
         { label: "Notifications", path: "common/notifications.html" }
       ];
     case "guidance_counselor":
@@ -382,6 +488,7 @@ function getRoleNavItems(role) {
         { label: "Appeals", path: "counselor/appeals.html" },
         { label: "Evidence", path: "counselor/evidence.html" },
         { label: "Student Profiles", path: "counselor/student-profile.html" },
+        { label: "Messages", path: "common/messages.html" },
         { label: "Notifications", path: "common/notifications.html" }
       ];
     case "teacher":
@@ -389,6 +496,7 @@ function getRoleNavItems(role) {
         { label: "Dashboard", path: "teacher/dashboard.html" },
         { label: "Report Incident", path: "teacher/report-case.html" },
         { label: "My Cases", path: "teacher/cases.html" },
+        { label: "Messages", path: "common/messages.html" },
         { label: "Notifications", path: "common/notifications.html" }
       ];
     case "student":
@@ -398,7 +506,7 @@ function getRoleNavItems(role) {
         { label: "Cases", path: "student/cases.html" },
         { label: "Hearings", path: "student/hearings.html" },
         { label: "Sanctions", path: "student/sanctions.html" },
-        { label: "Appeals", path: "student/appeals.html" },
+        { label: "Messages", path: "common/messages.html" },
         { label: "Notifications", path: "common/notifications.html" }
       ];
     case "parent":
@@ -407,6 +515,7 @@ function getRoleNavItems(role) {
         { label: "Cases", path: "parent/cases.html" },
         { label: "Hearings", path: "parent/hearings.html" },
         { label: "Sanctions", path: "parent/sanctions.html" },
+        { label: "Messages", path: "common/messages.html" },
         { label: "Notifications", path: "common/notifications.html" }
       ];
     default:
@@ -490,6 +599,7 @@ function injectBranding() {
 function closeAllProfileMenus() {
   document.querySelectorAll(".profile-menu.is-open").forEach(menu => menu.classList.remove("is-open"));
   document.querySelectorAll(".profile-trigger[aria-expanded='true']").forEach(trigger => trigger.setAttribute("aria-expanded", "false"));
+  closeAllMessageMenus();
 }
 
 function escapeHtml(value) {
@@ -504,6 +614,11 @@ function escapeHtml(value) {
 function closeAllNotificationMenus() {
   document.querySelectorAll(".notification-menu.is-open").forEach(menu => menu.classList.remove("is-open"));
   document.querySelectorAll(".notification-trigger[aria-expanded='true']").forEach(trigger => trigger.setAttribute("aria-expanded", "false"));
+}
+
+function closeAllMessageMenus() {
+  document.querySelectorAll(".message-menu.is-open").forEach(menu => menu.classList.remove("is-open"));
+  document.querySelectorAll(".message-trigger[aria-expanded='true']").forEach(trigger => trigger.setAttribute("aria-expanded", "false"));
 }
 
 function createProfileTrigger(user) {
@@ -618,6 +733,111 @@ function createNotificationsButton(user) {
     event.stopPropagation();
     handleNotificationMenuAction(event, menu);
   });
+  menu.addEventListener("keydown", event => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    const item = event.target.closest("[data-notification-target]");
+    if (!item) {
+      return;
+    }
+
+    event.preventDefault();
+    openNotificationMenuItem(item);
+  });
+
+  wrapper.appendChild(trigger);
+  wrapper.appendChild(menu);
+  return wrapper;
+}
+
+function createMessagesButton() {
+  const wrapper = document.createElement("div");
+  wrapper.className = "message-menu-wrap";
+
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "notification-trigger message-trigger";
+  trigger.setAttribute("aria-label", "Open messages");
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.innerHTML = `
+    <span class="notification-icon">${LucideIcons.svg("messageSquare")}</span>
+    <span class="notification-count hidden" data-message-count>0</span>
+  `;
+
+  const menu = document.createElement("div");
+  menu.className = "message-menu";
+  menu.innerHTML = `
+    <div class="message-menu-card" data-message-view="list">
+      <div class="message-menu-head">
+        <div>
+          <strong>Messages</strong>
+          <span data-message-subtitle>Case conversations</span>
+        </div>
+        <button type="button" class="notification-menu-link" data-message-open-center>Open inbox</button>
+      </div>
+      <div class="message-menu-search">
+        <input type="search" data-message-search placeholder="Search messages">
+      </div>
+      <div class="message-menu-list" data-message-list>
+        <div class="notification-menu-empty">Loading messages...</div>
+      </div>
+    </div>
+    <div class="message-menu-card hidden" data-message-view="thread">
+      <div class="message-thread-head">
+        <button type="button" class="message-back-btn" data-message-back aria-label="Back to inbox">${LucideIcons.svg("chevronLeft")}</button>
+        <div>
+          <strong data-message-thread-title>Conversation</strong>
+          <span data-message-thread-subtitle>Case thread</span>
+        </div>
+        <button type="button" class="notification-menu-link" data-message-open-case>Open case</button>
+      </div>
+      <div class="message-thread-list" data-message-thread-list>
+        <div class="notification-menu-empty">Loading conversation...</div>
+      </div>
+      <form class="message-thread-compose" data-message-form>
+        <textarea data-message-input rows="2" maxlength="2000" placeholder="Write a message..."></textarea>
+        <div class="message-thread-actions">
+          <span class="muted" data-message-result></span>
+          <button type="submit" class="compact-btn">Send</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  const state = {
+    conversations: [],
+    selected: null,
+    messages: []
+  };
+
+  trigger.addEventListener("click", event => {
+    event.stopPropagation();
+    const isOpen = menu.classList.contains("is-open");
+    closeAllProfileMenus();
+    closeAllNotificationMenus();
+    closeAllMessageMenus();
+    if (!isOpen) {
+      menu.classList.add("is-open");
+      trigger.setAttribute("aria-expanded", "true");
+      loadMessageMenu(menu, state);
+    }
+  });
+
+  menu.addEventListener("click", event => {
+    event.stopPropagation();
+    handleMessageMenuAction(event, menu, state);
+  });
+
+  menu.querySelector("[data-message-search]")?.addEventListener("input", () => {
+    renderMessageMenuList(menu, state);
+  });
+
+  menu.querySelector("[data-message-form]")?.addEventListener("submit", event => {
+    event.preventDefault();
+    sendMessageMenuReply(menu, state);
+  });
 
   wrapper.appendChild(trigger);
   wrapper.appendChild(menu);
@@ -631,6 +851,228 @@ function formatNotificationTime(value) {
     hour: "numeric",
     minute: "2-digit"
   });
+}
+
+function getMessageSenderName(item = {}) {
+  return [item.latest_sender_first_name, item.latest_sender_last_name].filter(Boolean).join(" ").trim()
+    || [item.first_name, item.last_name].filter(Boolean).join(" ").trim()
+    || item.username
+    || "Participant";
+}
+
+function getMessageStudentName(item = {}) {
+  return [item.student_first_name, item.student_last_name].filter(Boolean).join(" ").trim()
+    || item.student_number
+    || "Student";
+}
+
+function renderMessageMenuList(menu, state) {
+  const list = menu.querySelector("[data-message-list]");
+  const subtitle = menu.querySelector("[data-message-subtitle]");
+  const search = menu.querySelector("[data-message-search]")?.value.trim().toLowerCase() || "";
+  const conversations = state.conversations.filter(item => {
+    const text = [
+      item.case_number,
+      item.violation_type,
+      item.student_number,
+      item.student_first_name,
+      item.student_last_name,
+      item.latest_message
+    ].join(" ").toLowerCase();
+    return !search || text.includes(search);
+  });
+  const unreadTotal = state.conversations.reduce((sum, item) => sum + Number(item.unread_count || 0), 0);
+
+  updateMessageCounts(unreadTotal);
+  if (subtitle) {
+    subtitle.textContent = unreadTotal ? `${unreadTotal} unread` : "No unread messages";
+  }
+
+  if (!list) {
+    return;
+  }
+
+  if (!conversations.length) {
+    list.innerHTML = `<div class="notification-menu-empty">No conversations yet.</div>`;
+    return;
+  }
+
+  list.innerHTML = conversations.map(item => {
+    const unread = Number(item.unread_count || 0);
+    const latest = item.latest_message || "No messages yet.";
+    return `
+      <button type="button" class="message-menu-item ${unread ? "unread" : ""}" data-message-case-id="${item.case_id}">
+        <span class="message-menu-avatar">${unread || getMessageStudentName(item).charAt(0).toUpperCase()}</span>
+        <span class="message-menu-preview">
+          <span class="message-menu-row">
+            <strong>${escapeHtml(item.case_number || "Case")}</strong>
+            <small>${formatNotificationTime(item.latest_message_at || item.updated_at)}</small>
+          </span>
+          <span>${escapeHtml(getMessageStudentName(item))} · ${escapeHtml(item.violation_type || "Case thread")}</span>
+          <em>${escapeHtml(getMessageSenderName(item))}: ${escapeHtml(latest)}</em>
+        </span>
+      </button>
+    `;
+  }).join("");
+}
+
+function setMessageMenuView(menu, view) {
+  menu.querySelectorAll("[data-message-view]").forEach(panel => {
+    panel.classList.toggle("hidden", panel.dataset.messageView !== view);
+  });
+}
+
+async function loadMessageMenu(menu, state) {
+  setMessageMenuView(menu, "list");
+  const list = menu.querySelector("[data-message-list]");
+  if (list) {
+    list.innerHTML = `<div class="notification-menu-empty">Loading messages...</div>`;
+  }
+
+  try {
+    const response = await fetch(`${getApiOrigin()}/api/messages/conversations`, {
+      headers: {
+        Authorization: `Bearer ${getToken()}`
+      }
+    });
+    const data = await response.json();
+    if (!data.success) {
+      if (list) list.innerHTML = `<div class="notification-menu-empty">${escapeHtml(data.message || "Unable to load messages.")}</div>`;
+      return;
+    }
+
+    state.conversations = data.conversations || [];
+    renderMessageMenuList(menu, state);
+  } catch (error) {
+    console.error("Unable to load messages:", error);
+    if (list) list.innerHTML = `<div class="notification-menu-empty">Unable to load messages.</div>`;
+  }
+}
+
+function renderMessageThread(menu, state) {
+  const list = menu.querySelector("[data-message-thread-list]");
+  if (!list) return;
+
+  const user = getUser();
+  if (!state.messages.length) {
+    list.innerHTML = `<div class="notification-menu-empty">No messages yet.</div>`;
+    return;
+  }
+
+  list.innerHTML = state.messages.map(item => {
+    const mine = Number(item.sender_user_id) === Number(user?.id);
+    const sender = mine ? "You" : [item.first_name, item.last_name].filter(Boolean).join(" ").trim() || "Participant";
+    return `
+      <article class="message-mini-bubble ${mine ? "mine" : ""}">
+        <div><strong>${escapeHtml(sender)}</strong><span>${formatNotificationTime(item.created_at)}</span></div>
+        <p>${escapeHtml(item.body || "")}</p>
+      </article>
+    `;
+  }).join("");
+  list.scrollTop = list.scrollHeight;
+}
+
+async function openMessageThread(menu, state, caseId) {
+  const selected = state.conversations.find(item => Number(item.case_id) === Number(caseId)) || { case_id: caseId };
+  state.selected = selected;
+  setMessageMenuView(menu, "thread");
+
+  const title = menu.querySelector("[data-message-thread-title]");
+  const subtitle = menu.querySelector("[data-message-thread-subtitle]");
+  const list = menu.querySelector("[data-message-thread-list]");
+  if (title) title.textContent = selected.case_number || "Case conversation";
+  if (subtitle) subtitle.textContent = `${getMessageStudentName(selected)} · ${selected.violation_type || "Case thread"}`;
+  if (list) list.innerHTML = `<div class="notification-menu-empty">Loading conversation...</div>`;
+
+  try {
+    const response = await fetch(`${getApiOrigin()}/api/messages/cases/${encodeURIComponent(caseId)}`, {
+      headers: {
+        Authorization: `Bearer ${getToken()}`
+      }
+    });
+    const data = await response.json();
+    if (!data.success) {
+      if (list) list.innerHTML = `<div class="notification-menu-empty">${escapeHtml(data.message || "Unable to load conversation.")}</div>`;
+      return;
+    }
+
+    state.messages = data.messages || [];
+    renderMessageThread(menu, state);
+    await refreshMessageBadge();
+  } catch (error) {
+    console.error("Unable to open message thread:", error);
+    if (list) list.innerHTML = `<div class="notification-menu-empty">Unable to load conversation.</div>`;
+  }
+}
+
+async function sendMessageMenuReply(menu, state) {
+  const input = menu.querySelector("[data-message-input]");
+  const result = menu.querySelector("[data-message-result]");
+  const body = input?.value.trim();
+  const caseId = state.selected?.case_id;
+
+  if (!caseId || !body) {
+    if (result) result.textContent = "Write a message first.";
+    return;
+  }
+
+  if (result) result.textContent = "Sending...";
+  try {
+    const response = await fetch(`${getApiOrigin()}/api/messages/cases/${encodeURIComponent(caseId)}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ body })
+    });
+    const data = await response.json();
+    if (!data.success) {
+      if (result) result.textContent = data.message || "Unable to send message.";
+      return;
+    }
+
+    input.value = "";
+    if (result) result.textContent = "";
+    await openMessageThread(menu, state, caseId);
+    await loadMessageMenu(menu, state);
+    setMessageMenuView(menu, "thread");
+  } catch (error) {
+    console.error("Unable to send message:", error);
+    if (result) result.textContent = "Unable to send message.";
+  }
+}
+
+function handleMessageMenuAction(event, menu, state) {
+  const openCenter = event.target.closest("[data-message-open-center]");
+  const back = event.target.closest("[data-message-back]");
+  const openCase = event.target.closest("[data-message-open-case]");
+  const item = event.target.closest("[data-message-case-id]");
+
+  if (openCenter) {
+    closeAllMessageMenus();
+    goToPage("common/messages.html");
+    return;
+  }
+
+  if (back) {
+    setMessageMenuView(menu, "list");
+    renderMessageMenuList(menu, state);
+    return;
+  }
+
+  if (openCase && state.selected?.case_id) {
+    const target = getCaseRouteForRole(state.selected.case_id);
+    if (target) {
+      closeAllMessageMenus();
+      goToPage(`${target}#caseMessagesSection`);
+    }
+    return;
+  }
+
+  if (item) {
+    openMessageThread(menu, state, item.dataset.messageCaseId);
+  }
 }
 
 function parseDisplayDate(value) {
@@ -730,6 +1172,91 @@ function updateNotificationCounts(unreadCount = 0) {
   });
 }
 
+function updateMessageCounts(unreadCount = 0) {
+  document.querySelectorAll("[data-message-count]").forEach(countNode => {
+    countNode.textContent = String(unreadCount);
+    countNode.classList.toggle("hidden", Number(unreadCount) <= 0);
+  });
+}
+
+function getCaseNumberFromNotification(item = {}) {
+  const text = `${item.title || ""} ${item.message || ""}`;
+  const match = text.match(/\bCASE-\d+\b/i);
+  return match ? match[0].toUpperCase() : "";
+}
+
+function getCaseRouteForRole(caseId) {
+  const encodedId = encodeURIComponent(caseId);
+  const user = getUser();
+
+  switch (user?.role) {
+    case "student":
+      return `student/case-details.html?id=${encodedId}`;
+    case "teacher":
+      return `teacher/case-details.html?id=${encodedId}`;
+    case "discipline_officer":
+      return `discipline/case-details.html?id=${encodedId}`;
+    case "guidance_counselor":
+      return `counselor/case-details.html?id=${encodedId}`;
+    case "admin":
+      return `admin/case-details.html?id=${encodedId}`;
+    case "parent":
+      return `parent/case-details.html?id=${encodedId}`;
+    default:
+      return "";
+  }
+}
+
+function getNotificationMenuTarget(item = {}) {
+  const caseNumber = getCaseNumberFromNotification(item);
+  if (!caseNumber || !notificationCaseLookup.has(caseNumber)) {
+    return null;
+  }
+
+  const caseItem = notificationCaseLookup.get(caseNumber);
+  const url = getCaseRouteForRole(caseItem.id);
+  return url ? { url, label: "View Case" } : null;
+}
+
+async function loadNotificationCaseLookup() {
+  const user = getUser();
+  let endpoint = "";
+
+  switch (user?.role) {
+    case "student":
+      endpoint = "/api/cases/my-cases";
+      break;
+    case "parent":
+      endpoint = "/api/cases/parent-child-cases";
+      break;
+    case "admin":
+    case "teacher":
+    case "discipline_officer":
+    case "guidance_counselor":
+      endpoint = "/api/cases/all?limit=50";
+      break;
+    default:
+      notificationCaseLookup = new Map();
+      return;
+  }
+
+  try {
+    const response = await fetch(`${getApiOrigin()}${endpoint}`, {
+      headers: {
+        Authorization: `Bearer ${getToken()}`
+      }
+    });
+    const data = await response.json();
+    const cases = data.success && Array.isArray(data.cases) ? data.cases : [];
+    notificationCaseLookup = new Map(cases
+      .map(item => [String(item.case_number || "").toUpperCase(), item])
+      .filter(([caseNumber]) => caseNumber));
+  } catch (error) {
+    console.warn("Unable to build notification case links:", error);
+    notificationCaseLookup = new Map();
+  }
+}
+
 function renderNotificationMenu(menu, notifications = []) {
   const list = menu.querySelector("[data-notification-list]");
   const subtitle = menu.querySelector("[data-notification-subtitle]");
@@ -751,8 +1278,9 @@ function renderNotificationMenu(menu, notifications = []) {
 
   list.innerHTML = notifications.map(item => {
     const unread = !Number(item.is_read);
+    const target = getNotificationMenuTarget(item);
     return `
-      <article class="notification-menu-item ${unread ? "unread" : ""}" data-notification-id="${item.id}">
+      <article class="notification-menu-item ${unread ? "unread" : ""} ${target ? "clickable" : ""}" data-notification-id="${item.id}"${target ? ` data-notification-target="${escapeHtml(target.url)}" role="link" tabindex="0"` : ""}>
         <div class="notification-menu-dot" aria-hidden="true"></div>
         <div class="notification-menu-body">
           <div class="notification-menu-title-row">
@@ -761,6 +1289,7 @@ function renderNotificationMenu(menu, notifications = []) {
           </div>
           <p>${escapeHtml(item.message || "")}</p>
           <div class="notification-menu-actions">
+            ${target ? `<button type="button" data-notification-open="${item.id}">${target.label}</button>` : ""}
             ${unread ? `<button type="button" data-notification-read="${item.id}">Mark as read</button>` : `<span>Read</span>`}
             <button type="button" class="danger" data-notification-delete="${item.id}">Delete</button>
           </div>
@@ -787,6 +1316,7 @@ async function loadNotificationMenu(menu) {
       if (list) list.innerHTML = `<div class="notification-menu-empty">${data.message || "Unable to load notifications."}</div>`;
       return;
     }
+    await loadNotificationCaseLookup();
     renderNotificationMenu(menu, data.notifications || []);
   } catch (error) {
     console.error("Unable to load notifications:", error);
@@ -805,11 +1335,20 @@ async function notificationRequest(endpoint, method = "GET") {
 }
 
 async function handleNotificationMenuAction(event, menu) {
+  const openButton = event.target.closest("[data-notification-open]");
   const readButton = event.target.closest("[data-notification-read]");
   const deleteButton = event.target.closest("[data-notification-delete]");
   const readAllButton = event.target.closest("[data-notification-read-all]");
   const clearButton = event.target.closest("[data-notification-clear]");
   const centerButton = event.target.closest("[data-notification-center]");
+
+  if (openButton) {
+    const item = openButton.closest("[data-notification-target]");
+    if (item) {
+      await openNotificationMenuItem(item);
+    }
+    return;
+  }
 
   if (readButton) {
     const result = await notificationRequest(`/api/auth/notifications/${readButton.dataset.notificationRead}/read`, "PUT");
@@ -837,7 +1376,28 @@ async function handleNotificationMenuAction(event, menu) {
 
   if (centerButton) {
     goToPage("common/notifications.html");
+    return;
   }
+
+  const item = event.target.closest("[data-notification-target]");
+  if (item) {
+    await openNotificationMenuItem(item);
+  }
+}
+
+async function openNotificationMenuItem(item) {
+  const id = item.dataset.notificationId;
+  const target = item.dataset.notificationTarget;
+  if (!target) {
+    return;
+  }
+
+  if (id) {
+    await notificationRequest(`/api/auth/notifications/${id}/read`, "PUT");
+  }
+
+  closeAllNotificationMenus();
+  goToPage(target);
 }
 
 function formatSessionDate(value) {
@@ -851,9 +1411,12 @@ function injectAppHeader(user) {
 
   const header = document.createElement("header");
   header.className = "app-top-header";
+  if (window.location.pathname.replace(/\\/g, "/").endsWith("/dashboard.html")) {
+    header.classList.add("dashboard-app-header");
+  }
   header.innerHTML = `
     <div class="app-top-title">
-      <button type="button" class="app-menu-button" aria-label="Menu">${LucideIcons.svg("menu")}</button>
+      <button type="button" class="app-menu-button" aria-label="Open navigation" aria-expanded="false">${LucideIcons.svg("menu")}</button>
       <div>
         <h1>${getPageTitleText()}</h1>
         <p>${getPageSubtitleText(user)}</p>
@@ -867,8 +1430,10 @@ function injectAppHeader(user) {
   `;
 
   const actions = header.querySelector(".app-top-actions");
+  const menuButton = header.querySelector(".app-menu-button");
   actions.appendChild(createThemeToggle());
   const notificationsButton = createNotificationsButton(user);
+  const messagesButton = createMessagesButton();
   const trigger = createProfileTrigger(user);
   const menu = createProfileMenu(user);
   const wrapper = document.createElement("div");
@@ -876,6 +1441,7 @@ function injectAppHeader(user) {
   wrapper.appendChild(trigger);
   wrapper.appendChild(menu);
   actions.appendChild(notificationsButton);
+  actions.appendChild(messagesButton);
   actions.appendChild(wrapper);
 
   trigger.addEventListener("click", event => {
@@ -894,6 +1460,22 @@ function injectAppHeader(user) {
   } else {
     document.body.prepend(header);
   }
+
+  menuButton.addEventListener("click", () => {
+    toggleMobileSidebar();
+  });
+}
+
+function setMobileSidebarOpen(isOpen) {
+  document.body.classList.toggle("mobile-sidebar-open", Boolean(isOpen));
+  document.querySelectorAll(".app-menu-button").forEach(button => {
+    button.setAttribute("aria-expanded", String(Boolean(isOpen)));
+    button.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
+  });
+}
+
+function toggleMobileSidebar() {
+  setMobileSidebarOpen(!document.body.classList.contains("mobile-sidebar-open"));
 }
 
 function getNavIconName(item) {
@@ -904,6 +1486,7 @@ function getNavIconName(item) {
   if (value.includes("hearing")) return "calendar-days";
   if (value.includes("appeal")) return "file-warning";
   if (value.includes("evidence")) return "folder-open";
+  if (value.includes("message")) return "messageSquare";
   if (value.includes("notification")) return "bell";
   if (value.includes("setting")) return "settings";
   if (value.includes("audit")) return "clipboard-list";
@@ -950,12 +1533,14 @@ function enhanceTopbarUser(topbar, user) {
   const trigger = createProfileTrigger(user);
   const menu = createProfileMenu(user);
   const notificationsButton = createNotificationsButton(user);
+  const messagesButton = createMessagesButton();
   const wrapper = document.createElement("div");
   wrapper.className = "profile-menu-wrap";
   wrapper.appendChild(trigger);
   wrapper.appendChild(menu);
   container.appendChild(createThemeToggle());
   container.appendChild(notificationsButton);
+  container.appendChild(messagesButton);
   container.appendChild(wrapper);
 
   if (existingLogoutButton) {
@@ -1028,6 +1613,7 @@ function enhanceDashboardProfile(user) {
   toolbar.className = "dash-profile-tools";
 
   const notificationsButton = createNotificationsButton(user);
+  const messagesButton = createMessagesButton();
   const trigger = createProfileTrigger(user);
   const menu = createProfileMenu(user);
   const wrapper = document.createElement("div");
@@ -1037,6 +1623,7 @@ function enhanceDashboardProfile(user) {
 
   toolbar.appendChild(createThemeToggle());
   toolbar.appendChild(notificationsButton);
+  toolbar.appendChild(messagesButton);
   toolbar.appendChild(wrapper);
   card.prepend(toolbar);
 
@@ -1163,6 +1750,7 @@ function injectSidebar(user) {
         <strong>Philtech-GMA</strong>
         <span>${user.role_label || getRoleLabel(user.role)}</span>
       </div>
+      <button type="button" class="app-sidebar-close" aria-label="Close navigation">${LucideIcons.svg("chevronLeft")}</button>
     </div>
     <nav class="app-sidebar-nav">
       ${groupedNav.map(item => {
@@ -1176,6 +1764,19 @@ function injectSidebar(user) {
   `;
 
   document.body.prepend(aside);
+
+  aside.querySelector(".app-sidebar-close")?.addEventListener("click", () => setMobileSidebarOpen(false));
+
+  const overlay = document.createElement("button");
+  overlay.type = "button";
+  overlay.className = "app-sidebar-overlay";
+  overlay.setAttribute("aria-label", "Close navigation");
+  overlay.addEventListener("click", () => setMobileSidebarOpen(false));
+  document.body.insertBefore(overlay, aside.nextSibling);
+
+  aside.querySelectorAll(".app-sidebar-link").forEach(link => {
+    link.addEventListener("click", () => setMobileSidebarOpen(false));
+  });
 }
 
 function initializeRevealOnScroll() {
@@ -1321,7 +1922,34 @@ async function refreshNotificationBadge() {
   }
 }
 
+async function refreshMessageBadge() {
+  const token = getToken();
+  if (!token) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${getApiOrigin()}/api/messages/unread-count`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      return;
+    }
+
+    updateMessageCounts(Number(data.unreadCount || 0));
+  } catch (error) {
+    console.error("Unable to refresh message badge:", error);
+  }
+}
+
 async function initializeSharedTopbar() {
+  if (isAuthPage()) {
+    applyTheme("light");
+  }
   injectAuthThemeToggle();
   injectBranding();
   const cachedUser = getUser();
@@ -1338,6 +1966,7 @@ async function initializeSharedTopbar() {
       }
       moveTopbarActionsBelow(topbar);
     });
+    collapseRedundantPageIntros();
   }
 
   const refreshedUser = await refreshCurrentUser();
@@ -1353,12 +1982,15 @@ async function initializeSharedTopbar() {
       }
       moveTopbarActionsBelow(topbar);
     });
+    collapseRedundantPageIntros();
   }
 
   injectFallbackThemeToggle();
   refreshNotificationBadge();
+  refreshMessageBadge();
   initializeRevealOnScroll();
   initializeAnimatedMetrics();
+  syncInternetDependentNotices();
 
   const veil = ensureTransitionVeil();
 
@@ -1370,6 +2002,55 @@ async function initializeSharedTopbar() {
     }, 120);
   });
 }
+
+function getInternetUnavailableMessage() {
+  return "Internet connection unavailable. Local records can still work, but SMS, email, weather, and externally loaded QR tools may not send or load until the connection returns.";
+}
+
+function ensureInternetNotice() {
+  if (document.body.classList.contains("auth-page")) {
+    return null;
+  }
+
+  let notice = document.querySelector("[data-internet-global-notice]");
+  if (!notice) {
+    notice = document.createElement("div");
+    notice.className = "internet-status-notice";
+    notice.dataset.internetGlobalNotice = "true";
+    notice.setAttribute("role", "status");
+    notice.setAttribute("aria-live", "polite");
+    notice.innerHTML = `
+      <strong>Internet unavailable</strong>
+      <span>${escapeHtml(getInternetUnavailableMessage())}</span>
+    `;
+    document.body.prepend(notice);
+  }
+
+  return notice;
+}
+
+function syncInternetDependentNotices() {
+  const offline = navigator.onLine === false;
+  const notice = ensureInternetNotice();
+  if (notice) {
+    notice.classList.toggle("is-visible", offline);
+  }
+
+  document.body.classList.toggle("internet-offline", offline);
+
+  document.querySelectorAll("[data-internet-inline-notice]").forEach(inlineNotice => {
+    inlineNotice.remove();
+  });
+
+  document.querySelectorAll("[data-internet-feature]").forEach(element => {
+    const message = element.dataset.internetFeature || getInternetUnavailableMessage();
+    element.classList.toggle("internet-feature-offline", offline);
+    element.setAttribute("title", offline ? message : "");
+  });
+}
+
+window.addEventListener("online", syncInternetDependentNotices);
+window.addEventListener("offline", syncInternetDependentNotices);
 
 document.addEventListener("click", event => {
   const nestedButton = event.target.closest("a[href] > button");
@@ -1419,10 +2100,17 @@ document.addEventListener("click", event => {
   if (!event.target.closest(".notification-menu-wrap")) {
     closeAllNotificationMenus();
   }
+
+  if (!event.target.closest(".message-menu-wrap")) {
+    closeAllMessageMenus();
+  }
 });
 
 primeSharedLayoutShell();
-document.addEventListener("DOMContentLoaded", initializeSharedTopbar);
+document.addEventListener("DOMContentLoaded", () => {
+  syncInternetDependentNotices();
+  initializeSharedTopbar();
+});
 
 window.saveAuth = saveAuth;
 window.setUser = setUser;
@@ -1448,3 +2136,5 @@ window.getDashboardPath = getDashboardPath;
 window.getAvatarUrl = getAvatarUrl;
 window.getUserFullName = getUserFullName;
 window.formatSessionDate = formatSessionDate;
+window.refreshMessageBadge = refreshMessageBadge;
+window.syncInternetDependentNotices = syncInternetDependentNotices;

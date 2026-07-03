@@ -73,9 +73,12 @@
 requireAuth();
 
 let notifications = [];
+let caseLookup = new Map();
+const currentUser = getUser();
 
 function badge(value) {
-  return `<span class="badge ${String(value || "system").toLowerCase()}">${String(value || "system").replaceAll("_", " ")}</span>`;
+  const safeValue = String(value || "system");
+  return `<span class="badge ${escapeHtml(safeValue.toLowerCase().replaceAll(" ", "_"))}">${escapeHtml(safeValue.replaceAll("_", " "))}</span>`;
 }
 
 function formatDateTime(value) {
@@ -119,6 +122,45 @@ function renderSummary(rows) {
   }).length;
 }
 
+function getCaseNumberFromNotification(item) {
+  const text = `${item.title || ""} ${item.message || ""}`;
+  const match = text.match(/\bCASE-\d+\b/i);
+  return match ? match[0].toUpperCase() : "";
+}
+
+function getCaseRoute(caseId) {
+  const encodedId = encodeURIComponent(caseId);
+  switch (currentUser?.role) {
+    case "student":
+      return `../student/case-details.html?id=${encodedId}`;
+    case "teacher":
+      return `../teacher/case-details.html?id=${encodedId}`;
+    case "discipline_officer":
+      return `../discipline/case-details.html?id=${encodedId}`;
+    case "guidance_counselor":
+      return `../counselor/case-details.html?id=${encodedId}`;
+    case "admin":
+      return `../admin/case-details.html?id=${encodedId}`;
+    case "parent":
+      return `../parent/case-details.html?id=${encodedId}`;
+    default:
+      return "";
+  }
+}
+
+function getNotificationTarget(item) {
+  const caseNumber = getCaseNumberFromNotification(item);
+  if (!caseNumber || !caseLookup.has(caseNumber)) {
+    return null;
+  }
+
+  const caseItem = caseLookup.get(caseNumber);
+  return {
+    label: "View Case",
+    url: getCaseRoute(caseItem.id)
+  };
+}
+
 function renderNotifications() {
   const list = document.getElementById("notificationList");
   const rows = applyFilters(notifications);
@@ -129,11 +171,17 @@ function renderNotifications() {
     return;
   }
 
-  list.innerHTML = rows.map(item => `
-    <div class="notification-card ${Number(item.is_read) ? "" : "unread"}">
+  list.innerHTML = rows.map(item => {
+    const target = getNotificationTarget(item);
+    const clickableAttrs = target
+      ? ` role="link" tabindex="0" onclick="openNotification(${item.id}, '${target.url}')" onkeydown="handleNotificationKey(event, ${item.id}, '${target.url}')"`
+      : "";
+
+    return `
+    <div class="notification-card ${Number(item.is_read) ? "" : "unread"} ${target ? "clickable" : ""}"${clickableAttrs}>
       <div class="notification-card-head">
         <div>
-          <h3 style="margin:0 0 6px;">${item.title}</h3>
+          <h3 style="margin:0 0 6px;">${escapeHtml(item.title)}</h3>
           <div class="notification-meta">
             ${badge(item.type)}
             ${Number(item.is_read) ? `<span class="badge completed">read</span>` : `<span class="badge pending">unread</span>`}
@@ -141,12 +189,36 @@ function renderNotifications() {
         </div>
         <span class="muted">${formatDateTime(item.created_at)}</span>
       </div>
-      <p style="margin:0;">${item.message}</p>
+      <p style="margin:0;">${escapeHtml(item.message)}</p>
       <div class="notification-actions">
-        ${Number(item.is_read) ? "" : `<button type="button" class="compact-btn" onclick="markAsRead(${item.id})">Mark Read</button>`}
+        ${target ? `<button type="button" class="compact-btn secondary" onclick="openNotification(${item.id}, '${target.url}', event)">${target.label}</button>` : ""}
+        ${Number(item.is_read) ? "" : `<button type="button" class="compact-btn" onclick="markAsRead(${item.id}, event)">Mark Read</button>`}
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
+}
+
+async function loadCaseLookup() {
+  const role = currentUser?.role;
+  let endpoint = "";
+
+  if (role === "student") {
+    endpoint = "/cases/my-cases";
+  } else if (role === "parent") {
+    endpoint = "/cases/parent-child-cases";
+  } else if (["admin", "teacher", "discipline_officer", "guidance_counselor"].includes(role)) {
+    endpoint = "/cases/all?limit=50";
+  }
+
+  if (!endpoint) {
+    caseLookup = new Map();
+    return;
+  }
+
+  const res = await apiRequest(endpoint, "GET", null, true);
+  const cases = res.success && Array.isArray(res.cases) ? res.cases : [];
+  caseLookup = new Map(cases.map(item => [String(item.case_number || "").toUpperCase(), item]).filter(([caseNumber]) => caseNumber));
 }
 
 async function loadNotifications() {
@@ -157,13 +229,34 @@ async function loadNotifications() {
   }
 
   notifications = res.notifications || [];
+  await loadCaseLookup();
   renderNotifications();
 }
 
-async function markAsRead(id) {
+async function markAsRead(id, event) {
+  if (event) {
+    event.stopPropagation();
+  }
+
   const res = await apiRequest(`/auth/notifications/${id}/read`, "PUT", null, true);
   if (!res.success) return;
   await loadNotifications();
+}
+
+async function openNotification(id, url, event) {
+  if (event) {
+    event.stopPropagation();
+  }
+
+  await apiRequest(`/auth/notifications/${id}/read`, "PUT", null, true);
+  window.location.href = url;
+}
+
+function handleNotificationKey(event, id, url) {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    openNotification(id, url);
+  }
 }
 
 async function markAllRead() {
@@ -179,6 +272,8 @@ document.getElementById("markAllReadBtn").addEventListener("click", markAllRead)
 });
 
 window.markAsRead = markAsRead;
+window.openNotification = openNotification;
+window.handleNotificationKey = handleNotificationKey;
 loadNotifications();
 </script>
 

@@ -16,7 +16,6 @@
     </div>
     <div class="action-row">
       <a href="dashboard.html"><button class="secondary">Back</button></a>
-      <a href="appeals.html"><button>Appeals</button></a>
       <button onclick="logout()">Logout</button>
     </div>
   </div>
@@ -53,11 +52,13 @@
             <th>Severity</th>
             <th>Status</th>
             <th>Incident Date</th>
+            <th>Incident Time</th>
             <th>Location</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="casesTable">
-          <tr><td colspan="6">Loading...</td></tr>
+          <tr><td colspan="8">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -76,7 +77,8 @@ if (!user || user.role !== "student") {
 }
 
 function badge(value) {
-  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+  const safeValue = String(value || "-");
+  return `<span class="badge ${escapeHtml(safeValue.toLowerCase().replaceAll(" ", "_"))}">${escapeHtml(safeValue.replaceAll("_", " "))}</span>`;
 }
 
 async function loadMyCases() {
@@ -84,7 +86,7 @@ async function loadMyCases() {
   const res = await apiRequest("/cases/my-cases", "GET", null, true);
 
   if (!res.success) {
-    table.innerHTML = `<tr><td colspan="6">${res.message}</td></tr>`;
+    table.innerHTML = `<tr><td colspan="8">${res.message}</td></tr>`;
     return;
   }
 
@@ -94,18 +96,20 @@ async function loadMyCases() {
   document.getElementById("resolvedCount").textContent = cases.filter(item => ["resolved", "dismissed"].includes(item.status)).length;
 
   if (!cases.length) {
-    table.innerHTML = `<tr><td colspan="6">No case records found.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="8">No case records found.</td></tr>`;
     return;
   }
 
   table.innerHTML = cases.map(item => `
     <tr>
-      <td><strong>${item.case_number}</strong></td>
-      <td>${item.violation_type}</td>
+      <td><a href="case-details.html?id=${encodeURIComponent(item.id)}"><strong>${escapeHtml(item.case_number)}</strong></a></td>
+      <td>${escapeHtml(item.violation_type)}</td>
       <td>${badge(item.severity_level)}</td>
-      <td>${badge(item.status)}</td>
+      <td>${badge(item.operational_status || item.status)}</td>
       <td>${formatDisplayDate(item.incident_date)}</td>
-      <td>${item.location || "-"}</td>
+      <td>${formatDisplayTime(item.incident_time)}</td>
+      <td>${escapeHtml(item.location || "-")}</td>
+      <td><a href="case-details.html?id=${encodeURIComponent(item.id)}"><button class="secondary" type="button">Open</button></a></td>
     </tr>
   `).join("");
 }

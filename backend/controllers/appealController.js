@@ -1,6 +1,18 @@
 const pool = require("../config/db");
 const { logAudit } = require("../utils/auditLogger");
-const { getActorContext, getCaseForAccess, getCaseStatusRecord, isCaseClosed } = require("./caseController");
+const {
+  getActorContext,
+  getCaseForAccess,
+  getCaseStatusRecord,
+  requireCaseMutationAccess,
+  isCaseClosed
+} = require("./caseController");
+const {
+  createWorkflowEvent,
+  labelize,
+  notifyCaseStakeholders,
+  refreshCaseWorkflow
+} = require("../utils/caseWorkflow");
 
 function formatRoleLabel(role = "") {
   return String(role || "")
@@ -39,6 +51,18 @@ async function createAppeal(req, res) {
       });
     }
 
+    const [deadlineRows] = await pool.query(
+      "SELECT appeal_deadline_at FROM cases WHERE id = ? LIMIT 1",
+      [caseId]
+    );
+    const appealDeadline = deadlineRows[0]?.appeal_deadline_at || null;
+    if (appealDeadline && new Date() > new Date(appealDeadline)) {
+      return res.status(400).json({
+        success: false,
+        message: "Appeal deadline has passed."
+      });
+    }
+
     const [existingRows] = await pool.query(
       `
       SELECT id
@@ -59,10 +83,10 @@ async function createAppeal(req, res) {
     const [result] = await pool.query(
       `
       INSERT INTO appeals
-      (case_id, student_id, submitted_by_user_id, reason, status)
-      VALUES (?, ?, ?, ?, 'submitted')
+      (case_id, student_id, submitted_by_user_id, reason, deadline_at, eligibility_status, status)
+      VALUES (?, ?, ?, ?, ?, 'eligible', 'submitted')
       `,
-      [caseId, context.studentId, req.user.id, reason]
+      [caseId, context.studentId, req.user.id, reason, appealDeadline]
     );
 
     await logAudit({
@@ -74,9 +98,30 @@ async function createAppeal(req, res) {
       ipAddress: req.ip
     });
 
+    await createWorkflowEvent({
+      caseId,
+      userId: req.user.id,
+      eventType: "appeal_submitted",
+      title: "Appeal submitted",
+      details: "Student submitted an appeal for review.",
+      metadata: { appealId: result.insertId }
+    });
+
+    const workflow = await refreshCaseWorkflow(caseId);
+
+    await notifyCaseStakeholders({
+      caseId,
+      title: "Appeal Submitted",
+      message: `An appeal was submitted for ${caseItem.case_number}. Next action: ${workflow?.next_action_label || "Review Appeal"}.`,
+      type: "appeal",
+      includeStudentParents: false,
+      excludeUserId: req.user.id
+    });
+
     return res.status(201).json({
       success: true,
-      message: "Appeal submitted successfully."
+      message: "Appeal submitted successfully.",
+      workflow
     });
   } catch (error) {
     console.error("Create appeal error:", error);
@@ -105,6 +150,9 @@ async function getMyAppeals(req, res) {
         a.case_id,
         a.student_id,
         a.reason,
+        a.deadline_at,
+        a.eligibility_status,
+        a.eligibility_notes,
         a.status,
         a.decision_notes,
         a.reviewed_at,
@@ -161,6 +209,9 @@ async function getAllAppeals(req, res) {
         a.case_id,
         a.student_id,
         a.reason,
+        a.deadline_at,
+        a.eligibility_status,
+        a.eligibility_notes,
         a.status,
         a.decision_notes,
         a.reviewed_at,
@@ -239,6 +290,14 @@ async function reviewAppeal(req, res) {
       });
     }
 
+    const mutationAccess = await requireCaseMutationAccess(rows[0].case_id, req.user);
+    if (!mutationAccess.allowed) {
+      return res.status(mutationAccess.status).json({
+        success: false,
+        message: mutationAccess.message
+      });
+    }
+
     await pool.query(
       `
       UPDATE appeals
@@ -261,9 +320,29 @@ async function reviewAppeal(req, res) {
       ipAddress: req.ip
     });
 
+    await createWorkflowEvent({
+      caseId: rows[0].case_id,
+      userId: req.user.id,
+      eventType: "appeal_reviewed",
+      title: "Appeal reviewed",
+      details: `Appeal was marked ${labelize(status)}.${decisionNotes ? ` Decision notes: ${decisionNotes}` : ""}`,
+      metadata: { appealId: Number(id), status }
+    });
+
+    const workflow = await refreshCaseWorkflow(rows[0].case_id);
+
+    await notifyCaseStakeholders({
+      caseId: rows[0].case_id,
+      title: "Appeal Decision Updated",
+      message: `Appeal status for ${rows[0].case_number} is now ${labelize(status)}. Next action: ${workflow?.next_action_label || "Review Case"}.`,
+      type: "appeal",
+      excludeUserId: req.user.id
+    });
+
     return res.json({
       success: true,
-      message: "Appeal updated successfully."
+      message: "Appeal updated successfully.",
+      workflow
     });
   } catch (error) {
     console.error("Review appeal error:", error);

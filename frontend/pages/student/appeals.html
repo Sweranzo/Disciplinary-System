@@ -11,41 +11,17 @@
 <div class="dashboard-container">
   <div class="topbar">
     <div>
-      <h1>Appeals Board Requests</h1>
-      <p class="muted">Submit an appeal for one of your cases and track the review outcome.</p>
+      <h1>Appeals Moved to Cases</h1>
+      <p class="muted">Appeals are now submitted from the specific case record.</p>
     </div>
     <div class="action-row">
-      <a href="dashboard.html"><button class="secondary">Back</button></a>
-      <a href="cases.html"><button>Cases</button></a>
-      <button onclick="logout()">Logout</button>
+      <a href="cases.html"><button type="button">Go to Cases</button></a>
+      <button onclick="logout()" type="button">Logout</button>
     </div>
   </div>
 
-  <div class="split-grid page-section">
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>Submit Appeal</h2>
-          <p class="muted">Only your own case records can be appealed from this page.</p>
-        </div>
-      </div>
-      <select id="caseId"></select>
-      <textarea id="reason" placeholder="Explain why you are requesting an appeal"></textarea>
-      <div class="action-row">
-        <button id="submitAppealBtn">Submit Appeal</button>
-        <span id="appealResult" class="muted"></span>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h2>My Appeals</h2>
-          <p class="muted">Review board status, notes, and prior submissions.</p>
-        </div>
-      </div>
-      <div id="appealsList">Loading...</div>
-    </div>
+  <div class="card page-section">
+    <p class="muted">Redirecting to your case list...</p>
   </div>
 </div>
 
@@ -60,62 +36,9 @@ if (!user || user.role !== "student") {
   logout();
 }
 
-function badge(value) {
-  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
-}
-
-async function loadCaseOptions() {
-  const select = document.getElementById("caseId");
-  const res = await apiRequest("/cases/my-cases", "GET", null, true);
-
-  if (!res.success || !res.cases.length) {
-    select.innerHTML = `<option value="">No cases available for appeal</option>`;
-    return;
-  }
-
-  select.innerHTML = `<option value="">Select case</option>` + res.cases.map(item => `
-    <option value="${item.id}">${item.case_number} - ${item.violation_type} (${item.status})</option>
-  `).join("");
-}
-
-async function loadAppeals() {
-  const res = await apiRequest("/appeals/my", "GET", null, true);
-  const list = document.getElementById("appealsList");
-
-  if (!res.success) {
-    list.innerHTML = `<div class="empty-state">${res.message}</div>`;
-    return;
-  }
-
-  if (!res.appeals.length) {
-    list.innerHTML = `<div class="empty-state">No appeals submitted yet.</div>`;
-    return;
-  }
-
-  list.innerHTML = `<div class="detail-list">${res.appeals.map(appeal => `
-    <div class="detail-item">
-      <p><strong>${appeal.case_number}</strong> ${badge(appeal.status)}</p>
-      <p>${appeal.reason}</p>
-      <p>${appeal.decision_notes || "No decision notes yet."}</p>
-    </div>
-  `).join("")}</div>`;
-}
-
-document.getElementById("submitAppealBtn").addEventListener("click", async () => {
-  const res = await apiRequest("/appeals/create", "POST", {
-    caseId: document.getElementById("caseId").value,
-    reason: document.getElementById("reason").value.trim()
-  }, true);
-
-  document.getElementById("appealResult").textContent = res.success ? "Appeal submitted." : res.message;
-  if (res.success) {
-    document.getElementById("reason").value = "";
-    loadAppeals();
-  }
-});
-
-loadCaseOptions();
-loadAppeals();
+setTimeout(() => {
+  window.location.href = "cases.html";
+}, 800);
 </script>
 
 </body>

@@ -8,11 +8,12 @@
 </head>
 <body>
 
-<div class="dashboard-container">
+<div class="dashboard-container case-detail-workspace teacher-case-detail-workspace">
   <div class="topbar">
     <div>
-      <h1>Relevant Case Detail</h1>
-      <p class="muted">View the status of your reported or assigned case and upload supporting evidence when needed.</p>
+      <span class="eyebrow">Teacher Case File</span>
+      <h1 style="margin-top:16px;">Reported Student Case</h1>
+      <p class="muted">Review the student case you reported or were assigned to, with evidence and case progress in one view.</p>
     </div>
     <div class="action-row">
       <a href="cases.html"><button class="secondary">Back</button></a>
@@ -20,39 +21,151 @@
     </div>
   </div>
 
-  <div class="split-grid">
+  <div class="case-hero teacher-case-hero">
+    <div class="case-hero-panel">
+      <div class="case-title-row">
+        <div>
+          <h2 id="heroCaseTitle">Loading case...</h2>
+          <p class="muted" id="heroSubtitle">Preparing case details...</p>
+        </div>
+        <div id="heroStatus"></div>
+      </div>
+      <div class="case-hero-identity" id="heroIdentity">
+        <div class="case-hero-avatar">S</div>
+        <div>
+          <span>Student Identity</span>
+          <strong>Loading...</strong>
+          <p>Student details loading...</p>
+        </div>
+      </div>
+      <div class="case-hero-context" id="heroContext">
+        <div><span>Violation</span><strong>Loading</strong></div>
+        <div><span>Incident Date</span><strong>Loading</strong></div>
+      </div>
+      <div class="case-workflow-strip" id="heroWorkflowSummary">
+        <div><span>Severity</span><strong>Loading</strong></div>
+        <div><span>Assigned To</span><strong>Loading</strong></div>
+        <div><span>Parent Notice</span><strong>Loading</strong></div>
+      </div>
+    </div>
+
+    <div class="case-hero-panel teacher-upload-panel">
+      <div class="card-header">
+        <div>
+          <h2>Upload Supporting Evidence</h2>
+          <p class="muted">Attach photos, documents, or other files connected to your report.</p>
+        </div>
+      </div>
+      <div class="evidence-upload-zone teacher-evidence-upload" id="evidenceDropzone" tabindex="0" role="button" aria-label="Upload supporting evidence">
+        <input class="visually-hidden-file" type="file" id="evidenceFile" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.mp4,.mov,.txt">
+        <div class="upload-icon" data-upload-icon>UP</div>
+        <div class="upload-copy">
+          <strong>Choose evidence file</strong>
+          <span id="evidenceFileName">No file selected</span>
+          <small>JPG, PNG, GIF, PDF, DOC, DOCX, MP4, MOV, TXT</small>
+        </div>
+      </div>
+      <div class="action-row teacher-upload-actions">
+        <button id="uploadEvidenceBtn">Upload Evidence</button>
+        <span id="evidenceResult" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card case-section" id="teacherInfoRequestPanel" style="display:none;">
+    <div class="card-header">
+      <div>
+        <h2>Information Request</h2>
+        <p class="muted">Respond to the discipline office request, then upload evidence if a file is needed.</p>
+      </div>
+    </div>
+    <div class="soft-panel">
+      <p id="teacherInfoRequestText" class="muted"></p>
+      <textarea id="teacherInfoResponse" placeholder="Type your clarification or follow-up note here."></textarea>
+      <div class="action-row">
+        <button id="submitTeacherInfoResponseBtn" type="button">Send Response</button>
+        <span id="teacherInfoResponseResult" class="muted"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card case-section teacher-report-review-card">
+    <div class="card-header">
+      <div>
+        <span class="eyebrow">Discipline Review</span>
+        <h2>Report Decision</h2>
+        <p class="muted">The discipline officer's review of your submitted incident report.</p>
+      </div>
+      <div id="teacherReportReviewBadge"></div>
+    </div>
+    <div id="teacherReportReview">Loading review decision...</div>
+  </div>
+
+  <div class="section-tabs">
+    <a href="#overviewSection" class="section-tab active">Overview</a>
+    <a href="#timelineSection" class="section-tab">Timeline</a>
+    <a href="#evidenceSection" class="section-tab">Evidence</a>
+    <a href="#outcomesSection" class="section-tab">Hearings & Sanctions</a>
+  </div>
+
+  <div class="case-summary-grid case-section" id="overviewSection">
     <div class="card">
-      <h2>Case Overview</h2>
+      <div class="card-header">
+        <div>
+          <h2>Case Overview</h2>
+          <p class="muted">Core student, incident, and assignment details.</p>
+        </div>
+      </div>
       <div id="caseInfo">Loading...</div>
     </div>
     <div class="card">
       <div class="card-header">
         <div>
-          <h2>Upload Supporting Evidence</h2>
-          <p class="muted">Files are stored on the server and appear in the case evidence timeline after upload.</p>
+          <h2>Incident Narrative</h2>
+          <p class="muted">Original report description submitted for this case.</p>
         </div>
       </div>
-      <input type="file" id="evidenceFile">
-      <button id="uploadEvidenceBtn">Upload Evidence</button>
-      <p id="evidenceResult"></p>
+      <div id="descriptionPanel" class="soft-panel">Loading...</div>
     </div>
   </div>
 
-  <div class="split-grid">
-    <div class="card">
-      <h2>Timeline</h2>
+  <div class="case-summary-grid teacher-progress-grid case-section">
+    <div class="card" id="timelineSection">
+      <div class="card-header">
+        <div>
+          <h2>Timeline</h2>
+          <p class="muted">Investigation updates and notes visible to your role.</p>
+        </div>
+      </div>
       <div id="timelineContainer">Loading...</div>
     </div>
-    <div class="card">
-      <h2>Hearings and Sanctions</h2>
+
+    <div class="card" id="outcomesSection">
+      <div class="card-header">
+        <div>
+          <h2>Hearings and Sanctions</h2>
+          <p class="muted">Scheduled meetings and assigned outcomes.</p>
+        </div>
+      </div>
       <div id="supportContainer">Loading...</div>
     </div>
+  </div>
+
+  <div class="card case-section" id="evidenceSection">
+    <div class="card-header">
+      <div>
+        <h2>Evidence Files</h2>
+        <p class="muted">Uploaded files and review status for this case.</p>
+      </div>
+    </div>
+    <div id="evidenceContainer">Loading...</div>
   </div>
 
 </div>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
+<script src="../../js/core/case-messages.js"></script>
 <script>
 requireAuth();
 
@@ -65,7 +178,96 @@ if (!user || user.role !== "teacher") {
 const caseId = new URLSearchParams(window.location.search).get("id");
 
 function badge(value) {
-  return `<span class="badge ${value}">${String(value).replaceAll("_", " ")}</span>`;
+  return `<span class="badge ${String(value || "").toLowerCase().replaceAll(" ", "_")}">${String(value || "-").replaceAll("_", " ")}</span>`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function labelize(value) {
+  return String(value || "-").replaceAll("_", " ");
+}
+
+function getReportReviewLabel(status) {
+  const labels = {
+    pending_review: "Pending Review",
+    validated: "Approved",
+    incomplete: "Rejected - Incomplete",
+    needs_more_evidence: "More Evidence Required",
+    duplicate: "Duplicate Report"
+  };
+  return labels[status] || labelize(status);
+}
+
+function getLatestReviewRecord(workflowEvents = []) {
+  const event = workflowEvents.find(item => item.event_type === "review");
+  if (!event) return null;
+
+  let metadata = event.metadata;
+  if (typeof metadata === "string") {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch {
+      metadata = {};
+    }
+  }
+
+  return {
+    ...event,
+    notes: String(
+      metadata?.notes ||
+      String(event.details || "").replace(/^Review status:\s*[^.]+\.\s*/i, "") ||
+      ""
+    ).trim()
+  };
+}
+
+function getStudentFullName(caseItem) {
+  return [caseItem?.first_name, caseItem?.middle_name, caseItem?.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim() || "Student";
+}
+
+function getStudentInitials(caseItem) {
+  return `${caseItem?.first_name?.[0] || "S"}${caseItem?.last_name?.[0] || ""}`.toUpperCase();
+}
+
+function renderHeroStudentAvatar(caseItem) {
+  const fullName = getStudentFullName(caseItem);
+  if (caseItem?.student_avatar_url) {
+    return `
+      <div class="case-hero-avatar has-image">
+        <img src="${escapeHtml(caseItem.student_avatar_url)}" alt="${escapeHtml(fullName)} avatar">
+      </div>
+    `;
+  }
+
+  return `<div class="case-hero-avatar">${escapeHtml(getStudentInitials(caseItem))}</div>`;
+}
+
+function formatFileSize(bytes = 0) {
+  const value = Number(bytes || 0);
+  if (!value) return "0 KB";
+  const units = ["B", "KB", "MB", "GB"];
+  const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+  return `${(value / Math.pow(1024, index)).toFixed(index ? 1 : 0)} ${units[index]}`;
+}
+
+function renderItems(containerId, items, emptyMessage, mapFn) {
+  const el = document.getElementById(containerId);
+  if (!items || !items.length) {
+    el.innerHTML = `<div class="empty-state">${emptyMessage}</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
 }
 
 async function loadCaseDetails() {
@@ -77,54 +279,150 @@ async function loadCaseDetails() {
   }
 
   const c = res.case;
-  document.getElementById("caseInfo").innerHTML = `
-    <div class="info-grid">
-      <div><strong>Case</strong><span>${c.case_number}</span></div>
-      <div><strong>Status</strong><span>${badge(c.status)}</span></div>
-      <div><strong>Student</strong><span>${c.first_name} ${c.last_name} (${c.student_number})</span></div>
-      <div><strong>Violation</strong><span>${c.violation_type}</span></div>
-      <div><strong>Severity</strong><span>${badge(c.severity_level)}</span></div>
-      <div><strong>Description</strong><span>${c.description}</span></div>
+  const studentFullName = getStudentFullName(c);
+  const assignedTo = c.assigned_to_first_name
+    ? `${c.assigned_to_first_name} ${c.assigned_to_last_name}`
+    : "Unassigned";
+
+  document.getElementById("heroCaseTitle").textContent = c.case_number;
+  document.getElementById("heroSubtitle").textContent = `${c.violation_type} | ${studentFullName} (${c.student_number})`;
+  document.getElementById("heroStatus").innerHTML = badge(c.status);
+  document.getElementById("heroIdentity").innerHTML = `
+    ${renderHeroStudentAvatar(c)}
+    <div>
+      <span>Student Identity</span>
+      <strong>${escapeHtml(studentFullName)}</strong>
+      <p>${escapeHtml(c.student_number)} | ${escapeHtml(c.program || c.academic_level || "Student")}</p>
+    </div>
+  `;
+  document.getElementById("heroContext").innerHTML = `
+    <div><span>Violation</span><strong>${escapeHtml(c.violation_type || "-")}</strong></div>
+    <div><span>Incident Date</span><strong>${escapeHtml(formatDisplayDate(c.incident_date))}</strong></div>
+    <div><span>Incident Time</span><strong>${escapeHtml(formatDisplayTime(c.incident_time))}</strong></div>
+  `;
+  document.getElementById("heroWorkflowSummary").innerHTML = `
+    <div><span>Severity</span><strong>${escapeHtml(labelize(c.severity_level))}</strong></div>
+    <div><span>Assigned To</span><strong>${escapeHtml(assignedTo)}</strong></div>
+    <div><span>Next Action</span><strong>${escapeHtml(c.next_action_label || labelize(c.next_action))}</strong></div>
+  `;
+
+  const reviewStatus = c.review_status || "pending_review";
+  const reviewRecord = getLatestReviewRecord(res.timeline.workflowEvents || []);
+  document.getElementById("teacherReportReviewBadge").innerHTML = badge(reviewStatus);
+  document.getElementById("teacherReportReview").innerHTML = `
+    <div class="teacher-review-result is-${escapeHtml(reviewStatus)}">
+      <div class="teacher-review-result-icon">${window.LucideIcons?.svg(
+        reviewStatus === "validated" ? "shield-check" :
+        reviewStatus === "duplicate" ? "clipboard-list" :
+        reviewStatus === "pending_review" ? "clipboard-list" : "file-warning"
+      ) || "RV"}</div>
+      <div>
+        <span>Review Status</span>
+        <strong>${escapeHtml(getReportReviewLabel(reviewStatus))}</strong>
+        <p>${escapeHtml(reviewRecord?.notes || (
+          reviewStatus === "pending_review"
+            ? "Your report is waiting for review by the discipline office."
+            : "No additional review notes were provided."
+        ))}</p>
+        ${c.duplicate_case_number ? `<small>Linked original case: ${escapeHtml(c.duplicate_case_number)}</small>` : ""}
+        ${reviewRecord?.created_at ? `<small>Decision recorded ${escapeHtml(formatDisplayDateTime(reviewRecord.created_at))}</small>` : ""}
+      </div>
     </div>
   `;
 
-  document.getElementById("timelineContainer").innerHTML = res.timeline.updates.length
-    ? res.timeline.updates.map(update => `
-        <div class="detail-item">
-          <p><strong>${update.update_type}</strong></p>
-          <p>${update.content}</p>
-          <p class="muted">${formatDisplayDateTime(update.created_at)}</p>
+  const infoPanel = document.getElementById("teacherInfoRequestPanel");
+  infoPanel.style.display = c.next_action === "needs_more_evidence" ? "block" : "none";
+  document.getElementById("teacherInfoRequestText").textContent =
+    c.next_action_notes || "The discipline office requested more information for this case.";
+
+  document.getElementById("caseInfo").innerHTML = `
+    <div class="case-list">
+      <div class="case-list-row"><strong>Case Number</strong><span>${escapeHtml(c.case_number)}</span></div>
+      <div class="case-list-row"><strong>Status</strong><span>${badge(c.status)}</span></div>
+      <div class="case-list-row"><strong>Report Review</strong><span>${badge(c.review_status || "pending_review")} ${escapeHtml(getReportReviewLabel(c.review_status || "pending_review"))}</span></div>
+      <div class="case-list-row"><strong>Student</strong><span>${escapeHtml(studentFullName)} (${escapeHtml(c.student_number)})</span></div>
+      <div class="case-list-row"><strong>Violation</strong><span>${escapeHtml(c.violation_type)}</span></div>
+      <div class="case-list-row"><strong>Severity</strong><span>${badge(c.severity_level)}</span></div>
+      <div class="case-list-row"><strong>Incident Date</strong><span>${escapeHtml(formatDisplayDate(c.incident_date))}</span></div>
+      <div class="case-list-row"><strong>Incident Time</strong><span>${escapeHtml(formatDisplayTime(c.incident_time))}</span></div>
+      <div class="case-list-row"><strong>Location</strong><span>${escapeHtml(c.location || "-")}</span></div>
+      <div class="case-list-row"><strong>Academic Context</strong><span>${escapeHtml(c.program || "-")} / ${escapeHtml(c.year_level || "-")} / ${escapeHtml(c.section || "-")}</span></div>
+      <div class="case-list-row"><strong>Assigned To</strong><span>${escapeHtml(assignedTo)}</span></div>
+    </div>
+  `;
+
+  document.getElementById("descriptionPanel").innerHTML = `
+    <p><strong>Detailed Account</strong></p>
+    <p>${escapeHtml(c.description || "No case description recorded.")}</p>
+  `;
+
+  renderItems("timelineContainer", res.timeline.updates, "No timeline updates yet.", update => `
+    <div class="timeline-event is-update">
+      <div class="timeline-marker">T</div>
+      <div class="timeline-event-card">
+        <div class="timeline-event-head">
+          <div>
+            <strong>${escapeHtml(labelize(update.update_type))}</strong>
+            <span>${escapeHtml(update.first_name || "-")} ${escapeHtml(update.last_name || "")}</span>
+          </div>
+          <time>${escapeHtml(formatDisplayDateTime(update.created_at))}</time>
         </div>
-      `).join("")
-    : "<p>No timeline updates yet.</p>";
+        <p>${escapeHtml(update.content)}</p>
+      </div>
+    </div>
+  `);
 
   const hearings = res.timeline.hearings.map(item => `
     <div class="detail-item">
-      <p><strong>Hearing</strong> ${badge(item.status)}</p>
-      <p>${formatDisplayDateWithTime(item.scheduled_date, item.scheduled_time)} at ${item.location || "-"}</p>
+      <p><strong>${escapeHtml(formatDisplayDateWithTime(item.scheduled_date, item.scheduled_time))}</strong> ${badge(item.operational_status || item.status)}</p>
+      <p>${escapeHtml(item.location || "-")}</p>
+      <p>${escapeHtml(item.outcome || "No outcome yet.")}</p>
     </div>
   `).join("");
 
   const sanctions = res.timeline.sanctions.map(item => `
     <div class="detail-item">
-      <p><strong>${item.sanction_type}</strong> ${badge(item.status)}</p>
-      <p>${item.description || "-"}</p>
-    </div>
-  `).join("");
-
-  const evidence = res.timeline.evidence.map(item => `
-    <div class="detail-item">
-      <p><strong>${item.original_name || item.file_name}</strong> ${badge(item.review_status || "pending")}</p>
-      <p>Uploaded: ${formatDisplayDateTime(item.uploaded_at)}</p>
-      <p>${item.review_notes || "No review notes yet."}</p>
-      <p><a href="http://localhost:5000${item.file_path}" target="_blank">Open File</a></p>
+      <p><strong>${escapeHtml(labelize(item.sanction_type))}</strong> ${badge(item.status)}</p>
+      <p>${escapeHtml(item.description || "-")}</p>
+      <p>${escapeHtml(formatDisplayDateRange(item.start_date, item.end_date))}</p>
     </div>
   `).join("");
 
   document.getElementById("supportContainer").innerHTML =
-    (hearings || "<p>No hearings scheduled.</p>") +
-    (sanctions || "<p>No sanctions assigned.</p>") +
-    (evidence || "<p>No evidence uploaded.</p>");
+    `<div class="teacher-support-stack">
+      <section>
+        <h3>Hearings</h3>
+        ${hearings || `<div class="empty-state">No hearings scheduled.</div>`}
+      </section>
+      <section>
+        <h3>Sanctions</h3>
+        ${sanctions || `<div class="empty-state">No sanctions assigned.</div>`}
+      </section>
+    </div>`;
+
+  renderItems("evidenceContainer", res.timeline.evidence, "No evidence uploaded yet.", item => `
+    <div class="evidence-review-card teacher-evidence-card">
+      <div class="evidence-review-main">
+        <div class="evidence-file-icon">${window.LucideIcons?.svg("file-text") || "FILE"}</div>
+        <div class="evidence-file-body">
+          <div class="evidence-file-title-row">
+            <div>
+              <strong>${escapeHtml(item.original_name || item.file_name || "Evidence file")}</strong>
+              <p>${escapeHtml(formatFileSize(item.file_size))} | Uploaded ${escapeHtml(formatDisplayDateTime(item.uploaded_at))}</p>
+            </div>
+            ${badge(item.review_status || "pending")}
+          </div>
+          <div class="evidence-notes-panel">
+            <span>Review Notes</span>
+            <p>${escapeHtml(item.review_notes || "No review notes yet.")}</p>
+          </div>
+        </div>
+      </div>
+      <div class="evidence-review-controls">
+        <a href="http://localhost:5000${escapeHtml(item.file_path || "")}" target="_blank" class="button-link secondary">Open File</a>
+      </div>
+    </div>
+  `);
 }
 
 document.getElementById("uploadEvidenceBtn").addEventListener("click", async () => {
@@ -143,8 +441,45 @@ document.getElementById("uploadEvidenceBtn").addEventListener("click", async () 
   document.getElementById("evidenceResult").textContent = res.success ? "Evidence uploaded." : res.message;
   if (res.success) {
     document.getElementById("evidenceFile").value = "";
+    setEvidenceFileName();
     loadCaseDetails();
   }
+});
+
+document.getElementById("submitTeacherInfoResponseBtn").addEventListener("click", async () => {
+  const content = document.getElementById("teacherInfoResponse").value.trim();
+  const result = document.getElementById("teacherInfoResponseResult");
+  const res = await apiRequest(`/cases/${caseId}/updates`, "POST", {
+    updateType: "note",
+    content
+  }, true);
+  result.textContent = res.success ? "Response sent." : res.message;
+  if (res.success) {
+    document.getElementById("teacherInfoResponse").value = "";
+    loadCaseDetails();
+  }
+});
+
+function setEvidenceFileName() {
+  const file = document.getElementById("evidenceFile").files[0];
+  document.getElementById("evidenceFileName").textContent = file ? file.name : "No file selected";
+  document.getElementById("evidenceResult").textContent = "";
+}
+
+document.getElementById("evidenceFile").addEventListener("change", setEvidenceFileName);
+document.getElementById("evidenceDropzone").addEventListener("click", event => {
+  if (!event.target.closest("button")) {
+    document.getElementById("evidenceFile").click();
+  }
+});
+document.getElementById("evidenceDropzone").addEventListener("keydown", event => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    document.getElementById("evidenceFile").click();
+  }
+});
+document.querySelectorAll("[data-upload-icon]").forEach(icon => {
+  icon.innerHTML = window.LucideIcons?.svg("folder-open") || "UP";
 });
 
 loadCaseDetails();

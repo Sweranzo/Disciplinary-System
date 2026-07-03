@@ -13,6 +13,7 @@ const ALLOWED_ROLES = [
 
 const ACCOUNT_STATUSES = ["active", "inactive"];
 const STUDENT_LEVELS = ["college", "shs"];
+const PASSWORD_POLICY_MESSAGE = "Password must be at least 8 characters and include a letter, number, and special character.";
 
 function normalizeRole(role) {
   return ALLOWED_ROLES.includes(role) ? role : null;
@@ -48,8 +49,42 @@ async function generateQrDataUrl(studentNumber, qrToken) {
   });
 }
 
-function generateTemporaryPassword(length = 10) {
-  return crypto.randomBytes(length).toString("base64").replace(/[^a-zA-Z0-9]/g, "").slice(0, length) || "Temp1234";
+function validatePasswordPolicy(password) {
+  const value = String(password || "");
+  return value.length >= 8
+    && /[A-Za-z]/.test(value)
+    && /\d/.test(value)
+    && /[^A-Za-z0-9]/.test(value);
+}
+
+function assertPasswordPolicy(password) {
+  if (!validatePasswordPolicy(password)) {
+    throw new Error(PASSWORD_POLICY_MESSAGE);
+  }
+}
+
+function generateTemporaryPassword(length = 12) {
+  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  const numbers = "23456789";
+  const specials = "!@#$%";
+  const all = `${letters}${numbers}${specials}`;
+  const targetLength = Math.max(8, length);
+  const chars = [
+    letters[crypto.randomInt(letters.length)],
+    numbers[crypto.randomInt(numbers.length)],
+    specials[crypto.randomInt(specials.length)]
+  ];
+
+  while (chars.length < targetLength) {
+    chars.push(all[crypto.randomInt(all.length)]);
+  }
+
+  for (let index = chars.length - 1; index > 0; index -= 1) {
+    const swapIndex = crypto.randomInt(index + 1);
+    [chars[index], chars[swapIndex]] = [chars[swapIndex], chars[index]];
+  }
+
+  return chars.join("");
 }
 
 async function hashPassword(password) {
@@ -123,6 +158,8 @@ async function createUserRecord(connection, payload) {
   if (!validateEmail(payload.email)) {
     throw new Error("A valid email address is required.");
   }
+
+  assertPasswordPolicy(payload.password);
 
   await assertUniqueUserFields(connection, {
     username: payload.username.trim(),
@@ -239,10 +276,6 @@ async function createParentRecord(connection, payload) {
     throw new Error("Parent first name and last name are required.");
   }
 
-  if (!payload.phoneNumber || !String(payload.phoneNumber).trim()) {
-    throw new Error("Parent phone number is required for SMS notifications.");
-  }
-
   if (payload.email && !validateEmail(payload.email)) {
     throw new Error("A valid parent email address is required.");
   }
@@ -335,6 +368,9 @@ module.exports = {
   normalizeRole,
   normalizeStatus,
   validateEmail,
+  PASSWORD_POLICY_MESSAGE,
+  validatePasswordPolicy,
+  assertPasswordPolicy,
   generateQrToken,
   generateQrDataUrl,
   generateTemporaryPassword,

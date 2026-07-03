@@ -116,6 +116,13 @@ function formatDate(value) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatReporterName(item) {
+  return [item.reported_by_first_name, item.reported_by_last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim() || "-";
+}
+
 function badge(value) {
   return `<span class="badge ${String(value || "").toLowerCase().replaceAll(" ", "_")}">${String(value || "-").replaceAll("_", " ")}</span>`;
 }
@@ -262,9 +269,9 @@ async function loadProfile() {
       "No disciplinary cases found.",
       item => `
         <div class="detail-item">
-          <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
+          <p><strong>${item.case_number}</strong> ${badge(item.operational_status || item.status)}</p>
           <p>${item.violation_type} | ${badge(item.severity_level)}</p>
-          <p class="muted">Reported ${formatDate(item.created_at)}</p>
+          <p class="muted">Reported by ${formatReporterName(item)}</p>
         </div>
       `
     );
@@ -274,7 +281,7 @@ async function loadProfile() {
       "No hearings found.",
       item => `
         <div class="detail-item">
-          <p><strong>${item.case_number}</strong> ${badge(item.status)}</p>
+          <p><strong>${item.case_number}</strong> ${badge(item.operational_status || item.status)}</p>
           <p>${formatDisplayDateWithTime(item.scheduled_date, item.scheduled_time)}</p>
           <p class="muted">${item.location || "Location not set"}</p>
         </div>

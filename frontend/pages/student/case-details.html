@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Case Details</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+
+<div class="dashboard-container case-detail-workspace student-case-detail-page">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">Student Case File</span>
+      <h1 id="caseTitle">Case Details</h1>
+      <p class="muted" id="caseMeta">Review the case overview, scheduled actions, sanctions, evidence, and appeal status.</p>
+    </div>
+    <div class="action-row">
+      <a href="cases.html"><button class="secondary" type="button">Back to Cases</button></a>
+      <button onclick="logout()" type="button">Logout</button>
+    </div>
+  </div>
+
+  <div class="case-hero student-case-hero">
+    <div class="case-hero-panel">
+      <div class="case-title-row">
+        <div>
+          <h2 id="heroCaseTitle">Loading case...</h2>
+          <p class="muted" id="heroSubtitle">Preparing your case details...</p>
+        </div>
+        <div id="heroStatus"></div>
+      </div>
+      <div class="case-hero-identity" id="heroIdentity">
+        <div class="case-hero-avatar">S</div>
+        <div>
+          <span>Student Identity</span>
+          <strong>Loading...</strong>
+          <p>Student details loading...</p>
+        </div>
+      </div>
+      <div class="case-hero-context" id="heroContext">
+        <div><span>Violation</span><strong>Loading</strong></div>
+        <div><span>Incident Date</span><strong>Loading</strong></div>
+      </div>
+      <div class="case-workflow-strip" id="heroWorkflowSummary">
+        <div><span>Severity</span><strong>Loading</strong></div>
+        <div><span>Hearings</span><strong>0</strong></div>
+        <div><span>Appeals</span><strong>0</strong></div>
+      </div>
+    </div>
+
+    <div class="case-hero-panel student-next-step-panel">
+      <div class="card-header">
+        <div>
+          <span class="eyebrow">Your Next Step</span>
+          <h2 id="nextActionTitle">Loading...</h2>
+          <p class="muted" id="nextActionNotes">The discipline team will update this case as it moves forward.</p>
+        </div>
+      </div>
+      <div id="noticeStatusCard" class="soft-panel">Checking acknowledgement status...</div>
+    </div>
+  </div>
+
+  <div class="section-tabs">
+    <a href="#overviewSection" class="section-tab active">Overview</a>
+    <a href="#activitySection" class="section-tab">Activity</a>
+    <a href="#processSection" class="section-tab">Process</a>
+    <a href="#appealSection" class="section-tab">Appeal</a>
+  </div>
+
+  <div id="caseContent">Loading...</div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script src="../../js/core/case-messages.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "student") {
+  alert("Access denied");
+  logout();
+}
+
+const params = new URLSearchParams(window.location.search);
+const caseId = params.get("id");
+
+function badge(value) {
+  const safeValue = String(value || "-");
+  return `<span class="badge ${escapeHtml(safeValue.toLowerCase().replaceAll(" ", "_"))}">${escapeHtml(safeValue.replaceAll("_", " "))}</span>`;
+}
+
+function labelize(value) {
+  return String(value || "-").replaceAll("_", " ");
+}
+
+function personName(firstName, lastName, fallback = "-") {
+  return [firstName, lastName].filter(Boolean).join(" ").trim() || fallback;
+}
+
+function getStudentFullName(item) {
+  return [item?.first_name, item?.middle_name, item?.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim() || getUserFullName(user);
+}
+
+function getStudentInitials(item) {
+  return `${item?.first_name?.[0] || user?.first_name?.[0] || "S"}${item?.last_name?.[0] || user?.last_name?.[0] || ""}`.toUpperCase();
+}
+
+function renderHeroStudentAvatar(item) {
+  const fullName = getStudentFullName(item);
+  if (item?.student_avatar_url) {
+    return `
+      <div class="case-hero-avatar has-image">
+        <img src="${escapeHtml(item.student_avatar_url)}" alt="${escapeHtml(fullName)} avatar">
+      </div>
+    `;
+  }
+  return `<div class="case-hero-avatar">${escapeHtml(getStudentInitials(item))}</div>`;
+}
+
+function isClosedStatus(status) {
+  return ["resolved", "dismissed"].includes(String(status || "").toLowerCase());
+}
+
+function renderDetailList(items, emptyMessage, mapFn) {
+  if (!items.length) {
+    return `<div class="empty-state">${escapeHtml(emptyMessage)}</div>`;
+  }
+  return `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
+}
+
+function renderCaseOverview(item) {
+  return `
+    <section class="card case-section" id="overviewSection">
+      <div class="card-header">
+        <div>
+          <h2>Case Overview</h2>
+          <p class="muted">Read-only summary of the record linked to your student account.</p>
+        </div>
+      </div>
+      <div class="case-list">
+        <div class="case-list-row"><strong>Case Number</strong><span>${escapeHtml(item.case_number)}</span></div>
+        <div class="case-list-row"><strong>Current Status</strong><span>${badge(item.operational_status || item.status)}</span></div>
+        <div class="case-list-row"><strong>Violation</strong><span>${escapeHtml(item.violation_type)}</span></div>
+        <div class="case-list-row"><strong>Severity</strong><span>${badge(item.severity_level)}</span></div>
+        <div class="case-list-row"><strong>Incident Date</strong><span>${formatDisplayDate(item.incident_date)}</span></div>
+        <div class="case-list-row"><strong>Incident Time</strong><span>${formatDisplayTime(item.incident_time)}</span></div>
+        <div class="case-list-row"><strong>Location</strong><span>${escapeHtml(item.location || "-")}</span></div>
+        <div class="case-list-row"><strong>Reported By</strong><span>${escapeHtml(personName(item.reported_by_first_name, item.reported_by_last_name))}</span></div>
+        <div class="case-list-row"><strong>Assigned To</strong><span>${escapeHtml(personName(item.assigned_to_first_name, item.assigned_to_last_name, "Not assigned yet"))}</span></div>
+      </div>
+      <div class="soft-panel student-case-description">
+        <p><strong>Description</strong></p>
+        <p>${escapeHtml(item.description || "No description recorded.")}</p>
+      </div>
+    </section>
+  `;
+}
+
+function renderHearings(items) {
+  return renderDetailList(items, "No hearings scheduled for this case.", item => `
+    <div class="detail-item">
+      <p><strong>${formatDisplayDateWithTime(item.scheduled_date, item.scheduled_time)}</strong> ${badge(item.operational_status || item.status)}</p>
+      <p>${escapeHtml(item.location || "Location not set")}</p>
+      <p class="muted">${escapeHtml(item.outcome || "No outcome recorded yet.")}</p>
+    </div>
+  `);
+}
+
+function renderSanctions(items) {
+  return renderDetailList(items, "No sanctions assigned for this case.", item => `
+    <div class="detail-item">
+      <p><strong>${escapeHtml(labelize(item.sanction_type))}</strong> ${badge(item.status)}</p>
+      <p>${formatDisplayDateRange(item.start_date, item.end_date)}</p>
+      <p class="muted">${escapeHtml(item.description || "No sanction description recorded.")}</p>
+    </div>
+  `);
+}
+
+function renderEvidence(items) {
+  return renderDetailList(items, "No evidence has been attached to this case.", item => `
+    <div class="detail-item">
+      <p><strong>${escapeHtml(item.original_name || item.file_name || "Evidence file")}</strong> ${badge(item.review_status || "submitted")}</p>
+      <p>${formatDisplayDateTime(item.uploaded_at)}</p>
+      <p class="muted">${escapeHtml(item.review_notes || "No review notes recorded.")}</p>
+    </div>
+  `);
+}
+
+function renderProcessStatus(item) {
+  const acknowledged = (item.acknowledgements || []).some(ack => Number(ack.user_id) === Number(user.id));
+  return `
+    <div class="student-process-grid">
+      <div class="student-process-card">
+        <span>Current Status</span>
+        <strong>${labelize(item.operational_status || item.status)}</strong>
+        <p class="muted">This is the latest case state recorded by the discipline team.</p>
+      </div>
+      <div class="student-process-card">
+        <span>Next Required Action</span>
+        <strong>${escapeHtml(item.next_action_label || labelize(item.next_action))}</strong>
+        <p class="muted">${escapeHtml(item.next_action_notes || "The discipline team will update the next step.")}</p>
+      </div>
+      <div class="student-process-card">
+        <span>Hearing Required</span>
+        <strong>${item.hearing_required ? "Yes" : "No"}</strong>
+      </div>
+      <div class="student-process-card">
+        <span>Parent Notified</span>
+        <strong>${item.parent_notified ? "Yes" : "No"}</strong>
+      </div>
+      <div class="student-process-card is-wide">
+        <span>Notice Acknowledgement</span>
+        <strong>${acknowledged ? "Acknowledged" : "Not acknowledged yet"}</strong>
+        ${acknowledged ? "" : `<button id="acknowledgeCaseBtn" type="button" class="secondary">Acknowledge Notice</button>`}
+        <p id="acknowledgeResult" class="muted"></p>
+      </div>
+    </div>
+  `;
+}
+
+function renderWorkflowTimeline(items = []) {
+  if (!items.length) {
+    return `<div class="empty-state">No procedure history recorded yet.</div>`;
+  }
+
+  return `<div class="workflow-timeline-list">${items.map(event => `
+    <div class="workflow-timeline-item">
+      <strong>${escapeHtml(event.title || labelize(event.event_type))}</strong>
+      <p>${escapeHtml(event.details || "")}</p>
+      <small>${formatDisplayDateTime(event.created_at)}</small>
+    </div>
+  `).join("")}</div>`;
+}
+
+function renderAppeals(items) {
+  return renderDetailList(items, "No appeals submitted for this case.", item => `
+    <div class="detail-item">
+      <p><strong>${formatDisplayDateTime(item.created_at)}</strong> ${badge(item.status)}</p>
+      <p>${escapeHtml(item.reason || "-")}</p>
+      <p class="muted">${escapeHtml(item.decision_notes || "No decision notes yet.")}</p>
+    </div>
+  `);
+}
+
+function renderFormalProcess(process = {}) {
+  const policies = process.policies || [];
+  const decisions = process.decisions || [];
+  return `
+    <div class="split-grid">
+      <div>
+        <h3>Policy Basis</h3>
+        ${renderDetailList(policies, "No policy reference recorded yet.", item => `
+          <div class="detail-item">
+            <p><strong>${escapeHtml(item.policy_code ? `${item.policy_code}: ${item.title}` : item.title)}</strong></p>
+            <p class="muted">${escapeHtml(item.notes || "No additional policy notes.")}</p>
+          </div>
+        `)}
+      </div>
+      <div>
+        <h3>Formal Decisions</h3>
+        ${renderDetailList(decisions, "No formal decision recorded yet.", item => `
+          <div class="detail-item">
+            <p><strong>${escapeHtml(labelize(item.finding))}</strong> ${badge(item.status)}</p>
+            <p>${escapeHtml(item.basis || "No decision basis recorded.")}</p>
+            <p class="muted">${escapeHtml(item.recommended_action || "No recommended action recorded.")}</p>
+          </div>
+        `)}
+      </div>
+    </div>
+  `;
+}
+
+function renderAppealForm(caseItem, appeals) {
+  const hasActiveAppeal = appeals.some(item => ["submitted", "under_review"].includes(String(item.status || "").toLowerCase()));
+  if (isClosedStatus(caseItem.status)) {
+    return `<div class="empty-state">This case is resolved or dismissed, so new appeals are closed.</div>`;
+  }
+  if (hasActiveAppeal) {
+    return `<div class="empty-state">An active appeal is already submitted for this case.</div>`;
+  }
+  return `
+    <textarea id="appealReason" placeholder="Explain why you are requesting an appeal for this case"></textarea>
+    <div class="action-row">
+      <button id="submitAppealBtn" type="button">Submit Appeal</button>
+      <span id="appealResult" class="muted"></span>
+    </div>
+  `;
+}
+
+function renderStatementForm() {
+  return `
+    <section class="card case-section">
+      <div class="card-header">
+        <div>
+          <h2>Student Statement</h2>
+          <p class="muted">Record your response or clarification for the official case process.</p>
+        </div>
+      </div>
+      <textarea id="studentStatementContent" placeholder="Write your statement, response, or clarification here."></textarea>
+      <div class="action-row">
+        <button id="submitStudentStatementBtn" type="button" class="secondary">Submit Statement</button>
+        <span id="studentStatementResult" class="muted"></span>
+      </div>
+    </section>
+  `;
+}
+
+function wireStatementForm() {
+  const button = document.getElementById("submitStudentStatementBtn");
+  if (!button) return;
+
+  button.addEventListener("click", async () => {
+    const content = document.getElementById("studentStatementContent").value.trim();
+    const result = document.getElementById("studentStatementResult");
+    const res = await apiRequest(`/case-process/cases/${caseId}/statements`, "POST", {
+      subjectRole: "student",
+      statementType: "student_response",
+      content
+    }, true);
+    result.textContent = res.success ? "Statement submitted." : res.message;
+    if (res.success) {
+      document.getElementById("studentStatementContent").value = "";
+    }
+  });
+}
+
+function wireAppealForm() {
+  const button = document.getElementById("submitAppealBtn");
+  if (!button) return;
+
+  button.addEventListener("click", async () => {
+    const reason = document.getElementById("appealReason").value.trim();
+    const result = document.getElementById("appealResult");
+    const res = await apiRequest("/appeals/create", "POST", { caseId, reason }, true);
+    result.textContent = res.success ? "Appeal submitted." : res.message;
+    if (res.success) {
+      await loadCaseDetails();
+    }
+  });
+}
+
+function wireAcknowledgement() {
+  const button = document.getElementById("acknowledgeCaseBtn");
+  if (!button) return;
+
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    button.textContent = "Acknowledging...";
+    const res = await apiRequest(`/cases/${caseId}/acknowledge`, "POST", {}, true);
+    document.getElementById("acknowledgeResult").textContent = res.success ? "Notice acknowledged." : res.message;
+    if (res.success) {
+      await loadCaseDetails();
+    } else {
+      button.disabled = false;
+      button.textContent = "Acknowledge Notice";
+    }
+  });
+}
+
+async function loadCaseDetails() {
+  const container = document.getElementById("caseContent");
+
+  if (!caseId) {
+    container.innerHTML = `<div class="empty-state">No case selected.</div>`;
+    return;
+  }
+
+  const [res, processRes] = await Promise.all([
+    apiRequest(`/cases/${encodeURIComponent(caseId)}`, "GET", null, true),
+    apiRequest(`/case-process/cases/${encodeURIComponent(caseId)}`, "GET", null, true)
+  ]);
+  if (!res.success) {
+    container.innerHTML = `<div class="empty-state">${escapeHtml(res.message || "Unable to load case details.")}</div>`;
+    return;
+  }
+
+  const caseItem = res.case;
+  const timeline = res.timeline || {};
+  const hearings = timeline.hearings || [];
+  const sanctions = timeline.sanctions || [];
+  const evidence = timeline.evidence || [];
+  const appeals = timeline.appeals || [];
+  const workflowEvents = timeline.workflowEvents || [];
+  caseItem.acknowledgements = timeline.acknowledgements || res.acknowledgements || [];
+
+  document.getElementById("caseTitle").textContent = caseItem.case_number || "Case Details";
+  document.getElementById("caseMeta").textContent = `${caseItem.violation_type || "Case"} | ${formatDisplayDate(caseItem.incident_date)}`;
+  document.getElementById("heroCaseTitle").textContent = caseItem.case_number || "Case Details";
+  document.getElementById("heroSubtitle").textContent = `${caseItem.violation_type || "Case"} | ${formatDisplayDate(caseItem.incident_date)}`;
+  document.getElementById("heroStatus").innerHTML = badge(caseItem.operational_status || caseItem.status);
+  document.getElementById("heroIdentity").innerHTML = `
+    ${renderHeroStudentAvatar(caseItem)}
+    <div>
+      <span>Student Identity</span>
+      <strong>${escapeHtml(getStudentFullName(caseItem))}</strong>
+      <p>${escapeHtml(caseItem.student_number || user.employee_or_student_id || "-")}</p>
+    </div>
+  `;
+  document.getElementById("heroContext").innerHTML = `
+    <div><span>Violation</span><strong>${escapeHtml(caseItem.violation_type || "-")}</strong></div>
+    <div><span>Incident Date</span><strong>${formatDisplayDate(caseItem.incident_date)}</strong></div>
+  `;
+  document.getElementById("heroWorkflowSummary").innerHTML = `
+    <div><span>Severity</span><strong>${labelize(caseItem.severity_level)}</strong></div>
+    <div><span>Hearings</span><strong>${hearings.length}</strong></div>
+    <div><span>Appeals</span><strong>${appeals.length}</strong></div>
+  `;
+  document.getElementById("nextActionTitle").textContent = caseItem.next_action_label || labelize(caseItem.next_action);
+  document.getElementById("nextActionNotes").textContent = caseItem.next_action_notes || "The discipline team will update this case as it moves forward.";
+  const acknowledged = caseItem.acknowledgements.some(ack => Number(ack.user_id) === Number(user.id));
+  document.getElementById("noticeStatusCard").innerHTML = `
+    <span class="eyebrow">Notice Status</span>
+    <h3>${acknowledged ? "Acknowledged" : "Not acknowledged yet"}</h3>
+    <p class="muted">${acknowledged ? "You have already acknowledged this case notice." : "Review the case details and acknowledge the notice when ready."}</p>
+  `;
+
+  container.innerHTML = `
+    <div class="case-summary-grid case-section">
+      ${renderCaseOverview(caseItem)}
+      <section class="card">
+        <div class="card-header"><div><h2>Process Status</h2><p class="muted">Student-visible status markers for this case.</p></div></div>
+        ${renderProcessStatus(caseItem)}
+      </section>
+    </div>
+
+    <div class="case-summary-grid case-section" id="activitySection">
+      <section class="card">
+        <div class="card-header"><div><h2>Hearings</h2><p class="muted">Scheduled meetings and recorded outcomes.</p></div></div>
+        ${renderHearings(hearings)}
+      </section>
+      <section class="card">
+        <div class="card-header"><div><h2>Sanctions</h2><p class="muted">Assigned actions and completion windows.</p></div></div>
+        ${renderSanctions(sanctions)}
+      </section>
+    </div>
+
+    <div class="case-summary-grid case-section">
+      <section class="card">
+        <div class="card-header"><div><h2>Evidence</h2><p class="muted">Files and review notes attached to this case.</p></div></div>
+        ${renderEvidence(evidence)}
+      </section>
+      <section class="card">
+        <div class="card-header"><div><h2>Procedure History</h2><p class="muted">Major workflow steps recorded for this case.</p></div></div>
+        ${renderWorkflowTimeline(workflowEvents)}
+      </section>
+    </div>
+
+    <section class="card case-section" id="processSection">
+      <div class="card-header">
+        <div>
+          <h2>Policy and Decision Record</h2>
+          <p class="muted">Official policy references and formal findings recorded for this case.</p>
+        </div>
+      </div>
+      ${renderFormalProcess(processRes.success ? processRes : {})}
+    </section>
+
+    <section class="card case-section" id="appealSection">
+      <div class="card-header">
+        <div>
+          <h2>Appeal This Case</h2>
+          <p class="muted">Submit and track appeals for this specific case record.</p>
+        </div>
+      </div>
+      ${renderAppealForm(caseItem, appeals)}
+      <div style="margin-top:16px;">${renderAppeals(appeals)}</div>
+    </section>
+
+    ${renderStatementForm()}
+  `;
+
+  wireAppealForm();
+  wireAcknowledgement();
+  wireStatementForm();
+}
+
+loadCaseDetails();
+</script>
+
+</body>
+</html>

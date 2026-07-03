@@ -1,0 +1,22 @@
+SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+    at JSON.parse (<anonymous>)
+    at parse (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\body-parser\lib\types\json.js:92:19)
+    at C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\body-parser\lib\read.js:128:18
+    at AsyncResource.runInAsyncScope (node:async_hooks:227:14)
+    at invokeCallback (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\raw-body\index.js:238:16)
+    at done (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\raw-body\index.js:227:7)
+    at IncomingMessage.onEnd (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\raw-body\index.js:287:7)
+    at IncomingMessage.emit (node:events:509:28)
+    at endReadableNT (node:internal/streams/readable:1735:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+Reset password error: Error: Password must be at least 8 characters and include a letter, number, and special character.
+    at assertPasswordPolicy (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\utils\identityService.js:62:11)
+    at resetPassword (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\controllers\adminIdentityController.js:644:5)
+    at Layer.handle [as handle_request] (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\express\lib\router\layer.js:95:5)
+    at C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\express\lib\router\index.js:284:15
+    at param (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\express\lib\router\index.js:365:14)
+    at param (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\express\lib\router\index.js:376:14)
+    at router.process_params (C:\Users\admin\OneDrive\Desktop\Disciplinary-System\backend\node_modules\express\lib\router\index.js:421:3)

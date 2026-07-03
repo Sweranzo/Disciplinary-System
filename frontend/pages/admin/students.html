@@ -6,11 +6,11 @@
   <title>Student Records Management</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="admin-page">
 
 <div class="dashboard-container students-workspace">
-  <div class="students-page-hero">
-    <div class="students-hero-icon" aria-hidden="true">
+  <section class="students-page-hero">
+    <div class="students-hero-icon">
       <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
     </div>
     <div>
@@ -18,11 +18,11 @@
       <h1>Student Records</h1>
       <p class="muted">Create profiles, manage login accounts, generate QR codes, link parents, and open full student history.</p>
     </div>
-  </div>
+  </section>
 
   <div class="students-action-toolbar">
     <div class="students-toolbar-left">
-      <a href="dashboard.html"><button class="secondary students-back-btn" type="button">Back</button></a>
+      <button class="secondary" type="button" onclick="history.back()">Back</button>
       <div>
         <span>Records Workspace</span>
         <strong>Manage student identity and access</strong>
@@ -31,7 +31,7 @@
     <div class="students-toolbar-actions">
       <a href="accounts.html"><button class="secondary" type="button">Accounts & Identity</button></a>
       <button id="openCreateModalBtn" class="students-primary-action" type="button">Create Student</button>
-      <button onclick="logout()" class="secondary ghost-btn" type="button">Logout</button>
+      <button class="secondary" type="button" onclick="logout()">Logout</button>
     </div>
   </div>
 
@@ -58,7 +58,7 @@
     <div class="card-header">
       <div>
         <h2>Search and Filters</h2>
-        <p class="muted">Find records by student number, name, email, status, or whether the student already has a login account.</p>
+        <p class="muted">Find records by identity, account status, academic level, course or strand, year or grade, and section.</p>
       </div>
       <p class="muted" id="paginationInfo">Loading...</p>
     </div>
@@ -74,8 +74,33 @@
         <option value="with_account">With Account</option>
         <option value="profile_only">Profile Only</option>
       </select>
+      <select id="academicLevelFilter">
+        <option value="">All Levels</option>
+        <option value="shs">Senior High School</option>
+        <option value="college">College</option>
+      </select>
+      <select id="programFilter">
+        <option value="">All Courses / Strands</option>
+      </select>
+      <select id="yearLevelFilter">
+        <option value="">All Years / Grades</option>
+      </select>
+      <select id="sectionFilter">
+        <option value="">All Sections</option>
+      </select>
       <button id="searchBtn">Apply Filters</button>
       <button id="clearBtn" class="secondary">Clear</button>
+    </div>
+    <div class="bulk-student-actions">
+      <div>
+        <strong>Bulk student cleanup</strong>
+        <span class="muted">Uses the current academic filters. Choose a section, or at least two filters such as course and year.</span>
+        <p id="bulkDeleteStudentsResult" class="muted"></p>
+      </div>
+      <div class="bulk-student-panel">
+        <button id="previewBulkDeleteStudentsBtn" class="secondary" type="button">Review Matches</button>
+        <button id="bulkDeleteStudentsBtn" class="student-action-danger" type="button" disabled>Open Delete Review</button>
+      </div>
     </div>
   </div>
 
@@ -92,7 +117,7 @@
           <tr>
             <th>QR</th>
             <th>Student</th>
-            <th>Program / Year</th>
+            <th>Course / Strand</th>
             <th>Account</th>
             <th>Status</th>
             <th>Actions</th>
@@ -115,7 +140,7 @@
     <div class="card-header">
       <div>
         <h2>Create Student Record</h2>
-        <p class="muted">Choose whether to create only the profile or the profile plus a login account. QR is generated automatically.</p>
+        <p class="muted">Create a student profile and automatically generate login credentials when email is available. Parent details are optional.</p>
       </div>
     </div>
 
@@ -137,50 +162,43 @@
           <option value="college">College</option>
           <option value="shs">SHS</option>
         </select>
-        <input type="text" id="createDepartment" placeholder="Department">
-        <input type="text" id="createProgram" placeholder="Program">
-        <input type="text" id="createYearLevel" placeholder="Year Level">
-        <input type="text" id="createSection" placeholder="Section">
+        <select id="createDepartment">
+          <option value="">Track / Department</option>
+        </select>
+        <input type="text" id="createDepartmentManual" class="hidden" placeholder="Enter track / department" disabled>
+        <select id="createProgram">
+          <option value="">Course / Strand</option>
+        </select>
+        <input type="text" id="createProgramManual" class="hidden" placeholder="Enter course / strand" disabled>
+        <select id="createYearLevel">
+          <option value="">Year / Grade Level</option>
+        </select>
+        <select id="createSection">
+          <option value="">Section</option>
+        </select>
+        <input type="text" id="createSectionManual" class="hidden" placeholder="Enter section" disabled>
         <select id="createStatus">
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
-        <select id="createAccountMode">
-          <option value="profile_only">Create Profile Only</option>
-          <option value="with_account">Create Profile + Login Account</option>
-        </select>
       </div>
 
-      <div id="studentAccountFields" class="form-grid hidden">
-        <input type="text" id="createUsername" placeholder="Username">
-        <input type="password" id="createPassword" placeholder="Temporary Password">
+      <div class="inline-note">
+        Student login credentials are generated and emailed when the student email is filled in.
+        Optional parent details below will create and link a parent profile; parent login credentials are generated and emailed when parent email is filled in.
       </div>
 
       <div class="toolbar">
-        <select id="parentLinkMode">
-          <option value="none">No Parent Link Yet</option>
-          <option value="existing">Link Existing Parent</option>
-          <option value="new">Create and Link New Parent</option>
-        </select>
-        <select id="createParentId" class="hidden">
-          <option value="">Select Existing Parent</option>
-        </select>
         <input type="text" id="relationship" placeholder="Relationship" value="Parent/Guardian">
       </div>
 
-      <div id="newParentFields" class="form-grid hidden">
+      <div id="newParentFields" class="form-grid">
         <input type="text" id="newParentFirstName" placeholder="Parent First Name">
         <input type="text" id="newParentMiddleName" placeholder="Parent Middle Name">
         <input type="text" id="newParentLastName" placeholder="Parent Last Name">
-        <input type="email" id="newParentEmail" placeholder="Parent Email">
-        <input type="text" id="newParentPhone" placeholder="Parent Phone Number">
+        <input type="email" id="newParentEmail" placeholder="Parent Email (Optional)">
+        <input type="text" id="newParentPhone" placeholder="Parent Phone Number (Optional)">
         <input type="text" id="newParentAddress" placeholder="Parent Address">
-        <select id="newParentAccountMode">
-          <option value="profile_only">Create Parent Profile Only</option>
-          <option value="with_account">Create Parent Profile + Account</option>
-        </select>
-        <input type="text" id="newParentUsername" placeholder="Parent Username">
-        <input type="password" id="newParentPassword" placeholder="Parent Password">
       </div>
 
       <p id="createResult" class="muted"></p>
@@ -190,27 +208,232 @@
       </div>
     </div>
 
-    <div id="studentImportPane" class="hidden">
-      <div class="toolbar toolbar-import">
-        <label class="inline-note inline-note-compact">
-          <input type="checkbox" id="studentImportCreateLogins" checked>
-          Create login accounts during import
-        </label>
-        <input type="file" id="studentCsvFileInput" accept=".csv,text/csv">
-        <button id="previewStudentImportBtn" type="button" class="compact-btn">Preview CSV</button>
-        <button id="runStudentImportBtn" type="button" class="secondary compact-btn">Run Import</button>
+    <div id="studentImportPane" class="student-import-pane hidden">
+      <div class="masterlist-scan-panel">
+        <div class="card-header">
+          <div>
+            <h3>Scan Masterlist Image</h3>
+            <p class="muted">Capture a printed masterlist or upload an image. Review detected rows before creating student records.</p>
+          </div>
+        </div>
+        <div class="masterlist-scan-actions">
+          <input type="file" id="masterlistImageInput" accept="image/*">
+          <button id="scanMasterlistImageBtn" type="button" class="compact-btn">Scan Uploaded Image</button>
+          <button id="openMasterlistCameraBtn" type="button" class="secondary compact-btn">Use Camera</button>
+          <button id="openImportInstructionsBtn" type="button" class="secondary compact-btn">Import Instructions</button>
+        </div>
+        <div id="masterlistCameraPanel" class="masterlist-camera-panel hidden">
+          <video id="masterlistVideo" autoplay playsinline muted></video>
+          <canvas id="masterlistCanvas" class="hidden"></canvas>
+          <div class="action-row">
+            <button id="captureMasterlistBtn" type="button">Capture and Scan</button>
+            <button id="closeMasterlistCameraBtn" type="button" class="secondary">Close Camera</button>
+          </div>
+        </div>
+        <p id="masterlistScanResult" class="muted"></p>
       </div>
 
-      <div class="inline-note">
-        CSV format:
-        `studentNumber,firstName,middleName,lastName,email,academicLevel,department,program,yearLevel,section,username,password,status`
+      <div class="csv-import-panel">
+        <div class="card-header">
+          <div>
+            <h3>CSV Import</h3>
+            <p class="muted">Use CSV when you already have a spreadsheet export.</p>
+          </div>
+        </div>
+      <div class="csv-import-actions">
+        <input type="file" id="studentCsvFileInput" accept=".csv,text/csv">
+        <button id="previewStudentImportBtn" type="button" class="compact-btn">Preview CSV</button>
+        <button id="openCsvInstructionsBtn" type="button" class="secondary compact-btn">Instructions</button>
+      </div>
+
+      <div class="inline-note csv-format-note">
+        CSV headers can use the same readable labels as scanned masterlists, such as
+        <code>Student Number</code>, <code>First Name</code>, <code>Academic Level</code>, <code>Course/Strand</code>,
+        <code>Year/Grade</code>, <code>Section</code>, and parent labels. Exact field keys are also accepted.
       </div>
 
       <div id="studentImportPreview" class="import-preview" style="margin-top:16px;">No CSV preview loaded yet.</div>
       <p id="studentImportResult" class="muted"></p>
+      </div>
       <div class="modal-actions">
         <button class="secondary" type="button" onclick="closeModal('createStudentModal')">Close</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="importInstructionsModal">
+  <div class="modal-card modal-card-wide masterlist-review-modal">
+    <div class="card-header">
+      <div>
+        <h2>Bulk Import Instructions</h2>
+        <p class="muted">Use readable labels for printed/image masterlists and CSV files. Exact field keys are also accepted in CSV headers.</p>
+      </div>
+    </div>
+
+    <div class="import-instructions-grid">
+      <div class="detail-item">
+        <p><strong>Printed/Image Masterlist: Student Labels</strong></p>
+        <p class="muted">These are the labels the scanned image should show clearly.</p>
+        <code>Student Number</code>
+        <code>First Name</code>
+        <code>Middle Name</code>
+        <code>Last Name</code>
+        <code>Email</code>
+        <code>Academic Level</code>
+        <code>Department</code>
+        <code>Course/Strand</code>
+        <code>Year/Grade</code>
+        <code>Section</code>
+      </div>
+      <div class="detail-item">
+        <p><strong>Printed/Image Masterlist: Parent Labels</strong></p>
+        <p class="muted">Parent fields are optional, but these labels help OCR find them.</p>
+        <code>Parent First Name</code>
+        <code>Parent Middle Name</code>
+        <code>Parent Last Name</code>
+        <code>Parent Email</code>
+        <code>Parent Phone Number</code>
+        <code>Relationship</code>
+        <code>Parent Address</code>
+      </div>
+      <div class="detail-item">
+        <p><strong>CSV Student Header Keys</strong></p>
+        <p class="muted">These exact keys are accepted, but readable labels like Student Number and Course/Strand work too.</p>
+        <code>studentNumber</code>
+        <code>firstName</code>
+        <code>middleName</code>
+        <code>lastName</code>
+        <code>email</code>
+        <code>academicLevel</code>
+        <code>department</code>
+        <code>program</code>
+        <code>yearLevel</code>
+        <code>section</code>
+        <code>username</code>
+        <code>password</code>
+        <code>status</code>
+        <p class="muted">`username`, `password`, and `status` are CSV-only optional fields. They are not expected in scanned images.</p>
+      </div>
+      <div class="detail-item">
+        <p><strong>CSV Parent Header Keys</strong></p>
+        <p class="muted">These exact keys are accepted, but readable labels like Parent First Name and Parent Phone Number work too.</p>
+        <code>parentFirstName</code>
+        <code>parentMiddleName</code>
+        <code>parentLastName</code>
+        <code>parentEmail</code>
+        <code>parentPhoneNumber</code>
+        <code>parentRelationship</code>
+        <code>parentUsername</code>
+        <code>parentPassword</code>
+        <code>parentAddress</code>
+      </div>
+    </div>
+
+    <div class="import-instructions-grid" style="margin-top:16px;">
+      <div class="detail-item">
+        <p><strong>Minimum student information</strong></p>
+        <p>For a student row to import cleanly, provide at least:</p>
+        <code>Student Number</code>
+        <code>First Name</code>
+        <code>Last Name</code>
+        <code>Academic Level</code>
+        <p class="muted">Course/Strand, Year/Grade, and Section are strongly recommended because they are used for filtering and records.</p>
+      </div>
+      <div class="detail-item">
+        <p><strong>Minimum parent information</strong></p>
+        <p>To create or link a parent during import, provide at least:</p>
+        <code>Parent First Name</code>
+        <code>Parent Last Name</code>
+        <code>Parent Phone Number</code>
+        <p class="muted">If parent email or phone already exists, the system links the existing parent instead of creating a duplicate.</p>
+      </div>
+    </div>
+
+    <div class="detail-item" style="margin-top:16px;">
+      <p><strong>Recommended CSV header</strong></p>
+      <code class="code-block">Student Number,First Name,Middle Name,Last Name,Email,Academic Level,Department,Course/Strand,Year/Grade,Section,Username,Password,Status,Parent First Name,Parent Middle Name,Parent Last Name,Parent Email,Parent Phone Number,Relationship,Parent Username,Parent Password,Parent Address</code>
+    </div>
+
+    <div class="detail-item" style="margin-top:16px;">
+      <p><strong>Printed masterlist tip</strong></p>
+      <p>For image scanning, readable column titles are better than code-style keys. Use labels such as Student Number, Academic Level, Course/Strand, Year/Grade, Section, Parent Phone Number, and Parent Email. The scanned values still appear in the review popup for manual correction before import.</p>
+    </div>
+
+    <div class="modal-actions">
+      <button class="secondary" type="button" onclick="closeModal('importInstructionsModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="masterlistReviewModal">
+  <div class="modal-card modal-card-wide masterlist-review-modal">
+    <div class="card-header">
+      <div>
+        <h2 id="masterlistReviewTitle">Review Scanned Masterlist</h2>
+        <p class="muted" id="masterlistReviewSummary">Check every detected row before importing.</p>
+      </div>
+    </div>
+    <div class="inline-note" id="masterlistReviewHelp">
+      OCR can misread names, student numbers, or sections. Edit cells here, uncheck rows that should not be imported, then run import.
+    </div>
+    <div id="masterlistReviewTable" class="import-preview masterlist-review-table">No scanned rows yet.</div>
+    <p id="masterlistImportResult" class="muted"></p>
+    <div id="masterlistImportCredentials" class="masterlist-import-results hidden"></div>
+    <div class="modal-actions">
+      <button id="backToImportRowsBtn" class="secondary hidden" type="button">Back to Rows</button>
+      <button class="secondary" type="button" onclick="closeModal('masterlistReviewModal')">Cancel</button>
+      <button id="importScannedMasterlistBtn" type="button">Add and Generate Accounts</button>
+    </div>
+    <div id="masterlistImportBusyOverlay" class="modal-loading-overlay hidden">
+      <div class="modal-loading-card">
+        <span class="loading-spinner"></span>
+        <strong>Creating records and accounts...</strong>
+        <small>Please wait while reviewed student and parent details are being saved.</small>
+        <div class="operation-progress" aria-hidden="true">
+          <div class="operation-progress-track"><span class="operation-progress-fill"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="bulkDeleteStudentsModal">
+  <div class="modal-card modal-card-wide bulk-delete-modal">
+    <div class="card-header bulk-delete-header">
+      <div>
+        <h2>Review Bulk Student Delete</h2>
+        <p class="muted" id="bulkDeleteReviewSummary">Preview matching students before deleting.</p>
+      </div>
+      <div class="bulk-delete-count">
+        <strong id="bulkDeleteSelectedCount">0</strong>
+        <span>selected</span>
+      </div>
+    </div>
+
+    <div class="bulk-delete-toolbar">
+      <button id="selectAllBulkDeleteBtn" class="secondary compact-btn" type="button">Select All</button>
+      <button id="clearBulkDeleteSelectionBtn" class="secondary compact-btn" type="button">Clear Selection</button>
+      <span class="muted" id="bulkDeleteFilterSummary"></span>
+    </div>
+
+    <div id="bulkDeleteReviewTable" class="bulk-delete-review-table">
+      <div class="empty-state">No preview loaded yet.</div>
+    </div>
+
+    <div class="bulk-delete-confirm">
+      <div>
+        <strong>Final confirmation</strong>
+        <span class="muted">Type the phrase shown below to permanently delete only the checked students.</span>
+        <code id="bulkDeleteConfirmPhrase">DELETE 0 STUDENTS</code>
+      </div>
+      <input id="bulkDeleteConfirmInput" type="text" placeholder="Type confirmation phrase">
+    </div>
+
+    <p id="bulkDeleteModalResult" class="muted"></p>
+    <div class="modal-actions">
+      <button id="cancelBulkDeleteStudentsBtn" class="secondary" type="button" onclick="closeModal('bulkDeleteStudentsModal')">Cancel</button>
+      <button id="confirmBulkDeleteStudentsBtn" class="student-action-danger" type="button" disabled>Delete Selected Students</button>
     </div>
   </div>
 </div>
@@ -247,6 +470,21 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="appNoticeModal">
+  <div class="modal-card app-notice-card">
+    <div class="card-header">
+      <div>
+        <h2 id="appNoticeTitle">Notice</h2>
+        <p class="muted" id="appNoticeMessage"></p>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="appNoticeCancelBtn" class="secondary hidden" type="button">Cancel</button>
+      <button id="appNoticeConfirmBtn" type="button">OK</button>
+    </div>
+  </div>
+</div>
+
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
 <script>
@@ -261,7 +499,241 @@ if (!user || user.role !== "admin") {
 let currentPage = 1;
 let totalPages = 1;
 let currentRows = [];
-let studentImportRows = [];
+let masterlistRows = [];
+let masterlistReviewSource = "scan";
+let masterlistReviewStep = "rows";
+let pendingImportRows = [];
+let accountReviewRows = [];
+let masterlistStream = null;
+let masterlistImportBusy = false;
+let bulkDeletePreview = null;
+let bulkDeleteSelectedIds = new Set();
+let bulkDeleteBusy = false;
+let appNoticeResolve = null;
+let liveFilterOptions = {
+  programs: [],
+  yearLevels: [],
+  sections: []
+};
+const MANUAL_OPTION_VALUE = "__manual__";
+const CUSTOM_ACADEMIC_OPTIONS_KEY = "customAcademicOptions";
+const CSV_HEADER_ALIASES = {
+  studentnumber: "studentNumber",
+  studentno: "studentNumber",
+  studentid: "studentNumber",
+  idnumber: "studentNumber",
+  firstname: "firstName",
+  givenname: "firstName",
+  middlename: "middleName",
+  lastname: "lastName",
+  surname: "lastName",
+  email: "email",
+  studentemail: "email",
+  academiclevel: "academicLevel",
+  level: "academicLevel",
+  department: "department",
+  track: "department",
+  course: "program",
+  strand: "program",
+  program: "program",
+  coursestrand: "program",
+  yeargrade: "yearLevel",
+  yearlevel: "yearLevel",
+  gradelevel: "yearLevel",
+  year: "yearLevel",
+  grade: "yearLevel",
+  section: "section",
+  username: "username",
+  password: "password",
+  status: "status",
+  parentfirstname: "parentFirstName",
+  guardianfirstname: "parentFirstName",
+  parentmiddlename: "parentMiddleName",
+  guardianmiddlename: "parentMiddleName",
+  parentlastname: "parentLastName",
+  guardianlastname: "parentLastName",
+  parentemail: "parentEmail",
+  guardianemail: "parentEmail",
+  parentphonenumber: "parentPhoneNumber",
+  parentphone: "parentPhoneNumber",
+  parentmobile: "parentPhoneNumber",
+  parentcontactnumber: "parentPhoneNumber",
+  guardianphonenumber: "parentPhoneNumber",
+  guardianphone: "parentPhoneNumber",
+  relationship: "parentRelationship",
+  parentrelationship: "parentRelationship",
+  guardianrelationship: "parentRelationship",
+  parentusername: "parentUsername",
+  guardianusername: "parentUsername",
+  parentpassword: "parentPassword",
+  guardianpassword: "parentPassword",
+  parentaddress: "parentAddress",
+  guardianaddress: "parentAddress"
+};
+
+const academicOptions = {
+  shs: {
+    departmentLabel: "Track",
+    departments: ["Academic Track", "TVL Track"],
+    programs: ["STEM", "ABM", "HUMSS", "GAS", "ICT", "HE", "SMAW"],
+    yearLevels: ["Grade 11", "Grade 12"],
+    sections: ["A", "B", "C", "D"]
+  },
+  college: {
+    departmentLabel: "Department",
+    departments: ["CCS", "CBA", "CTE", "CAS"],
+    programs: ["BSCS", "BSIT", "BSIS", "BSEMC", "BSBA", "BSA", "BSED", "BEED"],
+    yearLevels: ["1st year", "2nd year", "3rd year", "4th year"],
+    sections: ["A", "B", "C", "D"]
+  }
+};
+
+function uniqueValues(values) {
+  return [...new Set(values.map(value => String(value || "").trim()).filter(Boolean))];
+}
+
+function loadCustomAcademicOptions() {
+  const fallback = {
+    general: { departments: [], programs: [], sections: [] },
+    shs: { departments: [], programs: [], sections: [] },
+    college: { departments: [], programs: [], sections: [] }
+  };
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CUSTOM_ACADEMIC_OPTIONS_KEY) || "{}");
+    ["general", "shs", "college"].forEach(level => {
+      fallback[level].departments = Array.isArray(parsed[level]?.departments) ? parsed[level].departments : [];
+      fallback[level].programs = Array.isArray(parsed[level]?.programs) ? parsed[level].programs : [];
+      fallback[level].sections = Array.isArray(parsed[level]?.sections) ? parsed[level].sections : [];
+    });
+  } catch (error) {
+    localStorage.removeItem(CUSTOM_ACADEMIC_OPTIONS_KEY);
+  }
+
+  return fallback;
+}
+
+let customAcademicOptions = loadCustomAcademicOptions();
+
+function saveCustomAcademicOption(level, field, value) {
+  const normalizedLevel = academicOptions[level] ? level : "general";
+  const normalizedValue = String(value || "").trim();
+
+  if (!normalizedValue || !["departments", "programs", "sections"].includes(field)) {
+    return;
+  }
+
+  const builtInOptions = normalizedLevel === "general"
+    ? uniqueValues([...academicOptions.shs[field], ...academicOptions.college[field]])
+    : academicOptions[normalizedLevel][field];
+
+  if (builtInOptions.includes(normalizedValue)) {
+    return;
+  }
+
+  customAcademicOptions[normalizedLevel] = customAcademicOptions[normalizedLevel] || {
+    departments: [],
+    programs: [],
+    sections: []
+  };
+
+  customAcademicOptions[normalizedLevel][field] = uniqueValues([
+    ...(customAcademicOptions[normalizedLevel][field] || []),
+    normalizedValue
+  ]);
+  localStorage.setItem(CUSTOM_ACADEMIC_OPTIONS_KEY, JSON.stringify(customAcademicOptions));
+}
+
+function getAcademicConfig(level) {
+  if (academicOptions[level]) {
+    const base = academicOptions[level];
+    const generalCustom = customAcademicOptions.general || {};
+    const levelCustom = customAcademicOptions[level] || {};
+
+    return {
+      departmentLabel: base.departmentLabel,
+      departments: uniqueValues([...base.departments, ...(generalCustom.departments || []), ...(levelCustom.departments || [])]),
+      programs: uniqueValues([...base.programs, ...(generalCustom.programs || []), ...(levelCustom.programs || [])]),
+      yearLevels: base.yearLevels,
+      sections: uniqueValues([...base.sections, ...(generalCustom.sections || []), ...(levelCustom.sections || [])])
+    };
+  }
+
+  return {
+    departmentLabel: "Track / Department",
+    departments: uniqueValues([
+      ...academicOptions.shs.departments,
+      ...academicOptions.college.departments,
+      ...(customAcademicOptions.general?.departments || []),
+      ...(customAcademicOptions.shs?.departments || []),
+      ...(customAcademicOptions.college?.departments || [])
+    ]),
+    programs: uniqueValues([
+      ...academicOptions.shs.programs,
+      ...academicOptions.college.programs,
+      ...(customAcademicOptions.general?.programs || []),
+      ...(customAcademicOptions.shs?.programs || []),
+      ...(customAcademicOptions.college?.programs || [])
+    ]),
+    yearLevels: [...academicOptions.shs.yearLevels, ...academicOptions.college.yearLevels],
+    sections: uniqueValues([
+      ...academicOptions.shs.sections,
+      ...academicOptions.college.sections,
+      ...(customAcademicOptions.general?.sections || []),
+      ...(customAcademicOptions.shs?.sections || []),
+      ...(customAcademicOptions.college?.sections || [])
+    ])
+  };
+}
+
+function setSelectOptions(selectId, options, placeholder, selectedValue = "", allowManual = false) {
+  const select = document.getElementById(selectId);
+  const uniqueOptions = uniqueValues(options);
+  const hasSelectedOption = uniqueOptions.includes(selectedValue);
+  const manualOption = allowManual
+    ? `<option value="${MANUAL_OPTION_VALUE}" ${selectedValue && !hasSelectedOption ? "selected" : ""}>Add new...</option>`
+    : "";
+  select.innerHTML = `<option value="">${placeholder}</option>` + uniqueOptions.map(option => (
+    `<option value="${escapeHtml(option)}" ${option === selectedValue ? "selected" : ""}>${escapeHtml(option)}</option>`
+  )).join("") + manualOption;
+}
+
+function getManualAcademicValue(selectId, inputId) {
+  const select = document.getElementById(selectId);
+  const manualInput = document.getElementById(inputId);
+  return select.value === MANUAL_OPTION_VALUE ? manualInput.value.trim() : select.value;
+}
+
+function syncManualAcademicInput(selectId, inputId, options, selectedValue) {
+  const select = document.getElementById(selectId);
+  const manualInput = document.getElementById(inputId);
+  const isCustomValue = selectedValue && !options.includes(selectedValue);
+  const isManual = select.value === MANUAL_OPTION_VALUE;
+
+  manualInput.classList.toggle("hidden", !isManual);
+  manualInput.disabled = !isManual;
+
+  if (isCustomValue) {
+    manualInput.value = selectedValue;
+  } else if (!isManual) {
+    manualInput.value = "";
+  }
+}
+
+function handleManualAcademicSelectChange(selectId, inputId) {
+  const select = document.getElementById(selectId);
+  const manualInput = document.getElementById(inputId);
+  const isManual = select.value === MANUAL_OPTION_VALUE;
+
+  manualInput.classList.toggle("hidden", !isManual);
+  manualInput.disabled = !isManual;
+
+  if (isManual) {
+    manualInput.focus();
+  } else {
+    manualInput.value = "";
+  }
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -292,6 +764,45 @@ function openModal(id) {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove("open");
+  if (id === "createStudentModal") {
+    closeMasterlistCamera();
+  }
+}
+
+function showAppNotice(title, message) {
+  const modal = document.getElementById("appNoticeModal");
+  document.getElementById("appNoticeTitle").textContent = title;
+  document.getElementById("appNoticeMessage").textContent = message;
+  document.getElementById("appNoticeCancelBtn").classList.add("hidden");
+  document.getElementById("appNoticeConfirmBtn").textContent = "OK";
+  openModal("appNoticeModal");
+  document.getElementById("appNoticeConfirmBtn").focus();
+
+  return new Promise(resolve => {
+    appNoticeResolve = () => resolve(true);
+  });
+}
+
+function showAppConfirm(title, message, confirmLabel = "Confirm") {
+  const modal = document.getElementById("appNoticeModal");
+  document.getElementById("appNoticeTitle").textContent = title;
+  document.getElementById("appNoticeMessage").textContent = message;
+  document.getElementById("appNoticeCancelBtn").classList.remove("hidden");
+  document.getElementById("appNoticeConfirmBtn").textContent = confirmLabel;
+  openModal("appNoticeModal");
+  document.getElementById("appNoticeConfirmBtn").focus();
+
+  return new Promise(resolve => {
+    appNoticeResolve = resolve;
+  });
+}
+
+function resolveAppNotice(value) {
+  closeModal("appNoticeModal");
+  if (appNoticeResolve) {
+    appNoticeResolve(value);
+  }
+  appNoticeResolve = null;
 }
 
 function setCreateStudentMode(mode) {
@@ -302,8 +813,17 @@ function setCreateStudentMode(mode) {
   document.getElementById("studentImportTab").classList.toggle("active", isImport);
 }
 
+function normalizeCsvHeader(header) {
+  const compact = String(header || "")
+    .trim()
+    .replace(/^\uFEFF/, "")
+    .replace(/[\s_./\\()#-]+/g, "")
+    .toLowerCase();
+  return CSV_HEADER_ALIASES[compact] || String(header || "").trim();
+}
+
 function csvToRows(text) {
-  const lines = text.split(/\r?\n/).filter(Boolean);
+  const lines = text.split(/\r?\n/).filter(line => line.trim());
   if (lines.length < 2) return [];
 
   const parseLine = line => {
@@ -332,20 +852,101 @@ function csvToRows(text) {
     return values;
   };
 
-  const headers = parseLine(lines[0]);
+  const headers = parseLine(lines[0]).map(normalizeCsvHeader);
   return lines.slice(1).map(line => {
     const values = parseLine(line);
     const row = {};
     headers.forEach((header, index) => {
-      row[header] = values[index] || "";
+      if (header) {
+        row[header] = values[index] || "";
+      }
     });
     return row;
   });
 }
 
+function rowHasParentInfo(row) {
+  return [
+    "parentFirstName",
+    "parentMiddleName",
+    "parentLastName",
+    "parentEmail",
+    "parentPhoneNumber",
+    "parentRelationship",
+    "parentUsername",
+    "parentPassword",
+    "parentAddress"
+  ].some(field => String(row[field] || "").trim());
+}
+
+function buildCsvReviewRows(rows) {
+  return rows.map(row => {
+    const normalized = {
+      studentNumber: row.studentNumber || "",
+      firstName: row.firstName || "",
+      middleName: row.middleName || "",
+      lastName: row.lastName || "",
+      email: row.email || "",
+      academicLevel: row.academicLevel || "",
+      department: row.department || "",
+      program: row.program || "",
+      yearLevel: row.yearLevel || "",
+      section: row.section || "",
+      username: row.username || "",
+      password: row.password || "",
+      status: row.status || "active",
+      parentFirstName: row.parentFirstName || "",
+      parentMiddleName: row.parentMiddleName || "",
+      parentLastName: row.parentLastName || "",
+      parentEmail: row.parentEmail || "",
+      parentPhoneNumber: row.parentPhoneNumber || "",
+      parentRelationship: row.parentRelationship || "",
+      parentUsername: row.parentUsername || "",
+      parentPassword: row.parentPassword || "",
+      parentAddress: row.parentAddress || "",
+      rawText: ""
+    };
+    const issues = [];
+
+    if (!String(normalized.studentNumber).trim()) issues.push("Missing student number");
+    if (!String(normalized.firstName).trim()) issues.push("Missing first name");
+    if (!String(normalized.lastName).trim()) issues.push("Missing last name");
+    if (!String(normalized.academicLevel).trim()) issues.push("Missing academic level");
+
+    if (rowHasParentInfo(normalized)
+      && (!String(normalized.parentFirstName).trim()
+        || !String(normalized.parentLastName).trim()
+        || !String(normalized.parentPhoneNumber).trim())) {
+      issues.push("Parent import needs first name, last name, and phone number");
+    }
+
+    return {
+      ...normalized,
+      issues,
+      duplicate: false,
+      confidence: issues.length ? "needs_review" : "ready",
+      include: !issues.length
+    };
+  });
+}
+
+function summarizeReviewRows(rows) {
+  return {
+    detected: rows.length,
+    ready: rows.filter(row => row.confidence === "ready").length,
+    needsReview: rows.filter(row => row.confidence !== "ready").length,
+    duplicates: rows.filter(row => row.duplicate).length,
+    parentRows: rows.filter(rowHasParentInfo).length
+  };
+}
+
 async function loadParentOptions() {
   const res = await apiRequest("/admin/parents/options", "GET", null, true);
   const select = document.getElementById("createParentId");
+
+  if (!select) {
+    return;
+  }
 
   if (!res.success) {
     select.innerHTML = `<option value="">No parent options available</option>`;
@@ -357,10 +958,21 @@ async function loadParentOptions() {
   `).join("");
 }
 
-function applyClientFilters(rows) {
-  const accountFilter = document.getElementById("accountFilter").value;
-  if (!accountFilter) return rows;
-  return rows.filter(row => accountFilter === "with_account" ? row.has_account : !row.has_account);
+async function loadStudentFilterOptions() {
+  const query = new URLSearchParams({
+    academicLevel: document.getElementById("academicLevelFilter").value
+  });
+  const res = await apiRequest(`/students/filter-options?${query.toString()}`, "GET", null, true);
+
+  if (res.success) {
+    liveFilterOptions = {
+      programs: res.programs || [],
+      yearLevels: res.yearLevels || [],
+      sections: res.sections || []
+    };
+  }
+
+  refreshFilterAcademicOptions();
 }
 
 async function loadStudents() {
@@ -369,7 +981,12 @@ async function loadStudents() {
     page: currentPage,
     limit: 10,
     search: document.getElementById("search").value.trim(),
-    status: document.getElementById("statusFilter").value
+    status: document.getElementById("statusFilter").value,
+    accountType: document.getElementById("accountFilter").value,
+    academicLevel: document.getElementById("academicLevelFilter").value,
+    program: document.getElementById("programFilter").value,
+    yearLevel: document.getElementById("yearLevelFilter").value,
+    section: document.getElementById("sectionFilter").value
   });
 
   const res = await apiRequest(`/students/all?${query.toString()}`, "GET", null, true);
@@ -380,15 +997,15 @@ async function loadStudents() {
   }
 
   totalPages = res.pagination.totalPages || 1;
-  currentRows = applyClientFilters(res.students || []);
+  currentRows = res.students || [];
 
   document.getElementById("paginationInfo").textContent =
     `Page ${res.pagination.page} of ${totalPages} | ${res.pagination.total} student records`;
 
   document.getElementById("totalStudents").textContent = res.pagination.total;
-  document.getElementById("withAccountCount").textContent = (res.students || []).filter(student => student.has_account).length;
-  document.getElementById("profileOnlyCount").textContent = (res.students || []).filter(student => !student.has_account).length;
-  document.getElementById("inactiveCount").textContent = (res.students || []).filter(student => student.status === "inactive").length;
+  document.getElementById("withAccountCount").textContent = res.summary?.withAccount ?? 0;
+  document.getElementById("profileOnlyCount").textContent = res.summary?.profileOnly ?? 0;
+  document.getElementById("inactiveCount").textContent = res.summary?.inactive ?? 0;
 
   if (!currentRows.length) {
     table.innerHTML = `<tr><td colspan="6">No students found for the current filters.</td></tr>`;
@@ -408,14 +1025,20 @@ async function loadStudents() {
             </div>
           </div>
         </td>
-      <td>${escapeHtml(student.program || "-")} / ${escapeHtml(student.year_level || "-")}<br><span class="muted">${escapeHtml(student.section || "-")}</span></td>
+      <td>
+        ${escapeHtml(student.program || "-")}<br>
+        <span class="muted">${escapeHtml(student.year_level || "-")} / ${escapeHtml(student.section || "-")}</span>
+      </td>
       <td>${student.has_account ? badge("linked_account") + `<br><span class="muted">${escapeHtml(student.username || "-")}</span>` : `<span class="muted">Profile only</span>`}</td>
       <td>${badge(student.status)}</td>
       <td>
         <div class="student-row-actions">
           <a href="student-profile.html?id=${student.id}"><button class="student-action-primary" type="button">Open Profile</button></a>
           ${!student.has_account ? `<button type="button" class="student-action-secondary" onclick="openCreateAccountModal(${student.id})">Create Login</button>` : ""}
-          ${student.status === "active" ? `<button type="button" class="student-action-danger" onclick="deactivateStudent(${student.id})">Deactivate</button>` : ""}
+          ${student.status === "active"
+            ? `<button type="button" class="student-action-danger" onclick="deactivateStudent(${student.id})">Deactivate</button>`
+            : `<button type="button" class="student-action-secondary" onclick="activateStudent(${student.id})">Activate</button>`}
+          <button type="button" class="student-action-danger" onclick="deleteStudent(${student.id})">Delete</button>
         </div>
       </td>
     </tr>
@@ -423,67 +1046,325 @@ async function loadStudents() {
 }
 
 function handleCreateModeChange() {
-  const withAccount = document.getElementById("createAccountMode").value === "with_account";
-  document.getElementById("studentAccountFields").classList.toggle("hidden", !withAccount);
+  return;
+}
+
+function refreshCreateAcademicOptions() {
+  const level = document.getElementById("createAcademicLevel").value;
+  const config = getAcademicConfig(level);
+  const department = getManualAcademicValue("createDepartment", "createDepartmentManual");
+  const program = getManualAcademicValue("createProgram", "createProgramManual");
+  const yearLevel = document.getElementById("createYearLevel").value;
+  const section = getManualAcademicValue("createSection", "createSectionManual");
+
+  setSelectOptions("createDepartment", config.departments, config.departmentLabel, department, true);
+  setSelectOptions("createProgram", config.programs, "Course / Strand", program, true);
+  setSelectOptions("createSection", config.sections, "Section", section, true);
+  syncManualAcademicInput("createDepartment", "createDepartmentManual", config.departments, department);
+  syncManualAcademicInput("createProgram", "createProgramManual", config.programs, program);
+  syncManualAcademicInput("createSection", "createSectionManual", config.sections, section);
+  setSelectOptions("createYearLevel", config.yearLevels, "Year / Grade Level", yearLevel);
+}
+
+function refreshFilterAcademicOptions() {
+  const level = document.getElementById("academicLevelFilter").value;
+  const config = getAcademicConfig(level);
+  const program = document.getElementById("programFilter").value;
+  const yearLevel = document.getElementById("yearLevelFilter").value;
+  const section = document.getElementById("sectionFilter").value;
+
+  setSelectOptions("programFilter", [...config.programs, ...liveFilterOptions.programs], "All Courses / Strands", program);
+  setSelectOptions("yearLevelFilter", [...config.yearLevels, ...liveFilterOptions.yearLevels], "All Years / Grades", yearLevel);
+  setSelectOptions("sectionFilter", [...config.sections, ...liveFilterOptions.sections], "All Sections", section);
+}
+
+function getCurrentStudentFilters() {
+  return {
+    search: document.getElementById("search").value.trim(),
+    status: document.getElementById("statusFilter").value,
+    accountType: document.getElementById("accountFilter").value,
+    academicLevel: document.getElementById("academicLevelFilter").value,
+    program: document.getElementById("programFilter").value,
+    yearLevel: document.getElementById("yearLevelFilter").value,
+    section: document.getElementById("sectionFilter").value
+  };
+}
+
+function resetBulkDeletePreview(message = "") {
+  bulkDeleteBusy = false;
+  bulkDeletePreview = null;
+  bulkDeleteSelectedIds = new Set();
+  document.querySelector("#bulkDeleteStudentsModal .bulk-delete-modal")?.classList.remove("is-deleting");
+  document.getElementById("bulkDeleteStudentsBtn").disabled = true;
+  document.getElementById("bulkDeleteStudentsResult").textContent = message;
+  document.getElementById("bulkDeleteModalResult").textContent = "";
+  document.getElementById("bulkDeleteConfirmInput").value = "";
+  document.getElementById("bulkDeleteConfirmInput").disabled = false;
+  document.getElementById("selectAllBulkDeleteBtn").disabled = false;
+  document.getElementById("clearBulkDeleteSelectionBtn").disabled = false;
+  document.getElementById("cancelBulkDeleteStudentsBtn").disabled = false;
+  document.getElementById("confirmBulkDeleteStudentsBtn").textContent = "Delete Selected Students";
+  updateBulkDeleteConfirmState();
+}
+
+function bulkDeleteStudentName(student = {}) {
+  return [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" ").trim() || "-";
+}
+
+function getBulkDeleteConfirmPhrase() {
+  return `DELETE ${bulkDeleteSelectedIds.size} STUDENTS`;
+}
+
+function updateBulkDeleteConfirmState() {
+  const selectedCount = bulkDeleteSelectedIds.size;
+  const phrase = getBulkDeleteConfirmPhrase();
+  const confirmInput = document.getElementById("bulkDeleteConfirmInput");
+  const confirmButton = document.getElementById("confirmBulkDeleteStudentsBtn");
+
+  document.getElementById("bulkDeleteSelectedCount").textContent = selectedCount;
+  document.getElementById("bulkDeleteConfirmPhrase").textContent = phrase;
+  confirmButton.disabled = bulkDeleteBusy || !selectedCount || confirmInput.value.trim() !== phrase;
+}
+
+function setBulkDeleteLoading(isLoading) {
+  bulkDeleteBusy = Boolean(isLoading);
+  const modal = document.querySelector("#bulkDeleteStudentsModal .bulk-delete-modal");
+  const confirmButton = document.getElementById("confirmBulkDeleteStudentsBtn");
+  const cancelButton = document.getElementById("cancelBulkDeleteStudentsBtn");
+  const modalResult = document.getElementById("bulkDeleteModalResult");
+
+  modal.classList.toggle("is-deleting", bulkDeleteBusy);
+  document.getElementById("bulkDeleteConfirmInput").disabled = bulkDeleteBusy;
+  document.getElementById("selectAllBulkDeleteBtn").disabled = bulkDeleteBusy;
+  document.getElementById("clearBulkDeleteSelectionBtn").disabled = bulkDeleteBusy;
+  cancelButton.disabled = bulkDeleteBusy;
+  document.querySelectorAll(".bulk-delete-check").forEach(checkbox => {
+    checkbox.disabled = bulkDeleteBusy;
+  });
+
+  if (bulkDeleteBusy) {
+    confirmButton.innerHTML = `<span class="button-spinner" aria-hidden="true"></span>Deleting...`;
+    modalResult.innerHTML = `
+      <span class="upload-spinner" aria-hidden="true"></span>
+      <span>Deleting selected students. This can take a moment when related records are being removed.</span>
+      <div class="operation-progress" aria-hidden="true">
+        <div class="operation-progress-track"><span class="operation-progress-fill"></span></div>
+      </div>
+    `;
+  } else {
+    confirmButton.textContent = "Delete Selected Students";
+  }
+
+  updateBulkDeleteConfirmState();
+}
+
+function renderBulkDeleteReview() {
+  const table = document.getElementById("bulkDeleteReviewTable");
+  const students = bulkDeletePreview?.students || [];
+
+  document.getElementById("bulkDeleteReviewSummary").textContent =
+    `${students.length} student record(s) match the current filters. Uncheck any student you want to keep.`;
+  document.getElementById("bulkDeleteFilterSummary").textContent =
+    Object.entries(getCurrentStudentFilters())
+      .filter(([, value]) => value)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(" | ") || "No filter summary available";
+
+  if (!students.length) {
+    table.innerHTML = `<div class="empty-state">No students match the selected filters.</div>`;
+    updateBulkDeleteConfirmState();
+    return;
+  }
+
+  table.innerHTML = `
+    <div class="table-wrap bulk-delete-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Delete</th>
+            <th>Student</th>
+            <th>Email</th>
+            <th>Course / Strand</th>
+            <th>Year / Section</th>
+            <th>Account</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${students.map(student => `
+            <tr>
+              <td><input type="checkbox" class="bulk-delete-check" data-student-id="${student.id}" ${bulkDeleteSelectedIds.has(Number(student.id)) ? "checked" : ""}></td>
+              <td>
+                <strong>${escapeHtml(student.studentNumber || "-")}</strong><br>
+                <span class="muted">${escapeHtml(bulkDeleteStudentName(student))}</span>
+              </td>
+              <td>${escapeHtml(student.email || "-")}</td>
+              <td>${escapeHtml(student.program || "-")}</td>
+              <td>${escapeHtml([student.yearLevel, student.section].filter(Boolean).join(" / ") || "-")}</td>
+              <td>${student.hasAccount ? `<span class="badge linked_account">linked account</span><br><span class="muted">${escapeHtml(student.username || "-")}</span>` : `<span class="muted">Profile only</span>`}</td>
+              <td>${badge(student.status || "-")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  table.querySelectorAll(".bulk-delete-check").forEach(checkbox => {
+    checkbox.addEventListener("change", event => {
+      const studentId = Number(event.target.dataset.studentId);
+      if (event.target.checked) {
+        bulkDeleteSelectedIds.add(studentId);
+      } else {
+        bulkDeleteSelectedIds.delete(studentId);
+      }
+      document.getElementById("bulkDeleteConfirmInput").value = "";
+      updateBulkDeleteConfirmState();
+    });
+  });
+  updateBulkDeleteConfirmState();
+}
+
+async function previewBulkDeleteStudents() {
+  const result = document.getElementById("bulkDeleteStudentsResult");
+  result.textContent = "Checking matching students...";
+
+  const res = await apiRequest("/admin/students/bulk-delete", "DELETE", {
+    dryRun: true,
+    filters: getCurrentStudentFilters()
+  }, true);
+
+  if (!res.success) {
+    resetBulkDeletePreview(res.message || "Unable to preview bulk delete.");
+    return;
+  }
+
+  bulkDeletePreview = res;
+  bulkDeleteSelectedIds = new Set((res.students || []).map(student => Number(student.id)));
+  document.getElementById("bulkDeleteStudentsBtn").disabled = !res.count;
+  result.textContent = res.message;
+  document.getElementById("bulkDeleteModalResult").textContent = "";
+  document.getElementById("bulkDeleteConfirmInput").value = "";
+  renderBulkDeleteReview();
+  openModal("bulkDeleteStudentsModal");
+}
+
+async function bulkDeleteStudents() {
+  if (!bulkDeletePreview?.count) {
+    document.getElementById("bulkDeleteStudentsResult").textContent = "Preview the matching students before deleting.";
+    return;
+  }
+
+  openModal("bulkDeleteStudentsModal");
+}
+
+async function confirmBulkDeleteStudents() {
+  const modalResult = document.getElementById("bulkDeleteModalResult");
+  const typed = document.getElementById("bulkDeleteConfirmInput").value.trim();
+  const confirmPhrase = getBulkDeleteConfirmPhrase();
+
+  if (bulkDeleteBusy) {
+    return;
+  }
+
+  if (!bulkDeleteSelectedIds.size) {
+    modalResult.textContent = "Select at least one student to delete.";
+    return;
+  }
+
+  if (typed !== confirmPhrase) {
+    modalResult.textContent = `Type "${confirmPhrase}" before deleting.`;
+    updateBulkDeleteConfirmState();
+    return;
+  }
+
+  setBulkDeleteLoading(true);
+  try {
+    const res = await apiRequest("/admin/students/bulk-delete", "DELETE", {
+      dryRun: false,
+      confirmText: confirmPhrase,
+      filters: getCurrentStudentFilters(),
+      studentIds: Array.from(bulkDeleteSelectedIds)
+    }, true);
+
+    if (!res.success) {
+      modalResult.textContent = res.message || "Bulk delete failed.";
+      setBulkDeleteLoading(false);
+      return;
+    }
+
+    resetBulkDeletePreview(`${res.message} Deleted linked student accounts: ${res.deletedAccounts || 0}. Deleted parent profiles: ${res.deletedParentProfiles || 0}. Deleted parent accounts: ${res.deletedParentAccounts || 0}.`);
+    closeModal("bulkDeleteStudentsModal");
+    currentPage = 1;
+    await loadStudentFilterOptions();
+    await loadStudents();
+  } catch (error) {
+    modalResult.textContent = "Bulk delete failed. Check the server connection and try again.";
+    setBulkDeleteLoading(false);
+  }
 }
 
 function handleParentModeChange() {
-  const mode = document.getElementById("parentLinkMode").value;
-  document.getElementById("createParentId").classList.toggle("hidden", mode !== "existing");
-  document.getElementById("newParentFields").classList.toggle("hidden", mode !== "new");
+  return;
 }
 
 async function createStudent() {
+  const academicLevel = document.getElementById("createAcademicLevel").value;
+  const academicConfig = getAcademicConfig(academicLevel);
+  const selectedProgram = getManualAcademicValue("createProgram", "createProgramManual");
+  const selectedSection = getManualAcademicValue("createSection", "createSectionManual");
+  const selectedDepartment = getManualAcademicValue("createDepartment", "createDepartmentManual")
+    || (academicLevel === "shs"
+      ? (["ICT", "HE", "SMAW"].includes(selectedProgram.toUpperCase()) ? "TVL Track" : "Academic Track")
+      : academicConfig.departments[0] || "");
+
   const payload = {
     studentNumber: document.getElementById("createStudentNumber").value.trim(),
     firstName: document.getElementById("createFirstName").value.trim(),
     middleName: document.getElementById("createMiddleName").value.trim(),
     lastName: document.getElementById("createLastName").value.trim(),
     email: document.getElementById("createEmail").value.trim(),
-    department: document.getElementById("createDepartment").value.trim(),
-    program: document.getElementById("createProgram").value.trim(),
-    yearLevel: document.getElementById("createYearLevel").value.trim(),
-    section: document.getElementById("createSection").value.trim(),
-    academicLevel: document.getElementById("createAcademicLevel").value,
+    department: selectedDepartment,
+    program: selectedProgram,
+    yearLevel: document.getElementById("createYearLevel").value,
+    section: selectedSection,
+    academicLevel,
     status: document.getElementById("createStatus").value,
-    createAccount: document.getElementById("createAccountMode").value === "with_account",
-    username: document.getElementById("createUsername").value.trim(),
-    password: document.getElementById("createPassword").value,
-    parentLinkMode: document.getElementById("parentLinkMode").value,
-    existingParentId: document.getElementById("createParentId").value || null,
-    relationship: document.getElementById("relationship").value.trim()
-  };
-
-  if (payload.parentLinkMode === "new") {
-    payload.newParent = {
+    relationship: document.getElementById("relationship").value.trim(),
+    newParent: {
       firstName: document.getElementById("newParentFirstName").value.trim(),
       middleName: document.getElementById("newParentMiddleName").value.trim(),
       lastName: document.getElementById("newParentLastName").value.trim(),
       email: document.getElementById("newParentEmail").value.trim(),
       phoneNumber: document.getElementById("newParentPhone").value.trim(),
-      address: document.getElementById("newParentAddress").value.trim(),
-      createAccount: document.getElementById("newParentAccountMode").value === "with_account",
-      username: document.getElementById("newParentUsername").value.trim(),
-      password: document.getElementById("newParentPassword").value
-    };
-  }
+      address: document.getElementById("newParentAddress").value.trim()
+    }
+  };
 
   const res = await apiRequest("/admin/students", "POST", payload, true);
   document.getElementById("createResult").textContent = res.success ? "Student created successfully." : res.message;
 
   if (res.success) {
+    saveCustomAcademicOption(academicLevel, "departments", payload.department);
+    saveCustomAcademicOption(academicLevel, "programs", payload.program);
+    saveCustomAcademicOption(academicLevel, "sections", payload.section);
     document.querySelectorAll("#createStudentModal input").forEach(input => { input.value = ""; });
     document.querySelectorAll("#createStudentModal select").forEach(select => {
       if (select.id === "createStatus") select.value = "active";
-      else if (select.id === "createAccountMode") select.value = "profile_only";
-      else if (select.id === "parentLinkMode") select.value = "none";
       else if (select.options.length) select.selectedIndex = 0;
     });
+    refreshCreateAcademicOptions();
     handleCreateModeChange();
     handleParentModeChange();
     currentPage = 1;
     await Promise.all([loadStudents(), loadParentOptions()]);
     closeModal("createStudentModal");
+    const credentials = Array.isArray(res.credentials) ? res.credentials.length : 0;
+    const emailSummary = res.emailNotifications || {};
+    await showAppNotice(
+      "Student created",
+      `${res.message || "Student created successfully."} Generated login accounts: ${credentials}. Credential emails sent: ${emailSummary.sent || 0}, disabled: ${emailSummary.disabled || 0}, failed: ${emailSummary.failed || 0}.`
+    );
   }
 }
 
@@ -518,13 +1399,655 @@ async function createLinkedAccount() {
   }
 }
 
+function studentDisplayName(student = {}) {
+  return [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ").trim()
+    || student.student_number
+    || "this student";
+}
+
 async function deactivateStudent(id) {
-  const res = await apiRequest(`/students/${id}/deactivate`, "PUT", {}, true);
-  if (!res.success) {
-    alert(res.message);
+  const item = currentRows.find(row => Number(row.id) === Number(id));
+  const name = studentDisplayName(item);
+  const confirmed = await showAppConfirm(
+    "Deactivate student?",
+    `This will mark ${name} as inactive and disable the linked login account if one exists.`,
+    "Deactivate"
+  );
+
+  if (!confirmed) {
     return;
   }
-  loadStudents();
+
+  const res = await apiRequest(`/students/${id}/deactivate`, "PUT", {}, true);
+  if (!res.success) {
+    await showAppNotice("Unable to deactivate", res.message || "Student could not be deactivated.");
+    return;
+  }
+  await loadStudents();
+  await showAppNotice("Student deactivated", res.message || "Student deactivated successfully.");
+}
+
+async function activateStudent(id) {
+  const res = await apiRequest(`/students/${id}/activate`, "PUT", {}, true);
+  if (!res.success) {
+    await showAppNotice("Unable to activate", res.message || "Student could not be activated.");
+    return;
+  }
+  await loadStudents();
+  await showAppNotice("Student activated", res.message || "Student activated successfully.");
+}
+
+async function deleteStudent(id) {
+  const item = currentRows.find(row => Number(row.id) === Number(id));
+  const name = studentDisplayName(item);
+  const confirmed = await showAppConfirm(
+    "Delete student?",
+    `This will permanently delete ${name}, the linked student account, and any parent profile/account that has no other linked students. This cannot be undone.`,
+    "Delete Student"
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const res = await apiRequest(`/admin/students/${id}`, "DELETE", {}, true);
+  if (!res.success) {
+    await showAppNotice("Unable to delete", res.message || "Student could not be deleted.");
+    return;
+  }
+
+  currentPage = 1;
+  await Promise.all([loadStudents(), loadParentOptions()]);
+  await showAppNotice(
+    "Student deleted",
+    `${res.message || "Student deleted successfully."} Deleted student accounts: ${res.deletedStudentAccount || 0}. Deleted orphan parent profiles: ${res.deletedParentProfiles || 0}. Deleted orphan parent accounts: ${res.deletedParentAccounts || 0}.`
+  );
+}
+
+async function scanMasterlistBlob(blob, fileName = "masterlist-capture.png") {
+  const result = document.getElementById("masterlistScanResult");
+  const formData = new FormData();
+  formData.append("masterlist", blob, fileName);
+
+  result.textContent = "Scanning masterlist image. This can take a moment...";
+  const res = await apiRequest("/admin/students/masterlist-ocr", "POST", formData, true);
+
+  if (!res.success) {
+    result.textContent = res.message || "Unable to scan masterlist.";
+    return;
+  }
+
+  masterlistReviewSource = "scan";
+  masterlistRows = (res.rows || []).map(row => ({
+    ...row,
+    parentFirstName: row.parentFirstName || "",
+    parentMiddleName: row.parentMiddleName || "",
+    parentLastName: row.parentLastName || "",
+    parentEmail: row.parentEmail || "",
+    parentPhoneNumber: row.parentPhoneNumber || "",
+    parentRelationship: row.parentRelationship || "",
+    parentUsername: row.parentUsername || "",
+    parentPassword: row.parentPassword || "",
+    include: !row.duplicate && row.confidence === "ready"
+  }));
+  result.textContent = res.message;
+  renderMasterlistReview(res.summary || {});
+  openModal("masterlistReviewModal");
+}
+
+async function scanUploadedMasterlist() {
+  const file = document.getElementById("masterlistImageInput").files[0];
+  const result = document.getElementById("masterlistScanResult");
+
+  if (!file) {
+    result.textContent = "Choose a masterlist image first.";
+    return;
+  }
+
+  await scanMasterlistBlob(file, file.name);
+}
+
+async function openMasterlistCamera() {
+  const result = document.getElementById("masterlistScanResult");
+  const panel = document.getElementById("masterlistCameraPanel");
+  const video = document.getElementById("masterlistVideo");
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    result.textContent = "Camera capture is not available in this browser. Upload an image instead.";
+    return;
+  }
+
+  try {
+    masterlistStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+      audio: false
+    });
+    video.srcObject = masterlistStream;
+    panel.classList.remove("hidden");
+    result.textContent = "Camera ready. Frame the masterlist clearly, then capture.";
+  } catch (error) {
+    result.textContent = "Camera access failed. Upload a masterlist image instead.";
+  }
+}
+
+function closeMasterlistCamera() {
+  if (masterlistStream) {
+    masterlistStream.getTracks().forEach(track => track.stop());
+  }
+  masterlistStream = null;
+  document.getElementById("masterlistVideo").srcObject = null;
+  document.getElementById("masterlistCameraPanel").classList.add("hidden");
+}
+
+async function captureMasterlistImage() {
+  const video = document.getElementById("masterlistVideo");
+  const canvas = document.getElementById("masterlistCanvas");
+  const result = document.getElementById("masterlistScanResult");
+
+  if (!masterlistStream || !video.videoWidth || !video.videoHeight) {
+    result.textContent = "Camera is not ready yet.";
+    return;
+  }
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png", 0.95));
+  if (!blob) {
+    result.textContent = "Unable to capture image from the camera.";
+    return;
+  }
+
+  await scanMasterlistBlob(blob, "masterlist-camera.png");
+}
+
+function updateMasterlistRow(index, field, value) {
+  if (!masterlistRows[index]) {
+    return;
+  }
+
+  if (field === "include") {
+    masterlistRows[index].include = Boolean(value);
+  } else {
+    masterlistRows[index][field] = value;
+  }
+}
+
+function masterlistInput(index, field, value, className = "") {
+  return `<input class="${className}" data-masterlist-index="${index}" data-masterlist-field="${field}" value="${escapeHtml(value || "")}">`;
+}
+
+function renderMasterlistReview(summary = {}) {
+  const table = document.getElementById("masterlistReviewTable");
+  const isCsv = masterlistReviewSource === "csv";
+  const importButton = document.getElementById("importScannedMasterlistBtn");
+  masterlistReviewStep = "rows";
+  pendingImportRows = [];
+  accountReviewRows = [];
+  document.getElementById("masterlistReviewTitle").textContent = isCsv ? "Review CSV Import" : "Review Scanned Masterlist";
+  document.getElementById("masterlistReviewHelp").textContent = isCsv
+    ? "Review the CSV rows first. Edit cells here and uncheck rows that should not continue to account review."
+    : "OCR can misread names, student numbers, or sections. Edit cells here and uncheck rows that should not continue to account review.";
+  document.getElementById("masterlistImportResult").textContent = "";
+  document.getElementById("masterlistImportCredentials").classList.add("hidden");
+  document.getElementById("masterlistImportCredentials").innerHTML = "";
+  masterlistImportBusy = false;
+  importButton.disabled = false;
+  importButton.textContent = "Add and Generate Accounts";
+  document.getElementById("backToImportRowsBtn").classList.add("hidden");
+  document.getElementById("masterlistReviewSummary").textContent =
+    `${summary.detected ?? masterlistRows.length} ${isCsv ? "CSV" : "student"} row(s) detected. Ready: ${summary.ready || 0}. Needs review: ${summary.needsReview || 0}. Duplicates: ${summary.duplicates || 0}. Parent info found: ${summary.parentRows || 0}.`;
+
+  if (!masterlistRows.length) {
+    table.innerHTML = `<div class="empty-state">No student rows detected. Try a clearer image or upload a CSV.</div>`;
+    return;
+  }
+
+  table.innerHTML = `
+    <div class="table-wrap masterlist-review-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Use</th>
+            <th>Student No.</th>
+            <th>First</th>
+            <th>Middle</th>
+            <th>Last</th>
+            <th>Email</th>
+            <th>Level</th>
+            <th>Course / Strand</th>
+            <th>Year / Grade</th>
+            <th>Section</th>
+            <th>Parent First</th>
+            <th>Parent Middle</th>
+            <th>Parent Last</th>
+            <th>Parent Email</th>
+            <th>Parent Phone</th>
+            <th>Relationship</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${masterlistRows.map((row, index) => `
+            <tr class="${row.duplicate || row.confidence !== "ready" ? "needs-review" : ""}">
+              <td><input type="checkbox" data-masterlist-index="${index}" data-masterlist-field="include" ${row.include ? "checked" : ""}></td>
+              <td>${masterlistInput(index, "studentNumber", row.studentNumber)}</td>
+              <td>${masterlistInput(index, "firstName", row.firstName)}</td>
+              <td>${masterlistInput(index, "middleName", row.middleName)}</td>
+              <td>${masterlistInput(index, "lastName", row.lastName)}</td>
+              <td>${masterlistInput(index, "email", row.email, "email-wide")}</td>
+              <td>${masterlistInput(index, "academicLevel", row.academicLevel, "compact")}</td>
+              <td>${masterlistInput(index, "program", row.program, "compact")}</td>
+              <td>${masterlistInput(index, "yearLevel", row.yearLevel, "compact")}</td>
+              <td>${masterlistInput(index, "section", row.section, "compact")}</td>
+              <td>${masterlistInput(index, "parentFirstName", row.parentFirstName)}</td>
+              <td>${masterlistInput(index, "parentMiddleName", row.parentMiddleName)}</td>
+              <td>${masterlistInput(index, "parentLastName", row.parentLastName)}</td>
+              <td>${masterlistInput(index, "parentEmail", row.parentEmail, "email-wide")}</td>
+              <td>${masterlistInput(index, "parentPhoneNumber", row.parentPhoneNumber, "compact")}</td>
+              <td>${masterlistInput(index, "parentRelationship", row.parentRelationship || "Parent/Guardian", "compact")}</td>
+              <td>
+                <strong>${row.duplicate ? "Duplicate" : row.confidence === "ready" ? "Ready" : "Review"}</strong>
+                <small>${escapeHtml((row.issues || []).join("; ") || row.rawText || "")}</small>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  table.querySelectorAll("[data-masterlist-field]").forEach(input => {
+    input.addEventListener("input", event => {
+      const target = event.target;
+      const index = Number(target.dataset.masterlistIndex);
+      const field = target.dataset.masterlistField;
+      updateMasterlistRow(index, field, target.type === "checkbox" ? target.checked : target.value);
+    });
+    input.addEventListener("change", event => {
+      const target = event.target;
+      const index = Number(target.dataset.masterlistIndex);
+      const field = target.dataset.masterlistField;
+      updateMasterlistRow(index, field, target.type === "checkbox" ? target.checked : target.value);
+    });
+  });
+}
+
+function normalizeReviewedMasterlistRows() {
+  return masterlistRows
+    .filter(row => row.include)
+    .map(row => {
+      const academicLevel = String(row.academicLevel || "").toLowerCase() === "shs" ? "shs" : "college";
+      const program = String(row.program || "").trim();
+      const department = String(row.department || "").trim()
+        || (academicLevel === "shs"
+          ? (["ICT", "HE", "SMAW"].includes(program.toUpperCase()) ? "TVL Track" : "Academic Track")
+          : getAcademicConfig("college").departments[0]);
+
+      return {
+        studentNumber: String(row.studentNumber || "").trim(),
+        firstName: String(row.firstName || "").trim(),
+        middleName: String(row.middleName || "").trim(),
+        lastName: String(row.lastName || "").trim(),
+        email: String(row.email || "").trim(),
+        academicLevel,
+        department,
+        program,
+        yearLevel: String(row.yearLevel || "").trim(),
+        section: String(row.section || "").trim(),
+        username: String(row.username || "").trim(),
+        password: String(row.password || "").trim(),
+        parentFirstName: String(row.parentFirstName || "").trim(),
+        parentMiddleName: String(row.parentMiddleName || "").trim(),
+        parentLastName: String(row.parentLastName || "").trim(),
+        parentEmail: String(row.parentEmail || "").trim(),
+        parentPhoneNumber: String(row.parentPhoneNumber || "").trim(),
+        parentRelationship: String(row.parentRelationship || "Parent/Guardian").trim(),
+        parentUsername: String(row.parentUsername || "").trim(),
+        parentPassword: String(row.parentPassword || "").trim(),
+        parentAddress: String(row.parentAddress || "").trim(),
+        status: String(row.status || "active").trim()
+      };
+    });
+}
+
+function compactNamePart(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 12);
+}
+
+function makeUniqueUsername(base, usedNames) {
+  const cleanBase = compactNamePart(base) || "account";
+  let candidate = cleanBase;
+  let suffix = 2;
+
+  while (usedNames.has(candidate)) {
+    candidate = `${cleanBase}${suffix}`;
+    suffix += 1;
+  }
+
+  usedNames.add(candidate);
+  return candidate;
+}
+
+function generateTemporaryReviewPassword(row, role, index) {
+  const seed = role === "parent"
+    ? `${row.parentLastName || row.lastName || "parent"}${row.studentNumber || index + 1}`
+    : `${row.lastName || "student"}${row.studentNumber || index + 1}`;
+  const compact = String(seed).replace(/[^a-zA-Z0-9]/g, "").slice(-8) || `${role}${index + 1}`;
+  return `${compact}!${String(index + 11).padStart(2, "0")}`;
+}
+
+function buildAccountReviewRows(rows) {
+  const usedNames = new Set();
+  const accounts = [];
+
+  rows.forEach((row, rowIndex) => {
+    const studentName = [row.firstName, row.middleName, row.lastName].filter(Boolean).join(" ");
+    const parentName = [row.parentFirstName, row.parentMiddleName, row.parentLastName].filter(Boolean).join(" ");
+    const studentDigits = String(row.studentNumber || "").replace(/\D/g, "").slice(-4);
+
+    if (String(row.email || "").trim()) {
+      accounts.push({
+        rowIndex,
+        role: "student",
+        linkedStudent: row.studentNumber,
+        ownerName: studentName,
+        email: row.email,
+        username: row.username || makeUniqueUsername(`${row.firstName}${row.lastName}${studentDigits}`, usedNames),
+        password: row.password || generateTemporaryReviewPassword(row, "student", accounts.length)
+      });
+    }
+
+    if (String(row.parentEmail || "").trim()) {
+      accounts.push({
+        rowIndex,
+        role: "parent",
+        linkedStudent: row.studentNumber,
+        ownerName: parentName || "Parent/Guardian",
+        email: row.parentEmail,
+        username: row.parentUsername || makeUniqueUsername(`${row.parentFirstName}${row.parentLastName}${studentDigits}`, usedNames),
+        password: row.parentPassword || generateTemporaryReviewPassword(row, "parent", accounts.length)
+      });
+    }
+  });
+
+  return accounts;
+}
+
+function accountReviewInput(index, field, value) {
+  return `<input data-account-review-index="${index}" data-account-review-field="${field}" value="${escapeHtml(value || "")}">`;
+}
+
+function updateAccountReviewRow(index, field, value) {
+  if (!accountReviewRows[index]) {
+    return;
+  }
+  accountReviewRows[index][field] = value;
+}
+
+function renderAccountReview() {
+  const table = document.getElementById("masterlistReviewTable");
+  const importButton = document.getElementById("importScannedMasterlistBtn");
+  const rowsWithAccounts = new Set(accountReviewRows.map(account => account.rowIndex));
+  const recordsWithoutAccounts = pendingImportRows.length - rowsWithAccounts.size;
+
+  masterlistReviewStep = "accounts";
+  document.getElementById("masterlistReviewTitle").textContent = "Review Generated Accounts";
+  document.getElementById("masterlistReviewSummary").textContent =
+    `${pendingImportRows.length} reviewed student record(s). Generated accounts: ${accountReviewRows.length}. Records without login account: ${recordsWithoutAccounts}.`;
+  document.getElementById("masterlistReviewHelp").textContent =
+    "Review student and parent login accounts before saving. Edit email, username, or temporary password here; the system will create records only after final confirmation.";
+  document.getElementById("masterlistImportResult").textContent = accountReviewRows.length
+    ? "No student or parent records have been saved yet. Confirm below after reviewing these accounts."
+    : "No accounts were generated because reviewed rows do not have student or parent email addresses. You can still create the student and parent profiles without login accounts.";
+  document.getElementById("masterlistImportCredentials").classList.add("hidden");
+  document.getElementById("masterlistImportCredentials").innerHTML = "";
+  importButton.disabled = false;
+  importButton.textContent = accountReviewRows.length ? "Confirm Create Records" : "Create Profiles Only";
+  document.getElementById("backToImportRowsBtn").classList.remove("hidden");
+
+  table.innerHTML = accountReviewRows.length ? `
+    <div class="table-wrap account-review-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Linked Student</th>
+            <th>Account Owner</th>
+            <th>Role</th>
+            <th>Email</th>
+            <th>Username</th>
+            <th>Temporary Password</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${accountReviewRows.map((account, index) => `
+            <tr>
+              <td>${escapeHtml(account.linkedStudent || "-")}</td>
+              <td>${escapeHtml(account.ownerName || "-")}</td>
+              <td><span class="role-pill">${escapeHtml(account.role)}</span></td>
+              <td>${accountReviewInput(index, "email", account.email)}</td>
+              <td>${accountReviewInput(index, "username", account.username)}</td>
+              <td>${accountReviewInput(index, "password", account.password)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  ` : `
+    <div class="empty-state">
+      No account rows were generated. Add student or parent email addresses in the previous review step if login accounts are needed.
+    </div>
+  `;
+
+  table.querySelectorAll("[data-account-review-field]").forEach(input => {
+    input.addEventListener("input", event => {
+      const target = event.target;
+      updateAccountReviewRow(Number(target.dataset.accountReviewIndex), target.dataset.accountReviewField, target.value);
+    });
+  });
+}
+
+function returnToImportRowReview() {
+  renderMasterlistReview(summarizeReviewRows(masterlistRows));
+}
+
+function applyAccountReviewToPendingRows() {
+  const rows = pendingImportRows.map(row => ({
+    ...row,
+    username: "",
+    password: "",
+    parentUsername: "",
+    parentPassword: ""
+  }));
+
+  accountReviewRows.forEach(account => {
+    const row = rows[account.rowIndex];
+    if (!row) {
+      return;
+    }
+
+    if (account.role === "student") {
+      row.email = String(account.email || "").trim();
+      row.username = String(account.username || "").trim();
+      row.password = String(account.password || "").trim();
+    } else if (account.role === "parent") {
+      row.parentEmail = String(account.email || "").trim();
+      row.parentUsername = String(account.username || "").trim();
+      row.parentPassword = String(account.password || "").trim();
+    }
+  });
+
+  return rows;
+}
+
+function renderImportCredentials(summary = {}) {
+  const credentials = Array.isArray(summary.credentials) ? summary.credentials : [];
+  const studentCredentials = credentials.filter(item => item.role === "student").length;
+  const parentCredentials = credentials.filter(item => item.role === "parent").length;
+  const accountWarnings = Array.isArray(summary.accountWarnings) ? summary.accountWarnings : [];
+  const parentWarnings = Array.isArray(summary.parentAccountWarnings) ? summary.parentAccountWarnings : [];
+  const emailNotifications = summary.emailNotifications || {};
+
+  return `
+    <div class="import-summary-grid">
+      <div class="import-summary-tile">
+        <span>Students Created</span>
+        <strong>${summary.created || 0}</strong>
+        <small>${summary.skipped || 0} skipped</small>
+      </div>
+      <div class="import-summary-tile">
+        <span>Parents Created</span>
+        <strong>${summary.parentCreated || 0}</strong>
+        <small>${summary.parentLinked || 0} linked, ${summary.parentSkipped || 0} skipped</small>
+      </div>
+      <div class="import-summary-tile">
+        <span>Generated Logins</span>
+        <strong>${credentials.length}</strong>
+        <small>${studentCredentials} student, ${parentCredentials} parent</small>
+      </div>
+      <div class="import-summary-tile">
+        <span>Credential Emails</span>
+        <strong>${emailNotifications.sent || 0}</strong>
+        <small>${emailNotifications.disabled || 0} disabled, ${emailNotifications.failed || 0} failed</small>
+      </div>
+    </div>
+    <div class="generated-credentials-panel ${credentials.length ? "" : "is-empty"}">
+      <div class="card-header">
+        <div>
+          <h3>Generated Login Accounts</h3>
+          <p class="muted">${credentials.length ? "Save these temporary credentials before closing this modal." : "No login credentials were generated for this import."}</p>
+        </div>
+      </div>
+      ${credentials.length ? `
+        <div class="table-wrap generated-credentials-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Linked Student</th>
+                <th>Account Owner</th>
+                <th>Role</th>
+                <th>Username</th>
+                <th>Temporary Password</th>
+                <th>Email</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${credentials.map(item => `
+                <tr>
+                  <td>${escapeHtml(item.studentNumber || "-")}</td>
+                  <td>${escapeHtml(item.name || "-")}</td>
+                  <td><span class="role-pill">${escapeHtml(item.role || "student")}</span></td>
+                  <td>${escapeHtml(item.username || "-")}</td>
+                  <td><code>${escapeHtml(item.password || "-")}</code></td>
+                  <td>${escapeHtml(item.email || "-")}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      ` : `
+        <p class="muted">Student login creation needs student email. Parent login creation needs parent email in the reviewed row.</p>
+      `}
+      ${accountWarnings.length || parentWarnings.length ? `
+        <div class="import-warning-list">
+          ${accountWarnings.concat(parentWarnings).slice(0, 8).map(warning => `
+            <p><strong>Row ${escapeHtml(warning.row || "-")}:</strong> ${escapeHtml(warning.message || "Login account was not created.")}</p>
+          `).join("")}
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+async function importReviewedMasterlist() {
+  const result = document.getElementById("masterlistImportResult");
+  const importButton = document.getElementById("importScannedMasterlistBtn");
+  const busyOverlay = document.getElementById("masterlistImportBusyOverlay");
+  const credentialsPanel = document.getElementById("masterlistImportCredentials");
+
+  if (masterlistReviewStep === "complete") {
+    closeModal("masterlistReviewModal");
+    return;
+  }
+
+  if (masterlistImportBusy) {
+    return;
+  }
+
+  if (masterlistReviewStep === "rows") {
+    const reviewedRows = normalizeReviewedMasterlistRows();
+
+    if (!reviewedRows.length) {
+      result.textContent = "Select at least one reviewed row before generating accounts.";
+      return;
+    }
+
+    pendingImportRows = reviewedRows;
+    accountReviewRows = buildAccountReviewRows(reviewedRows);
+    renderAccountReview();
+    return;
+  }
+
+  const reviewedRows = applyAccountReviewToPendingRows();
+
+  if (!reviewedRows.length) {
+    result.textContent = "No reviewed rows are available to create.";
+    return;
+  }
+
+  masterlistImportBusy = true;
+  importButton.disabled = true;
+  importButton.textContent = "Creating...";
+  busyOverlay.classList.remove("hidden");
+  credentialsPanel.classList.add("hidden");
+  credentialsPanel.innerHTML = "";
+  result.textContent = "Creating reviewed profiles and accounts. Please wait...";
+
+  try {
+    const res = await apiRequest("/admin/bulk-import", "POST", {
+      importType: "students",
+      createLoginAccounts: accountReviewRows.some(account => account.role === "student"),
+      createParentLoginAccounts: accountReviewRows.some(account => account.role === "parent"),
+      rows: reviewedRows
+    }, true);
+
+    if (!res.success) {
+      masterlistImportBusy = false;
+      importButton.disabled = false;
+      importButton.textContent = accountReviewRows.length ? "Confirm Create Records" : "Create Profiles Only";
+      result.textContent = res.message;
+      return;
+    }
+
+    const summary = res.summary || {};
+    const accountWarnings = Array.isArray(summary.accountWarnings) ? summary.accountWarnings.length : 0;
+    const parentWarnings = Array.isArray(summary.parentAccountWarnings) ? summary.parentAccountWarnings.length : 0;
+    result.textContent = `Creation finished. Students created: ${summary.created || 0}, skipped: ${summary.skipped || 0}, total: ${summary.total || reviewedRows.length}. Parents created: ${summary.parentCreated || 0}, linked: ${summary.parentLinked || 0}, skipped: ${summary.parentSkipped || 0}. Login warnings: ${accountWarnings + parentWarnings}.`;
+    credentialsPanel.innerHTML = renderImportCredentials(summary);
+    credentialsPanel.classList.remove("hidden");
+    masterlistImportBusy = false;
+    masterlistReviewStep = "complete";
+    importButton.disabled = false;
+    importButton.textContent = "Creation Complete";
+    document.getElementById("backToImportRowsBtn").classList.add("hidden");
+    currentPage = 1;
+    try {
+      await loadStudents();
+    } catch (refreshError) {
+      result.textContent += " Refresh the page if the student list does not update immediately.";
+    }
+  } catch (error) {
+    masterlistImportBusy = false;
+    importButton.disabled = false;
+    importButton.textContent = accountReviewRows.length ? "Confirm Create Records" : "Create Profiles Only";
+    result.textContent = "Create failed. Please check the account review and try again.";
+  } finally {
+    busyOverlay.classList.add("hidden");
+  }
 }
 
 async function previewStudentImport() {
@@ -538,92 +2061,21 @@ async function previewStudentImport() {
   }
 
   const text = await file.text();
-  studentImportRows = csvToRows(text);
+  const csvRows = csvToRows(text);
 
-  if (!studentImportRows.length) {
+  if (!csvRows.length) {
     preview.textContent = "No valid rows found. Make sure the CSV includes a header row and at least one student row.";
     result.textContent = "Preview failed: no importable rows detected.";
     return;
   }
 
-  const headers = Object.keys(studentImportRows[0] || {});
-  const sampleRows = studentImportRows.slice(0, 5);
-  preview.innerHTML = `
-    <div class="card-header" style="margin-bottom:12px;">
-      <div>
-        <h3>Preview Ready</h3>
-        <p class="muted">${studentImportRows.length} rows detected. Showing the first ${sampleRows.length} row(s).</p>
-      </div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>${headers.map(header => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
-        </thead>
-        <tbody>
-          ${sampleRows.map(row => `
-            <tr>${headers.map(header => `<td>${escapeHtml(row[header] || "-")}</td>`).join("")}</tr>
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-  result.textContent = "Preview generated successfully. You can now run the import.";
-}
-
-async function runStudentImport() {
-  const result = document.getElementById("studentImportResult");
-
-  if (!studentImportRows.length) {
-    result.textContent = "Preview the CSV first before running the import.";
-    return;
-  }
-
-  const res = await apiRequest("/admin/bulk-import", "POST", {
-    importType: "students",
-    createLoginAccounts: document.getElementById("studentImportCreateLogins").checked,
-    rows: studentImportRows
-  }, true);
-
-  if (!res.success) {
-    result.textContent = res.message;
-    return;
-  }
-
-  const summary = res.summary || {};
-  result.textContent = `Import finished. Created: ${summary.created || 0}, skipped: ${summary.skipped || 0}, total: ${summary.total || studentImportRows.length}.`;
-
-  if (Array.isArray(summary.errors) && summary.errors.length) {
-    document.getElementById("studentImportPreview").innerHTML = `
-      <div class="card-header" style="margin-bottom:12px;">
-        <div>
-          <h3>Import Summary</h3>
-          <p class="muted">Some rows were skipped. Review the first errors below.</p>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Row</th>
-              <th>Error</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${summary.errors.slice(0, 10).map(error => `
-              <tr>
-                <td>${escapeHtml(error.row)}</td>
-                <td>${escapeHtml(error.message)}</td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </div>
-    `;
-  }
-
-  currentPage = 1;
-  await loadStudents();
+  masterlistReviewSource = "csv";
+  masterlistRows = buildCsvReviewRows(csvRows);
+  const summary = summarizeReviewRows(masterlistRows);
+  preview.textContent = `${summary.detected} CSV row(s) loaded. Review and edit rows in the popup before importing.`;
+  result.textContent = "CSV preview generated. Import is available inside the review popup.";
+  renderMasterlistReview(summary);
+  openModal("masterlistReviewModal");
 }
 
 document.getElementById("openCreateModalBtn").addEventListener("click", () => {
@@ -635,19 +2087,64 @@ document.getElementById("openCreateModalBtn").addEventListener("click", () => {
 });
 document.getElementById("studentEntryTab").addEventListener("click", () => setCreateStudentMode("entry"));
 document.getElementById("studentImportTab").addEventListener("click", () => setCreateStudentMode("import"));
+document.getElementById("appNoticeConfirmBtn").addEventListener("click", () => resolveAppNotice(true));
+document.getElementById("appNoticeCancelBtn").addEventListener("click", () => resolveAppNotice(false));
 document.getElementById("createBtn").addEventListener("click", createStudent);
 document.getElementById("createAccountBtn").addEventListener("click", createLinkedAccount);
 document.getElementById("previewStudentImportBtn").addEventListener("click", previewStudentImport);
-document.getElementById("runStudentImportBtn").addEventListener("click", runStudentImport);
-document.getElementById("createAccountMode").addEventListener("change", handleCreateModeChange);
-document.getElementById("parentLinkMode").addEventListener("change", handleParentModeChange);
-document.getElementById("searchBtn").addEventListener("click", () => { currentPage = 1; loadStudents(); });
+document.getElementById("openImportInstructionsBtn").addEventListener("click", () => openModal("importInstructionsModal"));
+document.getElementById("openCsvInstructionsBtn").addEventListener("click", () => openModal("importInstructionsModal"));
+document.getElementById("scanMasterlistImageBtn").addEventListener("click", scanUploadedMasterlist);
+document.getElementById("openMasterlistCameraBtn").addEventListener("click", openMasterlistCamera);
+document.getElementById("captureMasterlistBtn").addEventListener("click", captureMasterlistImage);
+document.getElementById("closeMasterlistCameraBtn").addEventListener("click", closeMasterlistCamera);
+document.getElementById("importScannedMasterlistBtn").addEventListener("click", importReviewedMasterlist);
+document.getElementById("backToImportRowsBtn").addEventListener("click", returnToImportRowReview);
+document.getElementById("previewBulkDeleteStudentsBtn").addEventListener("click", previewBulkDeleteStudents);
+document.getElementById("bulkDeleteStudentsBtn").addEventListener("click", bulkDeleteStudents);
+document.getElementById("confirmBulkDeleteStudentsBtn").addEventListener("click", confirmBulkDeleteStudents);
+document.getElementById("bulkDeleteConfirmInput").addEventListener("input", updateBulkDeleteConfirmState);
+document.getElementById("selectAllBulkDeleteBtn").addEventListener("click", () => {
+  bulkDeleteSelectedIds = new Set((bulkDeletePreview?.students || []).map(student => Number(student.id)));
+  document.getElementById("bulkDeleteConfirmInput").value = "";
+  renderBulkDeleteReview();
+});
+document.getElementById("clearBulkDeleteSelectionBtn").addEventListener("click", () => {
+  bulkDeleteSelectedIds = new Set();
+  document.getElementById("bulkDeleteConfirmInput").value = "";
+  renderBulkDeleteReview();
+});
+document.getElementById("createAcademicLevel").addEventListener("change", refreshCreateAcademicOptions);
+document.getElementById("createDepartment").addEventListener("change", () => {
+  handleManualAcademicSelectChange("createDepartment", "createDepartmentManual");
+});
+document.getElementById("createProgram").addEventListener("change", () => {
+  handleManualAcademicSelectChange("createProgram", "createProgramManual");
+});
+document.getElementById("createSection").addEventListener("change", () => {
+  handleManualAcademicSelectChange("createSection", "createSectionManual");
+});
+document.getElementById("academicLevelFilter").addEventListener("change", async () => {
+  resetBulkDeletePreview();
+  await loadStudentFilterOptions();
+  currentPage = 1;
+});
+["search", "statusFilter", "accountFilter", "programFilter", "yearLevelFilter", "sectionFilter"].forEach(id => {
+  document.getElementById(id).addEventListener("change", () => resetBulkDeletePreview());
+});
+document.getElementById("search").addEventListener("input", () => resetBulkDeletePreview());
+document.getElementById("searchBtn").addEventListener("click", () => { currentPage = 1; resetBulkDeletePreview(); loadStudents(); });
 document.getElementById("clearBtn").addEventListener("click", () => {
   document.getElementById("search").value = "";
   document.getElementById("statusFilter").value = "";
   document.getElementById("accountFilter").value = "";
+  document.getElementById("academicLevelFilter").value = "";
+  document.getElementById("programFilter").value = "";
+  document.getElementById("yearLevelFilter").value = "";
+  document.getElementById("sectionFilter").value = "";
+  resetBulkDeletePreview();
   currentPage = 1;
-  loadStudents();
+  loadStudentFilterOptions().then(loadStudents);
 });
 document.getElementById("prevBtn").addEventListener("click", () => {
   if (currentPage > 1) {
@@ -662,10 +2159,8 @@ document.getElementById("nextBtn").addEventListener("click", () => {
   }
 });
 
-handleCreateModeChange();
-handleParentModeChange();
-loadParentOptions();
-loadStudents();
+refreshCreateAcademicOptions();
+loadStudentFilterOptions().then(loadStudents);
 </script>
 
 </body>

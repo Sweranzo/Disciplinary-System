@@ -38,12 +38,15 @@
             <th>Violation</th>
             <th>Severity</th>
             <th>Status</th>
+            <th>Next Action</th>
             <th>Incident Date</th>
+            <th>Incident Time</th>
             <th>Location</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="casesTable">
-          <tr><td colspan="7">Loading...</td></tr>
+          <tr><td colspan="10">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -70,12 +73,12 @@ async function loadChildCases() {
   const res = await apiRequest("/cases/parent-child-cases", "GET", null, true);
 
   if (!res.success) {
-    table.innerHTML = `<tr><td colspan="7">${res.message}</td></tr>`;
+    table.innerHTML = `<tr><td colspan="10">${res.message}</td></tr>`;
     return;
   }
 
   if (!res.cases || !res.cases.length) {
-    table.innerHTML = `<tr><td colspan="7">No child cases found.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="10">No child cases found.</td></tr>`;
     return;
   }
 
@@ -85,9 +88,12 @@ async function loadChildCases() {
       <td>${item.case_number}</td>
       <td>${item.violation_type}</td>
       <td>${badge(item.severity_level)}</td>
-      <td>${badge(item.status)}</td>
+      <td>${badge(item.operational_status || item.status)}</td>
+      <td>${badge(item.next_action || "review_report")}</td>
       <td>${formatDisplayDate(item.incident_date)}</td>
+      <td>${formatDisplayTime(item.incident_time)}</td>
       <td>${item.location || "-"}</td>
+      <td><a href="case-details.html?id=${encodeURIComponent(item.id)}"><button type="button" class="secondary">Open</button></a></td>
     </tr>
   `).join("");
 }

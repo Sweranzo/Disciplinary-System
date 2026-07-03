@@ -17,6 +17,7 @@
     </div>
     <div class="action-row">
       <a href="cases.html"><button class="secondary">Back</button></a>
+      <button type="button" id="printCaseReportBtn" class="secondary">Print Report</button>
       <button onclick="logout()">Logout</button>
     </div>
   </div>
@@ -91,7 +92,7 @@
       <div class="card-header">
         <div>
           <h2>Assignment & Actions</h2>
-          <p class="muted">Manage assignee, case status, and next workflow steps.</p>
+          <p class="muted">Manage ownership and continue the next workflow step. Case status is updated automatically.</p>
         </div>
       </div>
       <div class="soft-panel">
@@ -108,19 +109,7 @@
           </div>
           <button id="assignBtn">Assign Case</button>
         </div>
-        <div class="form-grid" style="margin-top:12px;">
-          <div class="field-stack">
-            <label for="statusSelect">Case Status</label>
-            <select id="statusSelect">
-              <option value="pending">Pending</option>
-              <option value="under_investigation">Under Investigation</option>
-              <option value="hearing_scheduled">Hearing Scheduled</option>
-              <option value="dismissed">Dismissed</option>
-              <option value="resolved">Resolved</option>
-            </select>
-          </div>
-          <button id="saveStatusBtn" class="secondary">Save Status</button>
-        </div>
+        <div class="inline-note" style="margin-top:12px;">Status flow: pending -> under investigation -> hearing scheduled -> resolved/dismissed. Use workflow actions to move the case forward.</div>
         <div id="statusResult" class="action-feedback muted"></div>
       </div>
       <div class="workflow-action-panel" style="margin-top:16px;">
@@ -141,9 +130,29 @@
             <span>+</span>
             <div><strong>Assign Sanction</strong><small>Add an outcome action</small></div>
           </button>
+          <button type="button" class="workflow-action-btn is-primary" data-open-workflow="resolve">
+            <span>OK</span>
+            <div><strong>Resolve Case</strong><small>Close after requirements are complete</small></div>
+          </button>
+          <button type="button" class="workflow-action-btn is-danger" data-open-workflow="dismiss">
+            <span>&times;</span>
+            <div><strong>Dismiss Case</strong><small>Close the entire case with a reason</small></div>
+          </button>
         </div>
       </div>
     </div>
+  </div>
+
+  <div class="card case-section report-review-section" id="reportReviewSection">
+    <div class="card-header">
+      <div>
+        <span class="eyebrow">Required Review</span>
+        <h2>Teacher Report Decision</h2>
+        <p class="muted">Approve the report, reject it as incomplete, request more evidence, or mark it as a duplicate.</p>
+      </div>
+      <div id="reportReviewStatus"></div>
+    </div>
+    <div id="reportReviewPanel">Loading report review...</div>
   </div>
 
   <div class="card case-section" id="timelineSection">
@@ -293,6 +302,49 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="hearingUpdateModal">
+  <div class="modal-card modal-card-wide workflow-modal-card">
+    <div class="card-header">
+      <div>
+        <h2 id="hearingUpdateTitle">Update Hearing</h2>
+        <p class="muted" id="hearingUpdateSubtitle">Record the result or choose a new schedule.</p>
+      </div>
+    </div>
+    <input type="hidden" id="updateHearingId">
+    <input type="hidden" id="updateHearingMode">
+    <div class="form-grid">
+      <div class="field-stack"><label for="updateHearingDate">Date</label><input type="date" id="updateHearingDate"></div>
+      <div class="field-stack"><label for="updateHearingTime">Time</label><input type="time" id="updateHearingTime"></div>
+      <div class="field-stack"><label for="updateHearingLocation">Location</label><input type="text" id="updateHearingLocation" placeholder="Location"></div>
+      <div class="field-stack" id="hearingFindingField">
+        <label for="updateHearingFinding">Finding</label>
+        <select id="updateHearingFinding">
+          <option value="pending">Pending</option>
+          <option value="admitted">Admitted</option>
+          <option value="denied">Denied</option>
+          <option value="resolved">Resolved</option>
+          <option value="dismissed">Dismissed</option>
+          <option value="sanction_recommended">Sanction Recommended</option>
+          <option value="counseling_recommended">Counseling Recommended</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-stack" id="hearingOutcomeField" style="margin-top:14px;">
+      <label for="updateHearingOutcome">Outcome / Attendance Notes</label>
+      <textarea id="updateHearingOutcome" placeholder="Record attendance and the hearing outcome."></textarea>
+    </div>
+    <div class="field-stack" id="hearingRecommendationField" style="margin-top:14px;">
+      <label for="updateHearingRecommendation">Recommendation</label>
+      <textarea id="updateHearingRecommendation" placeholder="Record the recommended next action."></textarea>
+    </div>
+    <div id="updateHearingResult" class="action-feedback muted"></div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" id="closeHearingUpdateBtn">Cancel</button>
+      <button type="button" id="saveHearingUpdateBtn">Save Hearing</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="sanctionModal">
   <div class="modal-card modal-card-wide workflow-modal-card">
     <div class="card-header">
@@ -327,10 +379,78 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="resolveCaseModal">
+  <div class="modal-card modal-card-wide workflow-modal-card">
+    <div class="card-header">
+      <div>
+        <h2>Resolve Case</h2>
+        <p class="muted">Use this when investigation, hearings, sanctions, and required follow-ups are complete.</p>
+      </div>
+    </div>
+    <div class="inline-note">
+      The system will check required closure items before changing the case status to resolved.
+    </div>
+    <div class="field-stack" style="margin-top:14px;">
+      <label for="resolveCaseNotes">Resolution Notes</label>
+      <textarea id="resolveCaseNotes" placeholder="Summarize the final outcome, completed sanctions, and why the case is ready to close."></textarea>
+    </div>
+    <label class="dismiss-case-confirmation" for="resolveCaseConfirm">
+      <input type="checkbox" id="resolveCaseConfirm">
+      <span>I confirm that all required case actions have been completed or documented.</span>
+    </label>
+    <div id="resolveCaseResult" class="action-feedback muted"></div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" data-close-workflow="resolve">Cancel</button>
+      <button type="button" id="confirmResolveCaseBtn">Resolve Case</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="dismissCaseModal">
+  <div class="modal-card modal-card-wide workflow-modal-card dismiss-case-modal">
+    <div class="card-header">
+      <div>
+        <h2>Dismiss Entire Case</h2>
+        <p class="muted">Use this administrative closure when the case can no longer proceed.</p>
+      </div>
+    </div>
+    <div class="dismiss-case-warning">
+      This closes the case, makes it read-only, and cancels any hearing that is still scheduled.
+    </div>
+    <div class="field-stack">
+      <label for="dismissCaseReason">Dismissal Reason</label>
+      <select id="dismissCaseReason">
+        <option value="">Select a reason</option>
+        <option value="student_inactive">Student inactive</option>
+        <option value="unresponsive_after_followups">Unresponsive or non-cooperative after documented follow-ups</option>
+        <option value="withdrawn_or_transferred">Student withdrawn or transferred</option>
+        <option value="duplicate_or_invalid_report">Duplicate or invalid report</option>
+        <option value="insufficient_basis">Insufficient basis to continue</option>
+        <option value="other_administrative_reason">Other administrative reason</option>
+      </select>
+    </div>
+    <div class="field-stack">
+      <label for="dismissCaseNotes">Closure Notes</label>
+      <textarea id="dismissCaseNotes" placeholder="Document contact attempts, dates, circumstances, and why no further action can proceed."></textarea>
+    </div>
+    <label class="dismiss-case-confirmation" for="dismissCaseConfirm">
+      <input type="checkbox" id="dismissCaseConfirm">
+      <span>I understand that this dismisses the entire case and stops its active workflow.</span>
+    </label>
+    <div id="dismissCaseResult" class="action-feedback muted"></div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" data-close-workflow="dismiss">Cancel</button>
+      <button type="button" class="danger-action" id="confirmDismissCaseBtn">Dismiss Case</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
+<script src="../../js/core/case-report-print.js"></script>
+<script src="../../js/core/case-messages.js"></script>
 <script>
 requireAuth();
 
@@ -342,11 +462,16 @@ if (!user || user.role !== "discipline_officer") {
 
 const caseId = new URLSearchParams(window.location.search).get("id");
 let currentCase = null;
+let currentTimeline = null;
+let staffOptions = [];
+let currentHearings = [];
 const workflowModalIds = {
   note: "noteModal",
   evidence: "evidenceModal",
   hearing: "hearingModal",
-  sanction: "sanctionModal"
+  sanction: "sanctionModal",
+  resolve: "resolveCaseModal",
+  dismiss: "dismissCaseModal"
 };
 
 function badge(value) {
@@ -355,6 +480,12 @@ function badge(value) {
 
 function labelize(value) {
   return String(value || "-").replaceAll("_", " ");
+}
+
+function formatEvidenceType(value) {
+  return String(value || "other")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, character => character.toUpperCase());
 }
 
 function escapeHtml(value) {
@@ -427,6 +558,48 @@ function formatFileSize(bytes = 0) {
   return `${(value / Math.pow(1024, index)).toFixed(index ? 1 : 0)} ${units[index]}`;
 }
 
+function normalizeScheduleDate(value) {
+  if (!value) return "";
+  const raw = String(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return raw.slice(0, 10);
+
+  return [
+    parsed.getFullYear(),
+    String(parsed.getMonth() + 1).padStart(2, "0"),
+    String(parsed.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
+function getHearingDateTime(hearing) {
+  const date = normalizeScheduleDate(hearing?.scheduled_date);
+  if (!date) return null;
+  const time = String(hearing?.scheduled_time || "23:59:59").slice(0, 8);
+  const parsed = new Date(`${date}T${time}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isOverdueHearing(hearing) {
+  const scheduledAt = getHearingDateTime(hearing);
+  return hearing?.status === "scheduled" && scheduledAt && scheduledAt.getTime() < Date.now();
+}
+
+function getHearingStatus(hearing) {
+  return isOverdueHearing(hearing) ? "hearing_overdue" : hearing.status;
+}
+
+function getOverdueLabel(hearing) {
+  const scheduledAt = getHearingDateTime(hearing);
+  if (!scheduledAt) return "Hearing result needs an update.";
+  const elapsed = Date.now() - scheduledAt.getTime();
+  const days = Math.floor(elapsed / 86400000);
+  if (days >= 1) return `Result overdue by ${days} day${days === 1 ? "" : "s"}.`;
+  const hours = Math.max(1, Math.floor(elapsed / 3600000));
+  return `Result overdue by ${hours} hour${hours === 1 ? "" : "s"}.`;
+}
+
 function renderHeroStudentAvatar(caseItem) {
   const fullName = getCaseStudentFullName(caseItem);
   if (caseItem?.student_avatar_url) {
@@ -449,8 +622,7 @@ function renderHeroStudentAvatar(caseItem) {
 }
 
 function openWorkflowModal(name) {
-  if (isClosedCase(currentCase?.status)) {
-    showToast("This case is closed and cannot be changed.", "error");
+  if (!requireClaimedCase("statusResult")) {
     return;
   }
 
@@ -477,12 +649,519 @@ function renderItems(containerId, items, emptyMessage, mapFn) {
   el.innerHTML = `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
 }
 
+function getReportReviewLabel(status) {
+  const labels = {
+    pending_review: "Pending Review",
+    validated: "Approved",
+    incomplete: "Rejected - Incomplete",
+    needs_more_evidence: "More Evidence Required",
+    duplicate: "Duplicate Report"
+  };
+  return labels[status] || labelize(status);
+}
+
+function getLatestReviewRecord(workflowEvents = []) {
+  const event = workflowEvents.find(item => item.event_type === "review");
+  if (!event) return null;
+
+  let metadata = event.metadata;
+  if (typeof metadata === "string") {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch {
+      metadata = {};
+    }
+  }
+
+  const details = String(event.details || "");
+  const fallbackNotes = details.replace(/^Review status:\s*[^.]+\.\s*/i, "").trim();
+  return {
+    ...event,
+    notes: String(metadata?.notes || fallbackNotes || "").trim()
+  };
+}
+
+function renderReportReview(caseItem, workflowEvents = []) {
+  const panel = document.getElementById("reportReviewPanel");
+  const status = caseItem.review_status || "pending_review";
+  const latestReview = getLatestReviewRecord(workflowEvents);
+  const currentNotes = latestReview?.notes || "";
+  const isFinal = status !== "pending_review";
+
+  document.getElementById("reportReviewStatus").innerHTML = badge(status);
+  if (isFinal) {
+    panel.innerHTML = `
+      <div class="report-review-final is-${escapeHtml(status)}">
+        <div class="report-review-final-icon">
+          ${window.LucideIcons?.svg(
+            status === "validated" ? "shield-check" :
+            status === "needs_more_evidence" ? "folder-open" :
+            status === "duplicate" ? "clipboard-list" :
+            "file-warning"
+          ) || "RV"}
+        </div>
+        <div>
+          <span>Final Review Decision</span>
+          <strong>${escapeHtml(getReportReviewLabel(status))}</strong>
+          <p>${currentNotes ? escapeHtml(currentNotes) : "No additional explanation was recorded."}</p>
+          ${caseItem.duplicate_case_number ? `<small>Original case: ${escapeHtml(caseItem.duplicate_case_number)}</small>` : ""}
+          ${latestReview ? `<small>Recorded by ${escapeHtml(`${latestReview.first_name || ""} ${latestReview.last_name || ""}`.trim() || "Discipline office")} on ${escapeHtml(formatDisplayDateTime(latestReview.created_at))}</small>` : ""}
+        </div>
+        <div class="report-review-final-lock">
+          ${window.LucideIcons?.svg("shield-check") || ""}
+          <span>Decision locked</span>
+        </div>
+      </div>
+      <div class="inline-note report-review-final-note">
+        This review was submitted and cannot be edited or replaced.
+      </div>
+    `;
+    return;
+  }
+
+  panel.innerHTML = `
+    <div class="report-review-current is-${escapeHtml(status)}">
+      <div>
+        <span>Current Decision</span>
+        <strong>${escapeHtml(getReportReviewLabel(status))}</strong>
+        <p>Select one final decision below. It cannot be changed after saving.</p>
+      </div>
+      ${latestReview ? `<small>Updated ${escapeHtml(formatDisplayDateTime(latestReview.created_at))}</small>` : ""}
+    </div>
+    <div class="report-review-options" role="group" aria-label="Report review decision">
+      <button type="button" class="report-review-option is-approved" data-report-review="validated">
+        <span>${window.LucideIcons?.svg("shield-check") || "OK"}</span>
+        <strong>Approve Report</strong>
+        <small>Accept the report and continue case handling.</small>
+      </button>
+      <button type="button" class="report-review-option is-rejected" data-report-review="incomplete">
+        <span>${window.LucideIcons?.svg("file-warning") || "X"}</span>
+        <strong>Reject as Incomplete</strong>
+        <small>Return a report that lacks required details.</small>
+      </button>
+      <button type="button" class="report-review-option is-evidence" data-report-review="needs_more_evidence">
+        <span>${window.LucideIcons?.svg("folder-open") || "EV"}</span>
+        <strong>Request Evidence</strong>
+        <small>Ask the teacher for clarification or supporting files.</small>
+      </button>
+      <button type="button" class="report-review-option is-duplicate" data-report-review="duplicate">
+        <span>${window.LucideIcons?.svg("clipboard-list") || "DU"}</span>
+        <strong>Mark Duplicate</strong>
+        <small>Link this report to an existing original case.</small>
+      </button>
+    </div>
+    <input type="hidden" id="reportReviewDecision" value="${escapeHtml(status)}">
+    <div class="report-review-form">
+      <div class="field-stack report-review-duplicate-field" id="reportReviewDuplicateField">
+        <label for="reportReviewDuplicateId">Original Case</label>
+        <input type="text" id="reportReviewDuplicateId" placeholder="Enter CASE-... number or numeric ID" value="${escapeHtml(caseItem.duplicate_case_number || caseItem.duplicate_of_case_id || "")}">
+      </div>
+      <div class="field-stack">
+        <label for="reportReviewNotes">Decision Notes</label>
+        <textarea id="reportReviewNotes" placeholder="Explain the decision so the reporting teacher knows what happens next.">${escapeHtml(currentNotes)}</textarea>
+      </div>
+      <div class="action-row">
+        <button type="button" id="saveReportReviewBtn">Save Review Decision</button>
+        <span class="muted">This is a one-time action.</span>
+        <span id="reportReviewResult" class="action-feedback muted"></span>
+      </div>
+    </div>
+  `;
+
+  const decisionInput = document.getElementById("reportReviewDecision");
+  const duplicateField = document.getElementById("reportReviewDuplicateField");
+  const optionButtons = [...panel.querySelectorAll("[data-report-review]")];
+
+  function syncDecisionUi() {
+    const selected = decisionInput.value;
+    optionButtons.forEach(button => {
+      const active = button.dataset.reportReview === selected;
+      button.classList.toggle("is-selected", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    duplicateField.style.display = selected === "duplicate" ? "grid" : "none";
+  }
+
+  optionButtons.forEach(button => {
+    button.addEventListener("click", () => {
+      decisionInput.value = button.dataset.reportReview;
+      syncDecisionUi();
+    });
+  });
+
+  document.getElementById("saveReportReviewBtn").addEventListener("click", saveReportReviewDecision);
+  syncDecisionUi();
+}
+
+async function saveReportReviewDecision() {
+  if (!requireClaimedCase("reportReviewResult")) return;
+
+  const reviewStatus = document.getElementById("reportReviewDecision").value;
+  const notes = document.getElementById("reportReviewNotes").value.trim();
+  const duplicateOfCaseId = document.getElementById("reportReviewDuplicateId").value || null;
+
+  if (reviewStatus === "pending_review") {
+    showActionFeedback("reportReviewResult", "Select a review decision first.", false);
+    return;
+  }
+  if (reviewStatus !== "validated" && notes.length < 5) {
+    showActionFeedback("reportReviewResult", "Add a clear explanation for this decision.", false);
+    return;
+  }
+  if (reviewStatus === "duplicate" && !duplicateOfCaseId) {
+    showActionFeedback("reportReviewResult", "Enter the original case number or ID for a duplicate report.", false);
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Save "${getReportReviewLabel(reviewStatus)}" as the final report decision? This decision cannot be changed.`
+  );
+  if (!confirmed) return;
+
+  const button = document.getElementById("saveReportReviewBtn");
+  setButtonBusy(button, true, "Saving Decision...");
+  const res = await apiRequest(`/cases/${caseId}/review`, "PUT", {
+    reviewStatus,
+    duplicateOfCaseId,
+    notes
+  }, true);
+  setButtonBusy(button, false);
+  showActionFeedback("reportReviewResult", res.success ? "Report review saved." : res.message, res.success);
+  showToast(res.success ? "Report review saved. The reporting teacher can now see this decision." : res.message, res.success ? "success" : "error");
+  if (res.success) await loadCaseDetails();
+}
+
+function renderFormalProcess(process = {}) {
+  const auditChecks = process.audit?.checks || [];
+  return `
+    <div class="workflow-overview-grid">
+      <div class="workflow-summary-tile"><span>Witnesses</span><strong>${(process.witnesses || []).length}</strong><small>People involved or observed</small></div>
+      <div class="workflow-summary-tile"><span>Policy References</span><strong>${(process.policies || []).length}</strong><small>Rules linked to decision</small></div>
+      <div class="workflow-summary-tile"><span>Decisions</span><strong>${(process.decisions || []).length}</strong><small>Formal findings recorded</small></div>
+      <div class="workflow-summary-tile ${process.audit?.status === "blocked" ? "needs-attention" : ""}"><span>Strict Audit</span><strong>${process.audit?.score ?? 0}%</strong><small>${labelize(process.audit?.status || "pending")}</small></div>
+    </div>
+    <div class="form-grid" style="margin-top:16px;">
+      <input id="formalWitnessName" type="text" placeholder="Witness or involved person">
+      <input id="formalWitnessRole" type="text" placeholder="Role / relation">
+      <button type="button" id="addFormalWitnessBtn" class="secondary">Add Witness</button>
+    </div>
+    <div class="form-grid" style="margin-top:12px;">
+      <input id="formalPolicyCode" type="text" placeholder="Policy code">
+      <input id="formalPolicyTitle" type="text" placeholder="Policy or rule title">
+      <button type="button" id="addFormalPolicyBtn" class="secondary">Add Policy</button>
+    </div>
+    <div class="form-grid" style="margin-top:12px;">
+      <select id="formalDecisionFinding">
+        <option value="responsible">Responsible</option>
+        <option value="not_responsible">Not Responsible</option>
+        <option value="resolved">Resolved</option>
+        <option value="dismissed">Dismissed</option>
+        <option value="insufficient_evidence">Insufficient Evidence</option>
+      </select>
+      <input id="formalDecisionBasis" type="text" placeholder="Decision basis">
+      <button type="button" id="addFormalDecisionBtn">Record Decision</button>
+    </div>
+    <div id="formalProcessResult" class="muted" style="margin-top:12px;"></div>
+    <div class="workflow-checklist" style="margin-top:16px;">
+      ${auditChecks.map(check => `
+        <div class="workflow-check ${check.status}">
+          <strong>${escapeHtml(check.label)}</strong>
+          <span>${escapeHtml(labelize(check.status))}</span>
+          <p>${escapeHtml(check.detail || "")}</p>
+        </div>
+      `).join("") || `<div class="empty-state">No strict audit checks available.</div>`}
+    </div>
+  `;
+}
+
+function wireFormalProcessControls() {
+  const witnessBtn = document.getElementById("addFormalWitnessBtn");
+  if (witnessBtn) {
+    witnessBtn.addEventListener("click", async () => {
+      if (!requireClaimedCase("formalProcessResult")) return;
+      const res = await apiRequest(`/case-process/cases/${caseId}/witnesses`, "POST", {
+        name: document.getElementById("formalWitnessName").value.trim(),
+        role: document.getElementById("formalWitnessRole").value.trim()
+      }, true);
+      document.getElementById("formalProcessResult").textContent = res.success ? "Witness recorded." : res.message;
+      if (res.success) loadFormalProcess();
+    });
+  }
+
+  const policyBtn = document.getElementById("addFormalPolicyBtn");
+  if (policyBtn) {
+    policyBtn.addEventListener("click", async () => {
+      if (!requireClaimedCase("formalProcessResult")) return;
+      const res = await apiRequest(`/case-process/cases/${caseId}/policies`, "POST", {
+        policyCode: document.getElementById("formalPolicyCode").value.trim(),
+        title: document.getElementById("formalPolicyTitle").value.trim()
+      }, true);
+      document.getElementById("formalProcessResult").textContent = res.success ? "Policy reference added." : res.message;
+      if (res.success) loadFormalProcess();
+    });
+  }
+
+  const decisionBtn = document.getElementById("addFormalDecisionBtn");
+  if (decisionBtn) {
+    decisionBtn.addEventListener("click", async () => {
+      if (!requireClaimedCase("formalProcessResult")) return;
+      const res = await apiRequest(`/case-process/cases/${caseId}/decisions`, "POST", {
+        finding: document.getElementById("formalDecisionFinding").value,
+        basis: document.getElementById("formalDecisionBasis").value.trim(),
+        requiresApproval: true
+      }, true);
+      document.getElementById("formalProcessResult").textContent = res.success ? "Formal decision recorded." : res.message;
+      if (res.success) loadFormalProcess();
+    });
+  }
+}
+
+async function loadFormalProcess() {
+  const panel = document.getElementById("formalProcessPanel");
+  if (!panel) return;
+
+  const res = await apiRequest(`/case-process/cases/${caseId}`, "GET", null, true);
+  panel.innerHTML = res.success
+    ? renderFormalProcess(res)
+    : `<div class="empty-state">${escapeHtml(res.message || "Unable to load formal process.")}</div>`;
+  if (res.success) wireFormalProcessControls();
+  applyCaseMutationLock(currentCase);
+}
+
+function renderWorkflowPanel(caseItem, timeline = {}, repeatWarning = {}) {
+  const events = timeline.workflowEvents || [];
+  const acknowledgements = timeline.acknowledgements || [];
+  const closureReadiness = timeline.closureReadiness || { checks: [], ready: false, missing: [] };
+  const similarCount = Number(repeatWarning.similar_previous || 0);
+  const reviewStatus = caseItem.review_status || "pending_review";
+  const canClose = !isClosedCase(caseItem.status);
+  const counselorOptions = staffOptions
+    .filter(staff => staff.role === "guidance_counselor")
+    .map(staff => `<option value="${staff.id}">${escapeHtml(`${staff.first_name} ${staff.last_name}`)} (${escapeHtml(staff.role)})</option>`)
+    .join("");
+
+  return `
+    <div class="workflow-overview-grid">
+      <div class="workflow-summary-tile ${!caseItem.assigned_to_user_id ? "needs-attention" : ""}">
+        <span>Owner</span>
+        <strong>${escapeHtml(caseItem.owner_label || (caseItem.assigned_to_first_name ? `${caseItem.assigned_to_first_name} ${caseItem.assigned_to_last_name}` : "Unassigned"))}</strong>
+        <small>${!caseItem.assigned_to_user_id ? "Needs assignment" : "Case has an active owner"}</small>
+      </div>
+      <div class="workflow-summary-tile">
+        <span>Workflow</span>
+        <strong>${escapeHtml(caseItem.workflow_status_label || labelize(caseItem.workflow_status))}</strong>
+        <small>${escapeHtml(caseItem.next_action_notes || "Review the next action.")}</small>
+      </div>
+      <div class="workflow-summary-tile needs-attention">
+        <span>Next Required Action</span>
+        <strong>${escapeHtml(caseItem.next_action_label || labelize(caseItem.next_action))}</strong>
+        <small>${escapeHtml(caseItem.review_status_label || labelize(reviewStatus))}</small>
+      </div>
+      <div class="workflow-summary-tile ${similarCount ? "needs-attention" : ""}">
+        <span>Repeat Awareness</span>
+        <strong>${similarCount} similar</strong>
+        <small>${Number(repeatWarning.total_previous || 0)} previous case(s)</small>
+      </div>
+    </div>
+
+    <div class="workflow-control-grid">
+      <div class="soft-panel">
+        <h3>Review Report</h3>
+        <p class="muted">Confirm if the teacher report is valid, incomplete, duplicate, or needs more evidence.</p>
+        <div class="form-grid">
+          <select id="reviewStatusSelect">
+            ${["pending_review", "validated", "incomplete", "duplicate", "needs_more_evidence"].map(status => `<option value="${status}" ${reviewStatus === status ? "selected" : ""}>${labelize(status)}</option>`).join("")}
+          </select>
+          <input type="number" id="duplicateCaseId" placeholder="Duplicate case ID" value="${caseItem.duplicate_of_case_id || ""}">
+        </div>
+        <textarea id="reviewNotes" placeholder="Review notes">${escapeHtml(caseItem.next_action_notes || "")}</textarea>
+        <div class="action-row">
+          <button id="saveReviewBtn" type="button">Save Review</button>
+          <span id="reviewResult" class="muted"></span>
+        </div>
+      </div>
+
+      <div class="soft-panel">
+        <h3>Closure Checklist</h3>
+        <p class="muted">Close only after review, ownership, evidence, hearing outcome, and final remarks are complete.</p>
+        ${(closureReadiness.checks || []).map(check => `
+          <label class="check-row"><input type="checkbox" disabled ${check.complete ? "checked" : ""}> ${escapeHtml(check.label)}</label>
+        `).join("") || `<div class="empty-state">Checklist will load after case details refresh.</div>`}
+        <div class="form-grid">
+          <select id="closureFinalStatus">
+            <option value="resolved">Resolved</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
+          <input type="text" id="closureNotes" placeholder="Final remarks">
+        </div>
+        <div class="action-row">
+          <button id="closeCaseWorkflowBtn" type="button" ${canClose ? "" : "disabled"}>Close Case</button>
+          <span id="closureResult" class="muted"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="workflow-control-grid">
+      <div class="soft-panel">
+        <h3>Request More Information</h3>
+        <p class="muted">Send a clear task back to the reporter when the report or evidence is incomplete.</p>
+        <textarea id="infoRequestMessage" placeholder="What exactly should the reporter clarify or upload?"></textarea>
+        <div class="action-row">
+          <button id="requestInfoBtn" type="button">Send Request</button>
+          <span id="infoRequestResult" class="muted"></span>
+        </div>
+      </div>
+
+      <div class="soft-panel">
+        <h3>Duplicate Resolution</h3>
+        <p class="muted">Link this record to the original case and dismiss it when it is truly duplicate.</p>
+        <div class="form-grid">
+          <input type="number" id="resolveDuplicateCaseId" placeholder="Original case ID" value="${caseItem.duplicate_of_case_id || ""}">
+          <select id="duplicateResolutionAction">
+            <option value="dismiss_duplicate">Dismiss duplicate</option>
+            <option value="link_only">Link only</option>
+          </select>
+        </div>
+        <input type="text" id="duplicateResolutionNotes" placeholder="Resolution notes">
+        <div class="action-row">
+          <button id="resolveDuplicateBtn" type="button">Resolve Duplicate</button>
+          <span id="duplicateResolutionResult" class="muted"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="soft-panel" style="margin-bottom:16px;">
+      <h3>Counseling Handoff</h3>
+      <p class="muted">Create a planned counselor follow-up task when a case needs guidance support.</p>
+      <div class="form-grid">
+        <select id="counselorUserId">
+          <option value="">Select counselor</option>
+          ${counselorOptions}
+        </select>
+        <input type="date" id="counselorFollowUpDate">
+      </div>
+      <textarea id="counselorHandoffNote" placeholder="Counseling context, recommendation, or follow-up intent"></textarea>
+      <div class="action-row">
+        <button id="counselorHandoffBtn" type="button">Create Handoff</button>
+        <span id="counselorHandoffResult" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="workflow-control-grid">
+      <div class="soft-panel">
+        <h3>Acknowledgements</h3>
+        ${acknowledgements.length ? `<div class="detail-list">${acknowledgements.map(item => `
+          <div class="detail-item"><strong>${escapeHtml(`${item.first_name || ""} ${item.last_name || ""}`.trim() || item.username)}</strong><p class="muted">${escapeHtml(item.role_label)} | ${formatDisplayDateTime(item.acknowledged_at)}</p></div>
+        `).join("")}</div>` : `<div class="empty-state">No student or parent acknowledgement yet.</div>`}
+      </div>
+      <div class="soft-panel">
+        <h3>Procedure Timeline</h3>
+        ${events.length ? `<div class="workflow-timeline-list">${events.map(event => `
+          <div class="workflow-timeline-item">
+            <strong>${escapeHtml(event.title || labelize(event.event_type))}</strong>
+            <p>${escapeHtml(event.details || "")}</p>
+            <small>${escapeHtml(`${event.first_name || ""} ${event.last_name || ""}`.trim() || "System")} | ${formatDisplayDateTime(event.created_at)}</small>
+          </div>
+        `).join("")}</div>` : `<div class="empty-state">No workflow events recorded yet.</div>`}
+      </div>
+    </div>
+  `;
+}
+
+function wireWorkflowControls() {
+  document.getElementById("saveReviewBtn")?.addEventListener("click", async () => {
+    if (!requireClaimedCase("reviewResult")) return;
+    const res = await apiRequest(`/cases/${caseId}/review`, "PUT", {
+      reviewStatus: document.getElementById("reviewStatusSelect").value,
+      duplicateOfCaseId: document.getElementById("duplicateCaseId").value || null,
+      notes: document.getElementById("reviewNotes").value.trim()
+    }, true);
+    document.getElementById("reviewResult").textContent = res.success ? "Review saved." : res.message;
+    showToast(res.success ? "Review saved." : res.message, res.success ? "success" : "error");
+    if (res.success) loadCaseDetails();
+  });
+
+  document.getElementById("closeCaseWorkflowBtn")?.addEventListener("click", async () => {
+    if (!requireClaimedCase("closureResult")) return;
+    const res = await apiRequest(`/cases/${caseId}/close`, "PUT", {
+      finalStatus: document.getElementById("closureFinalStatus").value,
+      closureNotes: document.getElementById("closureNotes").value.trim(),
+      checklist: {}
+    }, true);
+    document.getElementById("closureResult").textContent = res.success ? "Case closed." : res.message;
+    showToast(res.success ? "Case closed." : res.message, res.success ? "success" : "error");
+    if (res.success) loadCaseDetails();
+  });
+
+  document.getElementById("requestInfoBtn")?.addEventListener("click", async () => {
+    if (!requireClaimedCase("infoRequestResult")) return;
+    const res = await apiRequest(`/cases/${caseId}/request-info`, "POST", {
+      message: document.getElementById("infoRequestMessage").value.trim()
+    }, true);
+    document.getElementById("infoRequestResult").textContent = res.success ? "Request sent." : res.message;
+    showToast(res.success ? "Request sent." : res.message, res.success ? "success" : "error");
+    if (res.success) loadCaseDetails();
+  });
+
+  document.getElementById("resolveDuplicateBtn")?.addEventListener("click", async () => {
+    if (!requireClaimedCase("duplicateResolutionResult")) return;
+    const res = await apiRequest(`/cases/${caseId}/resolve-duplicate`, "POST", {
+      duplicateOfCaseId: document.getElementById("resolveDuplicateCaseId").value,
+      action: document.getElementById("duplicateResolutionAction").value,
+      notes: document.getElementById("duplicateResolutionNotes").value.trim()
+    }, true);
+    document.getElementById("duplicateResolutionResult").textContent = res.success ? "Duplicate resolved." : res.message;
+    showToast(res.success ? "Duplicate resolved." : res.message, res.success ? "success" : "error");
+    if (res.success) loadCaseDetails();
+  });
+
+  document.getElementById("counselorHandoffBtn")?.addEventListener("click", async () => {
+    if (!requireClaimedCase("counselorHandoffResult")) return;
+    const res = await apiRequest(`/cases/${caseId}/counseling-handoff`, "POST", {
+      counselorUserId: document.getElementById("counselorUserId").value,
+      note: document.getElementById("counselorHandoffNote").value.trim(),
+      followUpDate: document.getElementById("counselorFollowUpDate").value
+    }, true);
+    document.getElementById("counselorHandoffResult").textContent = res.success ? "Counseling handoff created." : res.message;
+    showToast(res.success ? "Counseling handoff created." : res.message, res.success ? "success" : "error");
+    if (res.success) loadCaseDetails();
+  });
+}
+
 function isClosedCase(status) {
   return ["resolved", "dismissed"].includes(String(status || "").toLowerCase());
 }
 
 function isCurrentUserAssignee(caseItem) {
   return Number(caseItem?.assigned_to_user_id) === Number(user.id);
+}
+
+function canMutateCase(caseItem = currentCase) {
+  return !isClosedCase(caseItem?.status) && isCurrentUserAssignee(caseItem);
+}
+
+function getMutationLockMessage(caseItem = currentCase) {
+  if (isClosedCase(caseItem?.status)) {
+    return "Closed case: timeline updates, evidence, hearings, and sanctions are now locked for discipline workflow.";
+  }
+
+  if (!caseItem?.assigned_to_user_id) {
+    return "Read-only until claimed. Claim this case before adding notes, evidence reviews, hearings, sanctions, or formal process records.";
+  }
+
+  if (!isCurrentUserAssignee(caseItem)) {
+    return "Read-only case. Another officer owns this case, so you can view details but cannot make changes.";
+  }
+
+  return "";
+}
+
+function requireClaimedCase(feedbackId = "statusResult") {
+  if (canMutateCase()) return true;
+  const message = getMutationLockMessage() || "Claim this case before making changes.";
+  showActionFeedback(feedbackId, message, false);
+  showToast(message, "error");
+  return false;
 }
 
 function updateAssignmentUi(caseItem) {
@@ -493,24 +1172,66 @@ function updateAssignmentUi(caseItem) {
   const claimPanel = document.getElementById("claimCasePanel");
   const manualControls = document.getElementById("manualAssignmentControls");
 
-  banner.style.display = ownsCase ? "block" : "none";
+  banner.style.display = ownsCase && !isClosed ? "block" : "none";
   banner.textContent = ownsCase ? "Assigned to you. You are handling this case." : "";
 
   claimPanel.style.display = isUnassigned && !isClosed ? "flex" : "none";
   manualControls.style.display = "none";
 }
 
+function applyCaseMutationLock(caseItem) {
+  const locked = !canMutateCase(caseItem);
+  const claimAllowed = !isClosedCase(caseItem?.status) && !caseItem?.assigned_to_user_id;
+
+  document.querySelectorAll(`
+    .workflow-action-panel button,
+    .workflow-modal-card input,
+    .workflow-modal-card select,
+    .workflow-modal-card textarea,
+    .workflow-modal-card button,
+    #evidenceContainer input,
+    #evidenceContainer select,
+    #evidenceContainer button,
+    #hearingList button,
+    #appealList input,
+    #appealList select,
+    #appealList textarea,
+    #appealList button,
+    #reportReviewPanel input,
+    #reportReviewPanel textarea,
+    #reportReviewPanel button,
+    #formalProcessPanel input,
+    #formalProcessPanel select,
+    #formalProcessPanel textarea,
+    #formalProcessPanel button
+  `).forEach(element => {
+    element.disabled = locked;
+  });
+
+  document.querySelectorAll("[data-close-workflow]").forEach(element => {
+    element.disabled = false;
+  });
+  const closeHearingUpdateButton = document.getElementById("closeHearingUpdateBtn");
+  if (closeHearingUpdateButton) {
+    closeHearingUpdateButton.disabled = false;
+  }
+
+  const claimButton = document.getElementById("claimCaseBtn");
+  if (claimButton) {
+    claimButton.disabled = !claimAllowed;
+  }
+}
+
 function updateClosedCaseUi(caseItem) {
   const locked = isClosedCase(caseItem?.status);
-  const lockedMessage = locked ? `This case is ${String(caseItem.status).replaceAll("_", " ")} and is now read-only.` : "";
+  const mutationLocked = !canMutateCase(caseItem);
+  const lockedMessage = getMutationLockMessage(caseItem);
   const banner = document.getElementById("caseLockBanner");
 
   [
     "assignedToUserId",
     "assignBtn",
     "claimCaseBtn",
-    "statusSelect",
-    "saveStatusBtn",
     "updateType",
     "content",
     "submitUpdateBtn",
@@ -524,28 +1245,42 @@ function updateClosedCaseUi(caseItem) {
     "sanctionStartDate",
     "sanctionEndDate",
     "sanctionDescription",
-    "assignSanctionBtn"
+    "assignSanctionBtn",
+    "resolveCaseNotes",
+    "resolveCaseConfirm",
+    "confirmResolveCaseBtn",
+    "dismissCaseReason",
+    "dismissCaseNotes",
+    "dismissCaseConfirm",
+    "confirmDismissCaseBtn"
   ].forEach(id => {
     const element = document.getElementById(id);
     if (element) {
-      element.disabled = locked;
+      element.disabled = mutationLocked;
     }
   });
 
-  banner.style.display = locked ? "block" : "none";
-  banner.textContent = locked
-    ? "Closed case: timeline updates, evidence, hearings, and sanctions are now locked for discipline workflow."
-    : "";
-
-  if (locked) {
-    document.getElementById("statusResult").textContent = lockedMessage;
-    document.getElementById("updateResult").textContent = lockedMessage;
-    document.getElementById("evidenceResult").textContent = lockedMessage;
-    document.getElementById("hearingResult").textContent = lockedMessage;
-    document.getElementById("sanctionResult").textContent = lockedMessage;
-  } else {
-    document.getElementById("statusResult").textContent = "";
+  const claimButton = document.getElementById("claimCaseBtn");
+  if (claimButton) {
+    claimButton.disabled = locked || Boolean(caseItem?.assigned_to_user_id);
   }
+
+  banner.style.display = mutationLocked ? "block" : "none";
+  banner.textContent = lockedMessage;
+
+  [
+    "statusResult",
+    "updateResult",
+    "evidenceResult",
+    "hearingResult",
+    "sanctionResult"
+  ].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.textContent = "";
+      element.className = "action-feedback muted";
+    }
+  });
 
   updateAssignmentUi(caseItem);
 }
@@ -558,6 +1293,7 @@ async function loadAssignableStaff(selectedId) {
     return;
   }
 
+  staffOptions = res.staff || [];
   select.innerHTML = `<option value="">Select assignee</option>` + res.staff.map(item => `
     <option value="${item.id}" ${Number(selectedId) === item.id ? "selected" : ""}>
       ${item.first_name} ${item.last_name} (${item.role})
@@ -575,6 +1311,7 @@ async function loadCaseDetails() {
 
   const c = res.case;
   currentCase = c;
+  currentTimeline = res.timeline || {};
   const studentFullName = getCaseStudentFullName(c);
   document.getElementById("heroCaseTitle").textContent = `Case: ${c.case_number}`;
   document.getElementById("heroSubtitle").textContent = `${c.violation_type} | ${studentFullName} (${c.student_number})`;
@@ -596,7 +1333,6 @@ async function loadCaseDetails() {
     <div><span>Severity</span><strong>${labelize(c.severity_level)}</strong></div>
   `;
 
-  document.getElementById("statusSelect").value = c.status;
   await loadAssignableStaff(c.assigned_to_user_id);
   updateClosedCaseUi(c);
 
@@ -608,9 +1344,11 @@ async function loadCaseDetails() {
       <div class="case-list-row"><strong>Violation</strong><span>${c.violation_type}</span></div>
       <div class="case-list-row"><strong>Severity</strong><span>${badge(c.severity_level)}</span></div>
       <div class="case-list-row"><strong>Incident Date</strong><span>${formatDisplayDate(c.incident_date)}</span></div>
+      <div class="case-list-row"><strong>Incident Time</strong><span>${formatDisplayTime(c.incident_time)}</span></div>
       <div class="case-list-row"><strong>Location</strong><span>${c.location || "-"}</span></div>
       <div class="case-list-row"><strong>Academic Context</strong><span>${c.program || "-"} / ${c.year_level || "-"} / ${c.section || "-"}</span></div>
       <div class="case-list-row"><strong>Assigned To</strong><span>${c.assigned_to_first_name ? `${c.assigned_to_first_name} ${c.assigned_to_last_name} - ${c.assigned_to_role_label || getRoleLabel(c.assigned_to_role)}` : "Unassigned"}</span></div>
+      ${isClosedCase(c.status) && c.closure_notes ? `<div class="case-list-row"><strong>Closure Record</strong><span>${escapeHtml(c.closure_notes)}</span></div>` : ""}
     </div>
   `;
 
@@ -618,6 +1356,8 @@ async function loadCaseDetails() {
     <p><strong>Detailed Account</strong></p>
     <p>${c.description || "No case description recorded."}</p>
   `;
+
+  renderReportReview(c, res.timeline.workflowEvents || []);
 
   renderItems("updatesContainer", res.timeline.updates, "No timeline updates yet.", update => `
     <div class="detail-item">
@@ -641,9 +1381,16 @@ async function loadCaseDetails() {
             ${badge(evidence.review_status || "pending")}
           </div>
           <div class="evidence-meta-grid">
+            <div class="evidence-type-meta"><span>Evidence Type</span><strong>${escapeHtml(formatEvidenceType(evidence.evidence_category))}</strong><small>${escapeHtml(evidence.file_type || "File")}</small></div>
             <div><span>Uploaded By</span><strong>${escapeHtml(evidence.uploaded_by_first_name || "-")} ${escapeHtml(evidence.uploaded_by_last_name || "")}</strong><small>${escapeHtml(evidence.uploaded_by_role_label || getRoleLabel(evidence.uploaded_by_role))}</small></div>
             <div><span>Reviewer</span><strong>${evidence.reviewed_by_first_name ? `${escapeHtml(evidence.reviewed_by_first_name)} ${escapeHtml(evidence.reviewed_by_last_name || "")}` : "Not assigned"}</strong><small>${evidence.reviewed_by_role ? escapeHtml(evidence.reviewed_by_role_label || getRoleLabel(evidence.reviewed_by_role)) : "Awaiting review"}</small></div>
           </div>
+          ${(evidence.evidence_purpose || evidence.source_label) ? `
+            <div class="evidence-context-panel">
+              ${evidence.evidence_purpose ? `<div><span>Purpose</span><p>${escapeHtml(evidence.evidence_purpose)}</p></div>` : ""}
+              ${evidence.source_label ? `<div><span>Source</span><p>${escapeHtml(evidence.source_label)}</p></div>` : ""}
+            </div>
+          ` : ""}
           <div class="evidence-notes-panel">
             <span>Review Notes</span>
             <p>${escapeHtml(evidence.review_notes || "No review notes yet.")}</p>
@@ -665,12 +1412,24 @@ async function loadCaseDetails() {
     </div>
   `);
 
-  renderItems("hearingList", res.timeline.hearings, "No hearings scheduled.", hearing => `
-    <div class="detail-item">
-      <p><strong>${formatDisplayDateWithTime(hearing.scheduled_date, hearing.scheduled_time)}</strong> ${badge(hearing.status)}</p>
-      <p>${hearing.location || "-"}</p>
-      <p>${hearing.outcome || "No outcome yet."}</p>
-      <p class="muted">Created by ${hearing.created_by_first_name} ${hearing.created_by_last_name} - ${hearing.created_by_role_label || getRoleLabel(hearing.created_by_role)}</p>
+  currentHearings = res.timeline.hearings || [];
+  renderItems("hearingList", currentHearings, "No hearings scheduled.", hearing => `
+    <div class="detail-item case-hearing-card ${isOverdueHearing(hearing) ? "is-overdue" : ""}">
+      <div class="case-hearing-card-head">
+        <div>
+          <p><strong>${formatDisplayDateWithTime(normalizeScheduleDate(hearing.scheduled_date), hearing.scheduled_time)}</strong> ${badge(getHearingStatus(hearing))}</p>
+          ${isOverdueHearing(hearing) ? `<span class="hearing-overdue-text">${escapeHtml(getOverdueLabel(hearing))}</span>` : ""}
+        </div>
+        ${hearing.status === "scheduled" ? `
+          <div class="action-row tight case-hearing-actions">
+            <button type="button" class="secondary compact-btn" onclick="openHearingUpdate(${hearing.id}, 'reschedule')">Reschedule</button>
+            <button type="button" class="compact-btn" onclick="openHearingUpdate(${hearing.id}, 'result')">Record Result</button>
+          </div>
+        ` : ""}
+      </div>
+      <p>${escapeHtml(hearing.location || "Location not set")}</p>
+      <p>${escapeHtml(hearing.outcome || "No outcome yet.")}</p>
+      <p class="muted">Created by ${escapeHtml(hearing.created_by_first_name || "-")} ${escapeHtml(hearing.created_by_last_name || "")} - ${escapeHtml(hearing.created_by_role_label || getRoleLabel(hearing.created_by_role))}</p>
     </div>
   `);
 
@@ -709,10 +1468,96 @@ async function loadCaseDetails() {
       <p class="muted">By ${note.first_name} ${note.last_name}</p>
     </div>
   `);
+
+  applyCaseMutationLock(c);
+}
+
+function closeHearingUpdateModal() {
+  document.getElementById("hearingUpdateModal").classList.remove("open");
+  document.getElementById("updateHearingResult").textContent = "";
+}
+
+function openHearingUpdate(hearingId, mode) {
+  if (!requireClaimedCase("hearingResult")) return;
+  const hearing = currentHearings.find(item => Number(item.id) === Number(hearingId));
+  if (!hearing) return;
+
+  const isResultMode = mode === "result";
+  document.getElementById("updateHearingId").value = hearing.id;
+  document.getElementById("updateHearingMode").value = mode;
+  document.getElementById("hearingUpdateTitle").textContent = isResultMode ? "Record Hearing Result" : "Reschedule Hearing";
+  document.getElementById("hearingUpdateSubtitle").textContent = isResultMode
+    ? "Complete the hearing record and move the case to its next workflow step."
+    : "Choose a new date, time, and location while keeping the hearing scheduled.";
+  document.getElementById("updateHearingDate").value = normalizeScheduleDate(hearing.scheduled_date);
+  document.getElementById("updateHearingTime").value = String(hearing.scheduled_time || "").slice(0, 5);
+  document.getElementById("updateHearingLocation").value = hearing.location || "";
+  document.getElementById("updateHearingFinding").value = hearing.finding || "pending";
+  document.getElementById("updateHearingOutcome").value = hearing.outcome || "";
+  document.getElementById("updateHearingRecommendation").value = hearing.recommendation || "";
+  document.getElementById("updateHearingDate").disabled = isResultMode;
+  document.getElementById("updateHearingTime").disabled = isResultMode;
+  document.getElementById("updateHearingLocation").disabled = isResultMode;
+  document.getElementById("hearingFindingField").style.display = isResultMode ? "grid" : "none";
+  document.getElementById("hearingOutcomeField").style.display = isResultMode ? "grid" : "none";
+  document.getElementById("hearingRecommendationField").style.display = isResultMode ? "grid" : "none";
+  document.getElementById("saveHearingUpdateBtn").textContent = isResultMode ? "Save Result" : "Save New Schedule";
+  document.getElementById("updateHearingResult").textContent = "";
+  document.getElementById("hearingUpdateModal").classList.add("open");
+}
+
+async function saveHearingUpdate() {
+  if (!requireClaimedCase("updateHearingResult")) return;
+
+  const hearingId = document.getElementById("updateHearingId").value;
+  const mode = document.getElementById("updateHearingMode").value;
+  const scheduledDate = document.getElementById("updateHearingDate").value;
+  const scheduledTime = document.getElementById("updateHearingTime").value;
+  const finding = document.getElementById("updateHearingFinding").value;
+  const outcome = document.getElementById("updateHearingOutcome").value.trim();
+
+  if (!scheduledDate || !scheduledTime) {
+    showActionFeedback("updateHearingResult", "A hearing date and time are required.", false);
+    return;
+  }
+
+  if (mode === "result" && (finding === "pending" || !outcome)) {
+    showActionFeedback("updateHearingResult", "Select a final finding and enter outcome notes.", false);
+    return;
+  }
+
+  const button = document.getElementById("saveHearingUpdateBtn");
+  setButtonBusy(button, true, mode === "result" ? "Saving Result..." : "Rescheduling...");
+  const res = await apiRequest(`/hearings/${hearingId}`, "PUT", {
+    scheduledDate,
+    scheduledTime,
+    location: document.getElementById("updateHearingLocation").value.trim(),
+    status: mode === "result" ? "completed" : "scheduled",
+    finding: mode === "result" ? finding : "pending",
+    outcome: mode === "result" ? outcome : "",
+    recommendation: mode === "result"
+      ? document.getElementById("updateHearingRecommendation").value.trim()
+      : ""
+  }, true);
+  setButtonBusy(button, false);
+  showActionFeedback(
+    "updateHearingResult",
+    res.success ? (mode === "result" ? "Hearing result recorded." : "Hearing rescheduled.") : res.message,
+    res.success
+  );
+  showToast(
+    res.success ? (mode === "result" ? "Hearing result recorded." : "Hearing rescheduled.") : res.message,
+    res.success ? "success" : "error"
+  );
+
+  if (res.success) {
+    closeHearingUpdateModal();
+    await loadCaseDetails();
+  }
 }
 
 document.getElementById("submitUpdateBtn").addEventListener("click", async () => {
-  if (isClosedCase(currentCase?.status)) return;
+  if (!requireClaimedCase("updateResult")) return;
   const button = document.getElementById("submitUpdateBtn");
   setButtonBusy(button, true, "Saving...");
   const res = await apiRequest(`/cases/${caseId}/updates`, "POST", {
@@ -729,21 +1574,8 @@ document.getElementById("submitUpdateBtn").addEventListener("click", async () =>
   }
 });
 
-document.getElementById("saveStatusBtn").addEventListener("click", async () => {
-  if (isClosedCase(currentCase?.status)) return;
-  const button = document.getElementById("saveStatusBtn");
-  setButtonBusy(button, true, "Saving...");
-  const res = await apiRequest(`/cases/${caseId}/status`, "PUT", {
-    status: document.getElementById("statusSelect").value
-  }, true);
-  setButtonBusy(button, false);
-  showActionFeedback("statusResult", res.success ? "Status saved successfully." : res.message, res.success);
-  showToast(res.success ? "Status saved successfully." : res.message, res.success ? "success" : "error");
-  if (res.success) loadCaseDetails();
-});
-
 document.getElementById("assignBtn").addEventListener("click", async () => {
-  if (isClosedCase(currentCase?.status)) return;
+  if (!requireClaimedCase("statusResult")) return;
   const button = document.getElementById("assignBtn");
   setButtonBusy(button, true, "Assigning...");
   const assignedToUserId = document.getElementById("assignedToUserId").value;
@@ -765,8 +1597,27 @@ document.getElementById("claimCaseBtn").addEventListener("click", async () => {
   if (res.success) loadCaseDetails();
 });
 
+document.getElementById("printCaseReportBtn").addEventListener("click", async () => {
+  const button = document.getElementById("printCaseReportBtn");
+  setButtonBusy(button, true, "Preparing...");
+
+  try {
+    await printCasePacketReport({
+      caseId,
+      caseItem: currentCase,
+      timeline: currentTimeline,
+      roleLabel: "Discipline Office"
+    });
+    showToast("Printable report opened.", "success");
+  } catch (error) {
+    showToast(error.message || "Unable to prepare the case report.", "error");
+  } finally {
+    setButtonBusy(button, false);
+  }
+});
+
 document.getElementById("uploadEvidenceBtn").addEventListener("click", async () => {
-  if (isClosedCase(currentCase?.status)) return;
+  if (!requireClaimedCase("evidenceResult")) return;
   const file = document.getElementById("evidenceFile").files[0];
   if (!file) {
     showActionFeedback("evidenceResult", "Select a file first.", false);
@@ -779,6 +1630,9 @@ document.getElementById("uploadEvidenceBtn").addEventListener("click", async () 
   const formData = new FormData();
   formData.append("caseId", caseId);
   formData.append("file", file);
+  formData.append("evidenceCategory", "other");
+  formData.append("evidencePurpose", "Discipline supporting evidence");
+  formData.append("sourceLabel", "Discipline upload");
 
   const res = await apiRequest("/evidence/upload", "POST", formData, true);
   setButtonBusy(button, false);
@@ -792,7 +1646,7 @@ document.getElementById("uploadEvidenceBtn").addEventListener("click", async () 
 });
 
 async function reviewEvidence(id) {
-  if (isClosedCase(currentCase?.status)) return;
+  if (!requireClaimedCase("evidenceResult")) return;
   const res = await apiRequest(`/evidence/${id}/review`, "PUT", {
     reviewStatus: document.getElementById(`reviewStatus-${id}`).value,
     reviewNotes: document.getElementById(`reviewNotes-${id}`).value
@@ -803,6 +1657,7 @@ async function reviewEvidence(id) {
 }
 
 async function reviewAppeal(id) {
+  if (!requireClaimedCase("sanctionResult")) return;
   const res = await apiRequest(`/appeals/${id}/review`, "PUT", {
     status: document.getElementById(`appealStatus-${id}`).value,
     decisionNotes: document.getElementById(`appealNotes-${id}`).value
@@ -813,7 +1668,7 @@ async function reviewAppeal(id) {
 }
 
 document.getElementById("scheduleHearingBtn").addEventListener("click", async () => {
-  if (isClosedCase(currentCase?.status)) return;
+  if (!requireClaimedCase("hearingResult")) return;
   const button = document.getElementById("scheduleHearingBtn");
   setButtonBusy(button, true, "Scheduling...");
   const res = await apiRequest("/hearings/create", "POST", {
@@ -835,7 +1690,7 @@ document.getElementById("scheduleHearingBtn").addEventListener("click", async ()
 });
 
 document.getElementById("assignSanctionBtn").addEventListener("click", async () => {
-  if (isClosedCase(currentCase?.status)) return;
+  if (!requireClaimedCase("sanctionResult")) return;
   const button = document.getElementById("assignSanctionBtn");
   setButtonBusy(button, true, "Assigning...");
   const res = await apiRequest("/sanctions/create", "POST", {
@@ -856,6 +1711,84 @@ document.getElementById("assignSanctionBtn").addEventListener("click", async () 
     loadCaseDetails();
   }
 });
+
+document.getElementById("confirmDismissCaseBtn").addEventListener("click", async () => {
+  if (!requireClaimedCase("dismissCaseResult")) return;
+
+  const dismissalReason = document.getElementById("dismissCaseReason").value;
+  const closureNotes = document.getElementById("dismissCaseNotes").value.trim();
+  const confirmed = document.getElementById("dismissCaseConfirm").checked;
+
+  if (!dismissalReason) {
+    showActionFeedback("dismissCaseResult", "Select a dismissal reason.", false);
+    return;
+  }
+  if (closureNotes.length < 10) {
+    showActionFeedback("dismissCaseResult", "Enter clear closure notes with at least 10 characters.", false);
+    return;
+  }
+  if (!confirmed) {
+    showActionFeedback("dismissCaseResult", "Confirm that you understand this closes the entire case.", false);
+    return;
+  }
+
+  const button = document.getElementById("confirmDismissCaseBtn");
+  setButtonBusy(button, true, "Dismissing...");
+  const res = await apiRequest(`/cases/${caseId}/close`, "PUT", {
+    finalStatus: "dismissed",
+    dismissalReason,
+    closureNotes
+  }, true);
+  setButtonBusy(button, false);
+  showActionFeedback("dismissCaseResult", res.success ? "Case dismissed." : res.message, res.success);
+  showToast(res.success ? "The entire case was dismissed and closed." : res.message, res.success ? "success" : "error");
+
+  if (res.success) {
+    document.getElementById("dismissCaseReason").value = "";
+    document.getElementById("dismissCaseNotes").value = "";
+    document.getElementById("dismissCaseConfirm").checked = false;
+    closeWorkflowModal("dismiss");
+    await loadCaseDetails();
+  }
+});
+
+document.getElementById("confirmResolveCaseBtn").addEventListener("click", async () => {
+  if (!requireClaimedCase("resolveCaseResult")) return;
+
+  const closureNotes = document.getElementById("resolveCaseNotes").value.trim();
+  const confirmed = document.getElementById("resolveCaseConfirm").checked;
+
+  if (closureNotes.length < 10) {
+    showActionFeedback("resolveCaseResult", "Enter clear resolution notes with at least 10 characters.", false);
+    return;
+  }
+
+  if (!confirmed) {
+    showActionFeedback("resolveCaseResult", "Confirm that required case actions are complete.", false);
+    return;
+  }
+
+  const button = document.getElementById("confirmResolveCaseBtn");
+  setButtonBusy(button, true, "Resolving...");
+  const res = await apiRequest(`/cases/${caseId}/close`, "PUT", {
+    finalStatus: "resolved",
+    closureNotes,
+    checklist: {}
+  }, true);
+  setButtonBusy(button, false);
+  showActionFeedback("resolveCaseResult", res.success ? "Case resolved." : res.message, res.success);
+  showToast(res.success ? "The case was marked as resolved." : res.message, res.success ? "success" : "error");
+
+  if (res.success) {
+    document.getElementById("resolveCaseNotes").value = "";
+    document.getElementById("resolveCaseConfirm").checked = false;
+    closeWorkflowModal("resolve");
+    await loadCaseDetails();
+  }
+});
+
+document.getElementById("closeHearingUpdateBtn").addEventListener("click", closeHearingUpdateModal);
+document.getElementById("saveHearingUpdateBtn").addEventListener("click", saveHearingUpdate);
 
 document.querySelectorAll("[data-open-workflow]").forEach(button => {
   button.addEventListener("click", () => openWorkflowModal(button.dataset.openWorkflow));

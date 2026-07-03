@@ -39,7 +39,7 @@
       <small>Hearing workload in the selected month view.</small>
     </div>
     <div class="summary-card-compact">
-      <strong>Completed / Cancelled</strong>
+      <strong>Closed Hearings</strong>
       <span id="closedCount">0</span>
       <small>Closed hearings and rescheduled cancellations.</small>
     </div>
@@ -60,6 +60,7 @@
             <option value="scheduled">Scheduled</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
+            <option value="missed">Missed</option>
           </select>
         </div>
       </div>
@@ -68,8 +69,10 @@
 
       <div class="legend-row">
         <span class="legend-item"><span class="legend-swatch scheduled"></span>Scheduled</span>
+        <span class="legend-item"><span class="legend-swatch overdue"></span>Overdue</span>
         <span class="legend-item"><span class="legend-swatch completed"></span>Completed</span>
         <span class="legend-item"><span class="legend-swatch cancelled"></span>Cancelled</span>
+        <span class="legend-item"><span class="legend-swatch missed"></span>Missed</span>
       </div>
     </div>
   </div>
@@ -81,6 +84,8 @@
         <p class="muted">Use the operational list to jump into case context, review statuses, and select a record to update.</p>
       </div>
     </div>
+
+    <div id="overdueHearingNotice" class="hearing-overdue-notice" style="display:none;"></div>
 
     <div class="table-wrap">
       <table>
@@ -102,11 +107,11 @@
 </div>
 
 <div class="modal-backdrop" id="hearingModal">
-  <div class="modal-card">
+  <div class="modal-card modal-card-wide hearing-management-modal">
     <div class="card-header">
       <div>
-        <h2>Update Hearing</h2>
-        <p class="muted">Review the hearing details, then reschedule, mark it completed, or cancel it with outcome notes.</p>
+        <h2>Hearing Details</h2>
+        <p class="muted">Review the record, then reschedule it or record the completed hearing result.</p>
       </div>
     </div>
     <div id="hearingPreview" class="key-value">
@@ -117,37 +122,55 @@
     </div>
 
     <input type="hidden" id="hearingId">
-    <div class="form-grid" style="margin-top:16px;">
+    <input type="hidden" id="hearingActionMode" value="reschedule">
+    <div class="hearing-action-switch" aria-label="Hearing action">
+      <button type="button" id="rescheduleModeBtn" class="secondary is-active">Reschedule</button>
+      <button type="button" id="resultModeBtn" class="secondary">Record Result</button>
+      <button type="button" id="cancelModeBtn" class="secondary">Cancel Hearing</button>
+      <button type="button" id="missedModeBtn" class="secondary">Mark Missed</button>
+    </div>
+
+    <div class="form-grid" id="hearingScheduleFields">
       <div class="field-stack">
-        <label for="scheduledDate">Scheduled Date</label>
+        <label for="scheduledDate">New Date</label>
         <input type="date" id="scheduledDate">
       </div>
       <div class="field-stack">
-        <label for="scheduledTime">Scheduled Time</label>
+        <label for="scheduledTime">New Time</label>
         <input type="time" id="scheduledTime">
       </div>
       <div class="field-stack">
         <label for="location">Location</label>
         <input type="text" id="location" placeholder="Guidance office, conference room, or hearing venue">
       </div>
-      <div class="field-stack">
-        <label for="status">Hearing Status</label>
-        <select id="status">
-          <option value="scheduled">Scheduled</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
+    </div>
+
+    <div id="hearingResultFields" style="display:none;">
+      <div class="field-stack" id="findingField">
+        <label for="finding">Hearing Finding</label>
+        <select id="finding">
+          <option value="pending">Pending</option>
+          <option value="admitted">Admitted</option>
+          <option value="denied">Denied</option>
+          <option value="resolved">Resolved</option>
+          <option value="dismissed">Dismissed</option>
+          <option value="sanction_recommended">Sanction Recommended</option>
+          <option value="counseling_recommended">Counseling Recommended</option>
         </select>
       </div>
-    </div>
-    <div class="field-stack" style="margin-top:16px;">
-      <label for="outcome">Outcome / Attendance Notes</label>
-      <textarea id="outcome" placeholder="Document attendance, final outcome, reschedule reasons, or follow-up remarks."></textarea>
+      <div class="field-stack" id="outcomeField" style="margin-top:16px;">
+        <label for="outcome">Outcome / Attendance Notes</label>
+        <textarea id="outcome" placeholder="Document attendance and the final hearing outcome."></textarea>
+      </div>
+      <div class="field-stack" id="recommendationField" style="margin-top:16px;">
+        <label for="recommendation">Recommendation</label>
+        <textarea id="recommendation" placeholder="Document sanction, counseling, dismissal, or follow-up recommendation."></textarea>
+      </div>
     </div>
     <p id="result" class="muted"></p>
     <div class="modal-actions">
       <button id="closeHearingModalBtn" type="button" class="secondary compact-btn">Close</button>
-      <button id="markHearingCompleteBtn" type="button" class="secondary compact-btn">Mark Complete</button>
-      <button id="updateBtn" type="button" class="compact-btn">Save Changes</button>
+      <button id="updateBtn" type="button" class="compact-btn" data-internet-feature="Hearing updates save locally, but SMS and email notices need internet to send.">Save New Schedule</button>
     </div>
   </div>
 </div>
@@ -191,9 +214,55 @@ function badge(value) {
   return `<span class="badge ${normalized}">${String(value || "scheduled").replaceAll("_", " ")}</span>`;
 }
 
+function normalizeScheduleDate(value) {
+  if (!value) return "";
+
+  const raw = String(value);
+  const dateOnlyMatch = raw.match(/^(\d{4}-\d{2}-\d{2})$/);
+  if (dateOnlyMatch) return dateOnlyMatch[1];
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return raw.slice(0, 10);
+  }
+
+  return [
+    parsed.getFullYear(),
+    String(parsed.getMonth() + 1).padStart(2, "0"),
+    String(parsed.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
+function getHearingDateTime(item) {
+  if (!item?.scheduled_date) return null;
+  const datePart = normalizeScheduleDate(item.scheduled_date);
+  const timePart = item.scheduled_time ? String(item.scheduled_time).slice(0, 8) : "23:59:59";
+  const date = new Date(`${datePart}T${timePart}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isOverdueHearing(item) {
+  const scheduledAt = getHearingDateTime(item);
+  return item?.status === "scheduled" && scheduledAt && scheduledAt.getTime() < Date.now();
+}
+
+function getOverdueText(item) {
+  const scheduledAt = getHearingDateTime(item);
+  if (!scheduledAt) return "Overdue";
+  const elapsed = Date.now() - scheduledAt.getTime();
+  const days = Math.floor(elapsed / 86400000);
+  if (days >= 1) return `Overdue by ${days} day${days === 1 ? "" : "s"}`;
+  const hours = Math.max(1, Math.floor(elapsed / 3600000));
+  return `Overdue by ${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
+function hearingStatusBadge(item) {
+  return isOverdueHearing(item) ? `<span class="badge overdue">Overdue</span>` : badge(item.status);
+}
+
 function formatDate(value) {
   if (!value) return "-";
-  const date = new Date(value);
+  const date = new Date(`${normalizeScheduleDate(value)}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
@@ -207,7 +276,7 @@ function formatTime(value) {
 
 function toDateOnly(value) {
   if (!value) return null;
-  const date = new Date(value);
+  const date = new Date(`${normalizeScheduleDate(value)}T00:00:00`);
   if (Number.isNaN(date.getTime())) return null;
   date.setHours(0, 0, 0, 0);
   return date;
@@ -244,11 +313,32 @@ function renderSummary(rows) {
 
   document.getElementById("totalHearings").textContent = rows.length;
   document.getElementById("scheduledCount").textContent = rows.filter(item => item.status === "scheduled").length;
-  document.getElementById("closedCount").textContent = rows.filter(item => ["completed", "cancelled"].includes(item.status)).length;
+  document.getElementById("closedCount").textContent = rows.filter(item => ["completed", "cancelled", "missed"].includes(item.status)).length;
   document.getElementById("monthCount").textContent = rows.filter(item => {
     const date = toDateOnly(item.scheduled_date);
     return date && date.getMonth() === month && date.getFullYear() === year;
   }).length;
+}
+
+function renderOverdueNotice(rows) {
+  const notice = document.getElementById("overdueHearingNotice");
+  if (!notice) return;
+
+  const overdue = rows.filter(isOverdueHearing);
+  if (!overdue.length) {
+    notice.style.display = "none";
+    notice.innerHTML = "";
+    return;
+  }
+
+  notice.style.display = "flex";
+  notice.innerHTML = `
+    <div>
+      <strong>${overdue.length} overdue hearing${overdue.length === 1 ? "" : "s"}</strong>
+      <span>Needs result, cancellation, or a new schedule.</span>
+    </div>
+    <small>Staff warning only. Notify student or parent after updating the hearing.</small>
+  `;
 }
 
 function renderCalendar(rows) {
@@ -272,20 +362,29 @@ function renderCalendar(rows) {
       .filter(item => isSameDay(toDateOnly(item.scheduled_date), day))
       .sort((a, b) => String(a.scheduled_time || "").localeCompare(String(b.scheduled_time || "")));
 
+    const dayClasses = [
+      "calendar-day",
+      day.getMonth() !== currentMonth.getMonth() ? "other-month" : "",
+      isSameDay(day, today) ? "today" : "",
+      dayHearings.length ? "has-events" : "",
+      dayHearings.some(isOverdueHearing) ? "has-overdue" : ""
+    ].filter(Boolean).join(" ");
+
     html += `
-      <div class="calendar-day ${day.getMonth() !== currentMonth.getMonth() ? "other-month" : ""} ${isSameDay(day, today) ? "today" : ""}">
+      <div class="${dayClasses}">
         <div class="calendar-day-number">${day.getDate()}</div>
         <div class="calendar-event-list">
           ${dayHearings.length
             ? dayHearings.slice(0, 3).map(item => `
-                <button type="button" class="calendar-event ${item.status}" onclick="selectHearing(${item.id})">
+                <button type="button" class="calendar-event ${item.status} ${isOverdueHearing(item) ? "overdue" : ""}" onclick="selectHearing(${item.id})">
                   <strong>${escapeHtml(formatTime(item.scheduled_time))}</strong>
                   <span>${escapeHtml(item.case_number)}</span>
+                  ${isOverdueHearing(item) ? `<em>Overdue</em>` : ""}
                 </button>
               `).join("")
-            : ""
+            : `<span class="calendar-empty-hint">No hearings</span>`
           }
-          ${dayHearings.length > 3 ? `<span class="muted">+${dayHearings.length - 3} more</span>` : ""}
+          ${dayHearings.length > 3 ? `<span class="calendar-day-more">+${dayHearings.length - 3} more</span>` : ""}
         </div>
       </div>
     `;
@@ -303,16 +402,19 @@ function renderTable(rows) {
   }
 
   const sorted = [...rows].sort((a, b) => {
-    const left = `${a.scheduled_date || ""} ${a.scheduled_time || ""}`;
-    const right = `${b.scheduled_date || ""} ${b.scheduled_time || ""}`;
+    const overdueSort = Number(isOverdueHearing(b)) - Number(isOverdueHearing(a));
+    if (overdueSort) return overdueSort;
+    const left = `${normalizeScheduleDate(a.scheduled_date)} ${a.scheduled_time || ""}`;
+    const right = `${normalizeScheduleDate(b.scheduled_date)} ${b.scheduled_time || ""}`;
     return left.localeCompare(right);
   });
 
   table.innerHTML = sorted.map(item => `
-    <tr>
+    <tr class="${isOverdueHearing(item) ? "hearing-row-overdue" : ""}">
       <td>
         <strong>${escapeHtml(formatDate(item.scheduled_date))}</strong><br>
         <span class="muted">${escapeHtml(formatTime(item.scheduled_time))}</span>
+        ${isOverdueHearing(item) ? `<br><span class="hearing-overdue-text">${escapeHtml(getOverdueText(item))}</span>` : ""}
       </td>
       <td>
         <strong>${escapeHtml(item.case_number)}</strong><br>
@@ -323,7 +425,8 @@ function renderTable(rows) {
         <span class="muted">${escapeHtml(item.location || "Location not set")}</span>
       </td>
       <td>
-        ${badge(item.status)}<br>
+        ${hearingStatusBadge(item)}<br>
+        ${isOverdueHearing(item) ? `<span class="muted">Needs result or reschedule</span><br>` : ""}
         <span class="muted">Case: ${escapeHtml(item.case_status || "-")}</span><br>
         <span class="muted">Created by ${escapeHtml(item.created_by_first_name || "-")} ${escapeHtml(item.created_by_last_name || "")}${item.created_by_role_label ? ` - ${escapeHtml(item.created_by_role_label)}` : ""}</span>
       </td>
@@ -340,6 +443,7 @@ function renderTable(rows) {
 function renderAll() {
   const rows = getFilteredHearings();
   renderSummary(rows);
+  renderOverdueNotice(rows);
   renderCalendar(rows);
   renderTable(rows);
 }
@@ -366,9 +470,12 @@ function updatePreview(item) {
     <div class="key-value-row"><strong>Violation</strong><span>${escapeHtml(item.violation_type || "-")}</span></div>
       <div class="key-value-row"><strong>Date & Time</strong><span>${escapeHtml(formatDate(item.scheduled_date))} at ${escapeHtml(formatTime(item.scheduled_time))}</span></div>
       <div class="key-value-row"><strong>Location</strong><span>${escapeHtml(item.location || "-")}</span></div>
-      <div class="key-value-row"><strong>Status</strong><span>${badge(item.status)}</span></div>
+      <div class="key-value-row"><strong>Status</strong><span>${hearingStatusBadge(item)}</span></div>
+      ${isOverdueHearing(item) ? `<div class="key-value-row is-urgent"><strong>Required Action</strong><span>${escapeHtml(getOverdueText(item))}. Record a result or reschedule.</span></div>` : ""}
+      <div class="key-value-row"><strong>Finding</strong><span>${badge(item.finding || "pending")}</span></div>
       <div class="key-value-row"><strong>Created By</strong><span>${escapeHtml(item.created_by_first_name || "-")} ${escapeHtml(item.created_by_last_name || "")}${item.created_by_role_label ? ` - ${escapeHtml(item.created_by_role_label)}` : ""}</span></div>
       <div class="key-value-row"><strong>Outcome</strong><span>${escapeHtml(item.outcome || "No notes recorded yet.")}</span></div>
+      <div class="key-value-row"><strong>Recommendation</strong><span>${escapeHtml(item.recommendation || "No recommendation recorded yet.")}</span></div>
     `;
 }
 
@@ -377,23 +484,78 @@ function clearSelection() {
   document.getElementById("scheduledDate").value = "";
   document.getElementById("scheduledTime").value = "";
   document.getElementById("location").value = "";
-  document.getElementById("status").value = "scheduled";
+  document.getElementById("hearingActionMode").value = "reschedule";
+  document.getElementById("finding").value = "pending";
   document.getElementById("outcome").value = "";
+  document.getElementById("recommendation").value = "";
   document.getElementById("result").textContent = "";
+  setHearingActionMode("reschedule");
   updatePreview(null);
+}
+
+function setHearingActionMode(mode) {
+  const isReschedule = mode === "reschedule";
+  const isResult = mode === "result";
+  const isMissed = mode === "missed";
+  document.getElementById("hearingActionMode").value = mode;
+  document.getElementById("hearingScheduleFields").style.display = isReschedule ? "grid" : "none";
+  document.getElementById("hearingResultFields").style.display = isReschedule ? "none" : "block";
+  document.getElementById("findingField").style.display = isResult ? "grid" : "none";
+  document.getElementById("recommendationField").style.display = isResult ? "grid" : "none";
+  document.querySelector("#outcomeField label").textContent = mode === "cancel"
+    ? "Cancellation Reason"
+    : isMissed
+      ? "Missed Hearing Notes"
+    : "Outcome / Attendance Notes";
+  document.getElementById("outcome").placeholder = mode === "cancel"
+    ? "Explain why this hearing is being cancelled."
+    : isMissed
+      ? "Document that the student missed the hearing and any follow-up instructions."
+    : "Document attendance and the final hearing outcome.";
+
+  [
+    ["rescheduleModeBtn", isReschedule],
+    ["resultModeBtn", isResult],
+    ["cancelModeBtn", mode === "cancel"],
+    ["missedModeBtn", isMissed]
+  ].forEach(([id, active]) => {
+    document.getElementById(id).classList.toggle("is-active", active);
+  });
+
+  document.getElementById("updateBtn").textContent = isReschedule
+    ? "Save New Schedule"
+    : isResult
+      ? "Save Hearing Result"
+      : isMissed
+        ? "Mark Hearing Missed"
+      : "Confirm Cancellation";
+  document.getElementById("result").textContent = "";
 }
 
 function selectHearing(id) {
   const item = hearingRows.find(row => Number(row.id) === Number(id));
   if (!item) return;
+  const canManage = item.status === "scheduled"
+    && Number(item.assigned_to_user_id) === Number(user.id);
 
   document.getElementById("hearingId").value = item.id;
-  document.getElementById("scheduledDate").value = item.scheduled_date ? String(item.scheduled_date).slice(0, 10) : "";
+  document.getElementById("scheduledDate").value = normalizeScheduleDate(item.scheduled_date);
   document.getElementById("scheduledTime").value = item.scheduled_time ? String(item.scheduled_time).slice(0, 5) : "";
   document.getElementById("location").value = item.location || "";
-  document.getElementById("status").value = item.status || "scheduled";
+  document.getElementById("finding").value = item.finding || "pending";
   document.getElementById("outcome").value = item.outcome || "";
+  document.getElementById("recommendation").value = item.recommendation || "";
   document.getElementById("result").textContent = "";
+  setHearingActionMode(isOverdueHearing(item) ? "result" : "reschedule");
+  document.querySelector(".hearing-action-switch").style.display = canManage ? "grid" : "none";
+  document.getElementById("hearingScheduleFields").style.display = canManage && !isOverdueHearing(item) ? "grid" : "none";
+  document.getElementById("hearingResultFields").style.display = canManage && isOverdueHearing(item) ? "block" : "none";
+  document.getElementById("updateBtn").style.display = canManage ? "" : "none";
+  if (!canManage) {
+    document.getElementById("result").textContent = item.status !== "scheduled"
+      ? "This hearing record is complete and read-only."
+      : "This hearing belongs to another case owner and is read-only.";
+  }
   updatePreview(item);
   openModal("hearingModal");
 }
@@ -412,36 +574,72 @@ async function loadHearings() {
 }
 
 async function saveHearing() {
-  return saveHearingWithStatus();
-}
-
-async function saveHearingWithStatus(forceStatus = null) {
   const hearingId = document.getElementById("hearingId").value;
   const result = document.getElementById("result");
+  const mode = document.getElementById("hearingActionMode").value;
+  const scheduledDate = document.getElementById("scheduledDate").value;
+  const scheduledTime = document.getElementById("scheduledTime").value;
+  const outcome = document.getElementById("outcome").value.trim();
+  const finding = document.getElementById("finding").value;
 
   if (!hearingId) {
     result.textContent = "Select a hearing first.";
     return;
   }
 
+  if (mode === "reschedule" && (!scheduledDate || !scheduledTime)) {
+    result.textContent = "Select a new hearing date and time.";
+    return;
+  }
+
+  if (mode === "result" && (finding === "pending" || !outcome)) {
+    result.textContent = "Select a final finding and enter outcome notes.";
+    return;
+  }
+
+  if (mode === "cancel" && !outcome) {
+    result.textContent = "Enter a cancellation reason.";
+    return;
+  }
+
+  if (mode === "missed" && !outcome) {
+    result.textContent = "Enter missed hearing notes before notifying the student.";
+    return;
+  }
+
+  const nextStatus = mode === "result" ? "completed" : mode === "cancel" ? "cancelled" : mode === "missed" ? "missed" : "scheduled";
   const res = await apiRequest(`/hearings/${hearingId}`, "PUT", {
-    scheduledDate: document.getElementById("scheduledDate").value,
-    scheduledTime: document.getElementById("scheduledTime").value,
+    scheduledDate,
+    scheduledTime,
     location: document.getElementById("location").value.trim(),
-    status: forceStatus || document.getElementById("status").value,
-    outcome: document.getElementById("outcome").value.trim()
+    status: nextStatus,
+    outcome: mode === "reschedule" ? "" : outcome,
+    finding: mode === "result" ? finding : "pending",
+    recommendation: mode === "result" ? document.getElementById("recommendation").value.trim() : ""
   }, true);
 
-  result.textContent = res.success ? "Hearing updated." : res.message;
+  result.textContent = res.success
+    ? mode === "result"
+      ? "Hearing result recorded."
+      : mode === "cancel"
+        ? "Hearing cancelled."
+        : mode === "missed"
+          ? "Hearing marked missed and the student email notice was queued."
+        : "Hearing rescheduled."
+    : res.message;
 
   if (res.success) {
     await loadHearings();
-    selectHearing(hearingId);
+    closeModal("hearingModal");
+    clearSelection();
   }
 }
 
 document.getElementById("updateBtn").addEventListener("click", saveHearing);
-document.getElementById("markHearingCompleteBtn").addEventListener("click", () => saveHearingWithStatus("completed"));
+document.getElementById("rescheduleModeBtn").addEventListener("click", () => setHearingActionMode("reschedule"));
+document.getElementById("resultModeBtn").addEventListener("click", () => setHearingActionMode("result"));
+document.getElementById("cancelModeBtn").addEventListener("click", () => setHearingActionMode("cancel"));
+document.getElementById("missedModeBtn").addEventListener("click", () => setHearingActionMode("missed"));
 document.getElementById("closeHearingModalBtn").addEventListener("click", () => {
   closeModal("hearingModal");
   clearSelection();

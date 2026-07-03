@@ -8,7 +8,7 @@
 </head>
 <body class="counselor-detail-page">
 
-<div class="dashboard-container">
+<div class="dashboard-container case-detail-workspace">
   <div class="topbar">
     <div>
       <h1>Counselor Case Detail</h1>
@@ -140,6 +140,7 @@
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
+<script src="../../js/core/case-messages.js"></script>
 <script>
 requireAuth();
 
@@ -414,7 +415,7 @@ async function loadCaseDetails() {
   const linkedParent = parents[0];
   const caseMeta = document.getElementById("caseMeta");
   if (caseMeta) {
-    caseMeta.innerHTML = `${item.case_number} | ${badge(item.status)} | ${badge(item.severity_level)}`;
+    caseMeta.innerHTML = `${item.case_number} | ${badge(item.operational_status || item.status)} | ${badge(item.severity_level)}`;
   }
 
   document.getElementById("caseInfo").innerHTML = `
@@ -427,7 +428,7 @@ async function loadCaseDetails() {
         <h2>${escapeHtml(item.case_number || "Case Detail")}</h2>
         <p>${escapeHtml(item.violation_type || "Student support case")} is currently in the <strong>${escapeHtml(labelize(currentStage))}</strong> stage.</p>
         <div class="counselor-detail-badges">
-          ${badge(item.status)}
+          ${badge(item.operational_status || item.status)}
           ${badge(item.severity_level)}
           <span class="soft-badge">${escapeHtml(item.assigned_to_first_name ? `${item.assigned_to_first_name} ${item.assigned_to_last_name || ""}`.trim() : "Unassigned")}</span>
         </div>
@@ -447,6 +448,7 @@ async function loadCaseDetails() {
     <div class="counselor-detail-stats">
       <div><span>Violation</span><strong>${escapeHtml(item.violation_type || "-")}</strong></div>
       <div><span>Incident Date</span><strong>${escapeHtml(formatDate(item.incident_date))}</strong></div>
+      <div><span>Incident Time</span><strong>${escapeHtml(formatDisplayTime(item.incident_time))}</strong></div>
       <div><span>Interventions</span><strong>${noteRows.length}</strong></div>
       <div><span>Active Follow-ups</span><strong>${activeFollowUps.length}</strong></div>
     </div>

@@ -6,103 +6,75 @@
   <title>Parent Dashboard</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="role-dashboard-page parent-family-page">
 
-<div class="dashboard-container dash-shell">
-  <div class="dash-hero">
-    <section class="dash-welcome">
-      <span class="eyebrow">Parent Portal</span>
-      <h1>Linked Student Overview</h1>
-      <p>Monitor linked student cases, hearings, sanctions, and upcoming meetings where parent awareness matters.</p>
-      <div class="dash-actions" style="margin-top:22px;">
-        <a href="cases.html"><button>Child Cases</button></a>
-        <a href="hearings.html"><button class="secondary">Hearings</button></a>
-      </div>
-    </section>
-
-    <aside class="dash-profile-card">
-      <div class="admin-profile-head">
+<div class="dashboard-container role-dashboard-shell">
+  <header class="parent-family-header role-dashboard-hero">
+    <div class="parent-heading">
+      <span class="eyebrow">Parent and Guardian Portal</span>
+      <h1>Welcome, <span id="parentName">Parent</span></h1>
+      <p>Stay informed about your linked students, school meetings, and responsibilities that need family attention.</p>
+    </div>
+    <div class="role-dashboard-side">
+      <div data-dashboard-weather></div>
+      <div class="parent-account-chip">
         <div class="admin-profile-avatar" id="parentInitials">P</div>
+        <div><strong>Guardian account</strong><span id="parentEmail">-</span></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="parent-alert-band">
+    <div>
+      <span class="role-kicker">Family attention</span>
+      <h2 id="parentAlertTitle">Checking linked student records...</h2>
+      <p id="parentAlertText">Upcoming hearings and active requirements will appear here.</p>
+    </div>
+    <a id="parentAlertLink" class="role-action primary" href="cases.html">Review child cases</a>
+  </section>
+
+  <section class="role-metric-grid parent-metric-grid" id="parentMetrics"></section>
+
+  <div class="parent-dashboard-grid">
+    <main class="role-panel parent-children-panel">
+      <div class="role-panel-head">
         <div>
-          <strong id="parentName">Parent</strong>
-          <span>Parent / Guardian Portal</span>
+          <span class="role-kicker">Linked students</span>
+          <h2>My Children</h2>
+          <p>School records connected to this guardian account.</p>
         </div>
       </div>
-      <div class="admin-profile-info">
-        <div><strong>Email</strong><span id="parentEmail">-</span></div>
-        <div><strong>User ID</strong><span id="parentId">-</span></div>
-        <div><strong>Role</strong><span>Parent / Guardian</span></div>
-        <div><strong>Scope</strong><span>Linked students only</span></div>
-      </div>
-    </aside>
-  </div>
-
-  <section class="dash-metrics" id="parentMetrics"></section>
-
-  <div class="dash-grid-main">
-    <main class="dash-stack">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Linked Student Analytics</h2>
-            <p class="muted">Case status and severity across formally linked students.</p>
-          </div>
-        </div>
-        <div class="case-analytics-grid">
-          <div class="case-analytics-block case-analytics-donut-block">
-            <span class="case-analytics-label">Linked Cases</span>
-            <div id="statusChart"></div>
-          </div>
-          <div class="case-analytics-block">
-            <span class="case-analytics-label">Status Distribution</span>
-            <div id="statusLegend"></div>
-          </div>
-          <div class="case-analytics-block">
-            <span class="case-analytics-label">Severity Distribution</span>
-            <div id="severityChart"></div>
-          </div>
-        </div>
-        <div id="parentAnalyticsSummary" class="case-analytics-summary"></div>
-      </section>
-
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Linked Students</h2>
-            <p class="muted">Students currently attached to your parent account.</p>
-          </div>
-        </div>
-        <div id="childrenOverview">Loading...</div>
-      </section>
+      <div id="childrenOverview">Loading...</div>
     </main>
 
-    <aside class="dash-stack">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Family Calendar</h2>
-            <p class="muted">Upcoming hearings and sanction follow-up dates.</p>
-          </div>
+    <aside class="role-panel parent-schedule-panel">
+      <div class="role-panel-head">
+        <div>
+          <span class="role-kicker">Family schedule</span>
+          <h2>Upcoming Items</h2>
+          <p>Hearings and sanction deadlines.</p>
         </div>
-        <div id="meetingCalendar"></div>
-      </section>
-
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Upcoming Items</h2>
-            <p class="muted">Dates connected to linked students.</p>
-          </div>
-        </div>
-        <div id="meetingCalendarList">Loading...</div>
-      </section>
+        <a href="hearings.html">All hearings</a>
+      </div>
+      <div id="meetingCalendarList">Loading...</div>
     </aside>
   </div>
+
+  <section class="parent-status-panel role-panel">
+    <div class="role-panel-head">
+      <div>
+        <span class="role-kicker">Case overview</span>
+        <h2>Linked Case Status</h2>
+      </div>
+    </div>
+    <div id="statusLegend"></div>
+  </section>
 </div>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/dashboard-widgets.js"></script>
+<script src="../../js/core/dashboard-weather.js"></script>
 <script>
 requireAuth();
 
@@ -113,6 +85,7 @@ if (!user || user.role !== "parent") {
 }
 
 const W = DashboardWidgets;
+DashboardWeather.mountAll();
 document.getElementById("parentName").textContent = getUserFullName(user);
 const parentAvatar = document.getElementById("parentInitials");
 const parentAvatarUrl = getAvatarUrl(user);
@@ -122,7 +95,6 @@ if (parentAvatarUrl) {
   parentAvatar.textContent = `${user.first_name?.[0] || "P"}${user.last_name?.[0] || ""}`.toUpperCase();
 }
 document.getElementById("parentEmail").textContent = user.email || "-";
-document.getElementById("parentId").textContent = user.employee_or_student_id || "-";
 
 function hearingToEvent(item) {
   return {
@@ -140,17 +112,21 @@ function sanctionToEvent(item) {
     time: "",
     title: `${W.labelize(item.sanction_type)} due`,
     meta: `${item.first_name || ""} ${item.last_name || ""} | ${W.labelize(item.status)}`,
-    url: "sanctions.html"
+    url: "cases.html"
   };
 }
 
 function renderDashboard({ children, cases, hearings, sanctions }) {
-  const scheduledHearings = hearings.filter(item => item.status === "scheduled");
+  const scheduledHearings = hearings.filter(item => item.status === "scheduled" && !item.has_overdue_hearing);
   const activeSanctions = sanctions.filter(item => item.status === "active");
   const openCases = cases.filter(item => W.isOpenStatus(item.status));
-  const statusCounts = W.groupBy(cases, "status");
+  const displayCases = cases.map(item => ({
+    ...item,
+    display_status: item.operational_status || item.status
+  }));
+  const statusCounts = W.groupBy(displayCases, "display_status");
   const severityCounts = W.groupBy(cases, "severity_level");
-  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"];
+  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "hearing_overdue", "resolved", "dismissed"];
   const caseSeverities = ["minor", "major", "grave"];
   const events = [...scheduledHearings.map(hearingToEvent), ...activeSanctions.map(sanctionToEvent).filter(item => item.date)];
 
@@ -161,27 +137,47 @@ function renderDashboard({ children, cases, hearings, sanctions }) {
     { icon: "SN", label: "Active Sanctions", value: activeSanctions.length, help: "Sanctions still being tracked" }
   ]);
 
-  W.renderDonut("statusChart", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No linked cases yet");
   W.renderStatusList("statusLegend", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No status data yet");
-  W.renderBars("severityChart", W.toSegments(severityCounts, caseSeverities, { includeZeros: true }), "No severity data yet");
-  W.renderSummary("parentAnalyticsSummary", [
-    { label: "Linked Students", value: children.length },
-    { label: "Open Cases", value: openCases.length },
-    { label: "Resolved", value: statusCounts.resolved || 0 },
-    { label: "Active Sanctions", value: activeSanctions.length }
-  ]);
-  W.renderCalendar("meetingCalendar", events);
   W.renderUpcoming("meetingCalendarList", events, "No upcoming hearings or sanction dates");
 
+  const alertTitle = document.getElementById("parentAlertTitle");
+  const alertText = document.getElementById("parentAlertText");
+  const alertLink = document.getElementById("parentAlertLink");
+  const overdueCase = cases.find(item => item.operational_status === "hearing_overdue");
+  if (overdueCase) {
+    alertTitle.textContent = "A linked case is waiting for a hearing update";
+    alertText.textContent = `${overdueCase.case_number} is marked hearing overdue. Open the record for the latest status.`;
+    alertLink.href = `case-details.html?id=${encodeURIComponent(overdueCase.id)}`;
+    alertLink.textContent = "Review overdue case";
+  } else if (scheduledHearings.length) {
+    const next = scheduledHearings[0];
+    alertTitle.textContent = "A student hearing is coming up";
+    alertText.textContent = `${next.case_number} is scheduled on ${W.formatDate(next.scheduled_date)}${next.scheduled_time ? ` at ${String(next.scheduled_time).slice(0, 5)}` : ""}.`;
+    alertLink.href = "hearings.html";
+    alertLink.textContent = "View hearing schedule";
+  } else if (activeSanctions.length) {
+    alertTitle.textContent = "A linked student has an active sanction";
+    alertText.textContent = "Review the sanction requirements and follow-up date with your child.";
+    alertLink.href = "cases.html";
+    alertLink.textContent = "Review linked cases";
+  } else {
+    alertTitle.textContent = "No urgent family action";
+    alertText.textContent = openCases.length
+      ? "Open cases are still being processed. Watch your notifications for school updates."
+      : "There are no active hearings, sanctions, or open cases for linked students.";
+    alertLink.href = "cases.html";
+    alertLink.textContent = "View linked cases";
+  }
+
   W.renderList("childrenOverview", children, "No linked student records found.", child => `
-    <div class="dash-case-row">
+    <a class="parent-child-card" href="cases.html">
       <span class="dash-avatar">${W.escapeHtml((child.first_name?.[0] || "S") + (child.last_name?.[0] || ""))}</span>
       <div>
         <strong>${W.escapeHtml(child.first_name)} ${W.escapeHtml(child.last_name)} (${W.escapeHtml(child.student_number)})</strong>
         <p>${W.escapeHtml(child.program || "-")} | ${W.escapeHtml(child.year_level || "-")} | ${W.escapeHtml(child.section || "-")}</p>
-        <p>Cases: ${child.total_cases} | Hearings: ${child.total_hearings} | Sanctions: ${child.total_sanctions}</p>
+        <div class="parent-child-counts"><span>${child.total_cases} cases</span><span>${child.total_hearings} hearings</span><span>${child.total_sanctions} sanctions</span></div>
       </div>
-    </div>
+    </a>
   `);
 }
 

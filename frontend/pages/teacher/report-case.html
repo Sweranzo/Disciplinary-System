@@ -21,6 +21,8 @@
     </div>
   </div>
 
+  <div id="submissionSuccessBanner" class="action-feedback is-success" style="display:none; margin-bottom:16px;" role="status" aria-live="polite"></div>
+
   <div class="split-grid page-section">
     <div class="card">
       <div class="card-header">
@@ -43,7 +45,7 @@
             <input type="text" id="studentId" placeholder="Enter student number">
           </div>
           <button type="button" id="lookupStudentBtn" class="compact-btn">Find Student</button>
-          <button type="button" id="openQrScannerBtn" class="secondary compact-btn">Scan QR Code</button>
+          <button type="button" id="openQrScannerBtn" class="secondary compact-btn" data-internet-feature="QR scanning loads a browser helper from the internet. Use student number lookup if offline.">Scan QR Code</button>
         </div>
         <div class="toolbar toolbar-compact" style="margin-top:12px;">
           <div class="field-stack">
@@ -57,13 +59,14 @@
               </span>
             </label>
           </div>
-          <button type="button" id="useQrImageBtn" class="secondary compact-btn">Read Uploaded QR</button>
+          <button type="button" id="useQrImageBtn" class="secondary compact-btn" data-internet-feature="Uploaded QR reading uses an external browser helper if it has not already loaded. Use student number lookup if offline.">Read Uploaded QR</button>
         </div>
         <p id="studentLookupResult" class="muted"></p>
         <p id="qrSupportHint" class="muted">Tip: if QR scan or image reading is unavailable in this browser, use the student number field for now.</p>
       </div>
 
       <div id="studentSnapshot" class="info-grid" style="display:none; margin-bottom:16px;"></div>
+      <div id="repeatWarningPanel" class="repeat-warning-panel" style="display:none; margin-bottom:16px;"></div>
 
       <div class="form-grid">
         <div class="field-stack">
@@ -97,6 +100,10 @@
           <label for="date">Incident Date</label>
           <input type="date" id="date">
         </div>
+        <div class="field-stack">
+          <label for="time">Incident Time</label>
+          <input type="time" id="time">
+        </div>
       </div>
       <div class="field-stack">
         <label for="location">Incident Location</label>
@@ -107,6 +114,11 @@
         <p class="field-helper">Include observable facts, context, witnesses, and immediate action taken.</p>
         <textarea id="description" placeholder="Describe what happened, what was observed, and any immediate action taken."></textarea>
       </div>
+      <div class="field-stack">
+        <label for="evidenceUnavailableReason">Evidence Unavailable Reason</label>
+        <input type="text" id="evidenceUnavailableReason" placeholder="Required if no evidence can be attached">
+      </div>
+      <div id="reportCompletenessPanel" class="empty-state" style="display:none; margin-top:16px;"></div>
     </div>
 
     <div class="card">
@@ -127,6 +139,22 @@
         <button type="button" class="secondary compact-btn" id="browseEvidenceBtn">Choose File</button>
       </div>
       <div id="evidenceFileList" class="upload-file-list" aria-live="polite"></div>
+      <div class="form-grid" style="margin-top:16px;">
+        <div class="field-stack">
+          <label for="evidenceCategory">Evidence Category</label>
+          <select id="evidenceCategory">
+            <option value="other">Other</option>
+            <option value="photo">Photo</option>
+            <option value="video">Video</option>
+            <option value="document">Document</option>
+            <option value="screenshot">Screenshot</option>
+            <option value="cctv">CCTV</option>
+            <option value="written_statement">Written Statement</option>
+            <option value="message_proof">Message Proof</option>
+            <option value="medical_note">Medical Note</option>
+          </select>
+        </div>
+      </div>
       <div id="evidenceUploadStatus" class="upload-status" aria-live="polite"></div>
       <div class="detail-item">
         <p><strong>Supported flow</strong></p>
@@ -141,7 +169,9 @@
 
   <div class="card page-section">
     <div class="action-row">
-      <button id="submitBtn">Submit Case</button>
+      <button id="checkCompletenessBtn" type="button" class="secondary">Check Completeness</button>
+      <button id="saveDraftBtn" type="button" class="secondary">Save Draft</button>
+      <button id="submitBtn" data-internet-feature="Submitting still creates the local case, but parent SMS and student email notices need internet to send.">Submit Case</button>
       <span id="result" class="muted"></span>
     </div>
     <div id="postCreateActions" style="display:none; margin-top:16px;">
@@ -159,6 +189,26 @@
 </div>
 
 <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+
+<div class="modal-backdrop" id="caseSubmittedModal" role="dialog" aria-modal="true" aria-labelledby="submittedCaseHeading">
+  <div class="modal-card report-submitted-modal">
+    <div class="card-header">
+      <div>
+        <span class="success-kicker">Submitted</span>
+        <h2 id="submittedCaseHeading">Your report has been submitted</h2>
+        <p class="muted" id="submittedCaseMessage">The incident report was sent successfully.</p>
+      </div>
+    </div>
+    <div class="detail-item">
+      <p><strong id="submittedCaseTitle">Case created successfully.</strong></p>
+      <p id="submittedParentSummary" class="muted"></p>
+    </div>
+    <div class="modal-actions">
+      <a id="submittedCaseLink" href="cases.html"><button type="button">Open Case Detail</button></a>
+      <button class="secondary" type="button" id="closeSubmittedCaseModalBtn">Close</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-backdrop" id="qrScannerModal">
   <div class="modal-card">
@@ -201,12 +251,19 @@ let qrStream = null;
 let qrDetectorInterval = null;
 let qrCanvas = null;
 let qrCanvasContext = null;
+let repeatCheckTimer = null;
 const violationCategories = [
   { group: "Academic", items: ["Academic Dishonesty", "Cheating", "Unauthorized Absence", "Classroom Misconduct"] },
   { group: "Conduct", items: ["Bullying", "Disrespectful Behavior", "Physical Altercation", "Harassment", "Threatening Behavior"] },
   { group: "Policy and Property", items: ["Dress Code Violation", "Vandalism", "Improper Use of Devices", "Substance-related Incident"] },
   { group: "Other", items: ["Other"] }
 ];
+
+function getTodayDateValue() {
+  const today = new Date();
+  const timezoneOffset = today.getTimezoneOffset() * 60000;
+  return new Date(today.getTime() - timezoneOffset).toISOString().slice(0, 10);
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -248,6 +305,51 @@ function setButtonBusy(button, isBusy, busyText = "Submitting...") {
   button.disabled = false;
 }
 
+function getSelectedViolationValue() {
+  return document.getElementById("violationOther").value.trim() || document.getElementById("violation").value.trim();
+}
+
+function renderRepeatWarning(summary) {
+  const panel = document.getElementById("repeatWarningPanel");
+  if (!summary || (!Number(summary.total_previous) && !Number(summary.similar_previous))) {
+    panel.style.display = "none";
+    panel.innerHTML = "";
+    return;
+  }
+
+  const similar = Number(summary.similar_previous || 0);
+  const total = Number(summary.total_previous || 0);
+  const cases = (summary.similar_cases?.length ? summary.similar_cases : summary.recent_cases || []).slice(0, 3);
+  panel.style.display = "block";
+  panel.innerHTML = `
+    <div class="repeat-warning-card ${similar ? "is-strong" : ""}">
+      <div>
+        <strong>${similar ? "Possible repeat violation" : "Previous case history found"}</strong>
+        <p>${similar} similar previous case(s), ${total} total previous case(s). Review context before submitting.</p>
+      </div>
+      ${cases.length ? `<div class="repeat-case-list">${cases.map(item => `
+        <span>${escapeHtml(item.case_number)} | ${escapeHtml(item.violation_type)} | ${escapeHtml(String(item.operational_status || item.status || "").replaceAll("_", " "))}</span>
+      `).join("")}</div>` : ""}
+    </div>
+  `;
+}
+
+async function checkRepeatViolationSoon() {
+  window.clearTimeout(repeatCheckTimer);
+  repeatCheckTimer = window.setTimeout(async () => {
+    const studentNumber = selectedStudent?.student_number || document.getElementById("studentId").value.trim();
+    const violation = getSelectedViolationValue();
+    if (!studentNumber || !violation) {
+      renderRepeatWarning(null);
+      return;
+    }
+
+    const query = new URLSearchParams({ studentNumber, violation });
+    const res = await apiRequest(`/cases/repeat-check?${query.toString()}`, "GET", null, true);
+    renderRepeatWarning(res.success ? res.repeat_warning : null);
+  }, 350);
+}
+
 function openModal(id) {
   const modal = document.getElementById(id);
   if (modal) {
@@ -262,6 +364,41 @@ function closeModal(id) {
   }
 }
 
+function showCaseSubmittedModal(createRes, successMessage) {
+  if (!createRes?.case) {
+    return;
+  }
+
+  const caseSummary = `${createRes.case.case_number} for ${createRes.case.student_name} (${createRes.case.student_number})`;
+  const parentSummary = buildParentNotificationSummary(createRes.parent_notification || {});
+
+  document.getElementById("submittedCaseMessage").textContent = successMessage || "Your report has been submitted successfully.";
+  document.getElementById("submittedCaseTitle").textContent = caseSummary;
+  document.getElementById("submittedParentSummary").textContent = parentSummary;
+  document.getElementById("submittedCaseLink").href = `case-details.html?id=${createRes.case.id}`;
+  openModal("caseSubmittedModal");
+}
+
+function showSubmissionConfirmation(createRes, successMessage) {
+  if (!createRes?.case) {
+    return;
+  }
+
+  const caseSummary = `${createRes.case.case_number} for ${createRes.case.student_name} (${createRes.case.student_number})`;
+  const parentSummary = buildParentNotificationSummary(createRes.parent_notification || {});
+  const banner = document.getElementById("submissionSuccessBanner");
+
+  banner.innerHTML = `<strong>Your report has been submitted.</strong><span>${escapeHtml(caseSummary)}</span>`;
+  banner.style.display = "flex";
+  banner.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  document.getElementById("createdCaseSummary").textContent = caseSummary;
+  document.getElementById("parentSmsSummary").textContent = parentSummary;
+  document.getElementById("openCaseLink").href = `case-details.html?id=${createRes.case.id}`;
+  document.getElementById("postCreateActions").style.display = "block";
+  showCaseSubmittedModal(createRes, successMessage);
+}
+
 async function uploadInitialEvidence(caseId) {
   const fileInput = document.getElementById("evidenceFile");
   const file = fileInput.files[0];
@@ -273,10 +410,46 @@ async function uploadInitialEvidence(caseId) {
   const formData = new FormData();
   formData.append("caseId", caseId);
   formData.append("file", file);
+  formData.append("evidenceCategory", document.getElementById("evidenceCategory").value || "other");
+  formData.append("evidencePurpose", "Initial teacher report evidence");
+  formData.append("sourceLabel", "Teacher upload");
 
   const result = await apiRequest("/evidence/upload", "POST", formData, true);
   setEvidenceUploadState(result.success ? "success" : "error", result.success ? "Evidence uploaded successfully." : result.message || "Evidence upload failed.");
   return result;
+}
+
+function buildReportPayload() {
+  const customViolation = document.getElementById("violationOther").value.trim();
+  const evidenceFile = document.getElementById("evidenceFile").files[0];
+  return {
+    studentNumber: document.getElementById("studentId").value.trim(),
+    studentId: selectedStudent?.id || null,
+    violation: customViolation || document.getElementById("violation").value.trim(),
+    severity: document.getElementById("severity").value,
+    date: document.getElementById("date").value,
+    time: document.getElementById("time").value,
+    location: document.getElementById("location").value.trim(),
+    description: document.getElementById("description").value.trim(),
+    evidenceUnavailableReason: document.getElementById("evidenceUnavailableReason").value.trim(),
+    hasEvidence: Boolean(evidenceFile),
+    evidenceCount: evidenceFile ? 1 : 0
+  };
+}
+
+function renderCompleteness(completeness) {
+  const panel = document.getElementById("reportCompletenessPanel");
+  if (!completeness) {
+    panel.style.display = "none";
+    panel.innerHTML = "";
+    return;
+  }
+
+  panel.style.display = "block";
+  panel.innerHTML = `
+    <strong>Report completeness: ${escapeHtml(completeness.score)}%</strong>
+    <p>${completeness.missing?.length ? `Missing: ${escapeHtml(completeness.missing.join(", "))}` : "This report has the required procedural details."}</p>
+  `;
 }
 
 function renderStudentSnapshot(student) {
@@ -287,14 +460,28 @@ function renderStudentSnapshot(student) {
     return;
   }
 
+  const studentName = student.full_name || `${student.first_name || ""} ${student.last_name || ""}`.trim();
+  const initials = studentName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase())
+    .join("") || "ST";
+  const avatarMarkup = student.avatar_url
+    ? `<img src="${escapeHtml(student.avatar_url)}" alt="${escapeHtml(studentName)} profile photo">`
+    : `<span>${escapeHtml(initials)}</span>`;
+
   container.style.display = "grid";
   container.innerHTML = `
-    <div><strong>Student Name</strong><span>${student.full_name || `${student.first_name || ""} ${student.last_name || ""}`.trim()}</span></div>
-    <div><strong>Student #</strong><span>${student.student_number || "-"}</span></div>
-    <div><strong>Department</strong><span>${student.department || "-"}</span></div>
-    <div><strong>Program</strong><span>${student.program || "-"}</span></div>
-    <div><strong>Year / Section</strong><span>${student.year_level || "-"} / ${student.section || "-"}</span></div>
-    <div><strong>Academic Level</strong><span>${student.academic_level || "-"}</span></div>
+    <div class="report-student-profile">
+      <div class="report-student-avatar ${student.avatar_url ? "has-image" : ""}">${avatarMarkup}</div>
+      <div><strong>Student Name</strong><span>${escapeHtml(studentName)}</span></div>
+    </div>
+    <div><strong>Student #</strong><span>${escapeHtml(student.student_number || "-")}</span></div>
+    <div><strong>Department</strong><span>${escapeHtml(student.department || "-")}</span></div>
+    <div><strong>Program</strong><span>${escapeHtml(student.program || "-")}</span></div>
+    <div><strong>Year / Section</strong><span>${escapeHtml(student.year_level || "-")} / ${escapeHtml(student.section || "-")}</span></div>
+    <div><strong>Academic Level</strong><span>${escapeHtml(student.academic_level || "-")}</span></div>
   `;
 }
 
@@ -320,18 +507,36 @@ function parseQrPayload(rawValue) {
 
 function buildParentNotificationSummary(notification = {}) {
   const notifiedParents = Number(notification.notifiedParents || 0);
+  const smsAttemptCount = Number(notification.smsAttemptCount || 0);
   const smsSentCount = Number(notification.smsSentCount || 0);
+  const smsFailedCount = Number(notification.smsFailedCount || 0);
+  const smsDisabledCount = Number(notification.smsDisabledCount || 0);
+  const parentEmailSentCount = Number(notification.parentEmailSentCount || 0);
+  const parentEmailFailedCount = Number(notification.parentEmailFailedCount || 0);
+  const parentEmailDisabledCount = Number(notification.parentEmailDisabledCount || 0);
+  const emailCopy = parentEmailSentCount > 0
+    ? ` Parent email sent: ${parentEmailSentCount}.`
+    : parentEmailFailedCount > 0
+      ? ` Parent email failed: ${parentEmailFailedCount}.`
+      : parentEmailDisabledCount > 0
+        ? " Parent email is disabled."
+        : "";
 
   if (smsSentCount > 0) {
-    return `Linked parent SMS sent: ${smsSentCount}. In-app parent notifications created: ${notifiedParents}.`;
+    const failureCopy = smsFailedCount > 0 ? ` Failed SMS attempts: ${smsFailedCount}.` : "";
+    return `Linked parent SMS sent: ${smsSentCount}.${failureCopy}${emailCopy} In-app parent notifications created: ${notifiedParents}.`;
   }
 
-  if (notifiedParents > 0 && notification.smsEnabled === false) {
-    return `Linked parents were notified inside the system, but SMS is not enabled yet. Configure SMS in the backend environment to send real text messages.`;
+  if (smsDisabledCount > 0 || (notifiedParents > 0 && notification.smsEnabled === false)) {
+    return `Linked parents were notified inside the system, but SMS is not enabled yet.${emailCopy} Configure SMS in the backend environment to send real text messages.`;
+  }
+
+  if (smsAttemptCount > 0 && smsFailedCount > 0) {
+    return `Linked parents were notified inside the system, but SMS delivery failed for ${smsFailedCount} linked parent record${smsFailedCount === 1 ? "" : "s"}.${emailCopy} Check the SMS logs in the admin area.`;
   }
 
   if (notifiedParents > 0) {
-    return `Linked parents were notified inside the system. No SMS message was delivered from this request.`;
+    return `Linked parents were notified inside the system.${emailCopy} No SMS message was delivered from this request.`;
   }
 
   return "No linked parent records were available for instant parent notification.";
@@ -362,6 +567,7 @@ async function lookupStudent({ studentNumber = "", qrToken = "" } = {}) {
   document.getElementById("studentId").value = res.student.student_number || studentNumber || "";
   renderStudentSnapshot(res.student);
   result.textContent = `Student identified: ${res.student.full_name}`;
+  checkRepeatViolationSoon();
   return res.student;
 }
 
@@ -515,8 +721,11 @@ function clearForm() {
   document.getElementById("violationSearch").value = "";
   document.getElementById("severity").value = "";
   document.getElementById("date").value = "";
+  document.getElementById("time").value = "";
   document.getElementById("location").value = "";
   document.getElementById("description").value = "";
+  document.getElementById("evidenceUnavailableReason").value = "";
+  document.getElementById("evidenceCategory").value = "other";
   document.getElementById("evidenceFile").value = "";
   document.getElementById("qrImageInput").value = "";
   document.getElementById("qrImageFileName").textContent = "PNG, JPG, or screenshot";
@@ -525,6 +734,17 @@ function clearForm() {
   document.getElementById("studentLookupResult").textContent = "";
   selectedStudent = null;
   renderStudentSnapshot(null);
+  renderCompleteness(null);
+}
+
+function enforceIncidentDateLimit() {
+  const dateInput = document.getElementById("date");
+  const todayValue = getTodayDateValue();
+  dateInput.max = todayValue;
+
+  if (dateInput.value && dateInput.value > todayValue) {
+    dateInput.value = todayValue;
+  }
 }
 
 function formatFileSize(bytes = 0) {
@@ -624,6 +844,7 @@ function selectViolation(value) {
     document.getElementById("violationOther").focus();
   }
   closeViolationMenu();
+  checkRepeatViolationSoon();
 }
 
 document.getElementById("submitBtn").addEventListener("click", async () => {
@@ -633,15 +854,13 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
   result.textContent = "Submitting incident report...";
 
   try {
-    const customViolation = document.getElementById("violationOther").value.trim();
-    const payload = {
-      studentNumber: document.getElementById("studentId").value.trim(),
-      violation: customViolation || document.getElementById("violation").value.trim(),
-      severity: document.getElementById("severity").value,
-      date: document.getElementById("date").value,
-      location: document.getElementById("location").value.trim(),
-      description: document.getElementById("description").value.trim()
-    };
+    const payload = buildReportPayload();
+
+    if (payload.date > getTodayDateValue()) {
+      result.textContent = "Incident date cannot be in the future.";
+      showToast("Incident date cannot be in the future.", "error");
+      return;
+    }
 
     const createRes = await apiRequest("/cases/create", "POST", payload, true);
     if (!createRes.success) {
@@ -653,21 +872,15 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
     const evidenceRes = await uploadInitialEvidence(createRes.case.id);
     let successMessage = "";
     if (evidenceRes.skipped) {
-      successMessage = "Case created successfully.";
+      successMessage = "Your report has been submitted successfully.";
     } else if (evidenceRes.success) {
-      successMessage = "Case created and evidence uploaded successfully.";
+      successMessage = "Your report has been submitted and the evidence was uploaded successfully.";
     } else {
-      successMessage = `Case created, but evidence upload failed: ${evidenceRes.message}`;
+      successMessage = `Your report has been submitted, but the evidence upload failed: ${evidenceRes.message}`;
     }
     result.textContent = successMessage;
     showToast(successMessage, "success");
-
-    document.getElementById("createdCaseSummary").textContent =
-        `${createRes.case.case_number} for ${createRes.case.student_name} (${createRes.case.student_number})`;
-    document.getElementById("parentSmsSummary").textContent =
-        buildParentNotificationSummary(createRes.parent_notification || {});
-    document.getElementById("openCaseLink").href = `case-details.html?id=${createRes.case.id}`;
-    document.getElementById("postCreateActions").style.display = "block";
+    showSubmissionConfirmation(createRes, successMessage);
 
     clearForm();
   } catch (error) {
@@ -678,10 +891,27 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
   }
 });
 
+document.getElementById("checkCompletenessBtn").addEventListener("click", async () => {
+  const result = document.getElementById("result");
+  result.textContent = "Checking report completeness...";
+  const res = await apiRequest("/case-process/report-completeness", "POST", buildReportPayload(), true);
+  renderCompleteness(res.completeness);
+  result.textContent = res.success ? "Completeness checked." : res.message;
+});
+
+document.getElementById("saveDraftBtn").addEventListener("click", async () => {
+  const result = document.getElementById("result");
+  result.textContent = "Saving report draft...";
+  const res = await apiRequest("/case-process/drafts", "POST", buildReportPayload(), true);
+  renderCompleteness(res.completeness);
+  result.textContent = res.success ? "Draft saved." : res.message;
+});
+
 document.getElementById("lookupStudentBtn").addEventListener("click", async () => {
   await lookupStudent({ studentNumber: document.getElementById("studentId").value.trim() });
 });
 
+document.getElementById("closeSubmittedCaseModalBtn").addEventListener("click", () => closeModal("caseSubmittedModal"));
 document.getElementById("openQrScannerBtn").addEventListener("click", openQrScanner);
 document.getElementById("closeQrScannerBtn").addEventListener("click", () => {
   stopQrScanner();
@@ -759,6 +989,7 @@ document.getElementById("violationOptions").addEventListener("click", event => {
 });
 document.getElementById("violationOther").addEventListener("input", event => {
   document.getElementById("violation").value = event.target.value.trim();
+  checkRepeatViolationSoon();
 });
 document.addEventListener("click", event => {
   if (!event.target.closest("#violationCombobox")) {
@@ -766,6 +997,8 @@ document.addEventListener("click", event => {
   }
 });
 renderViolationOptions();
+enforceIncidentDateLimit();
+document.getElementById("date").addEventListener("change", enforceIncidentDateLimit);
 window.addEventListener("beforeunload", stopQrScanner);
 </script>
 

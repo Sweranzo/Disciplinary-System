@@ -154,11 +154,12 @@
             </div>
             <div class="field-stack">
               <label for="newPassword">New Password</label>
-              <input id="newPassword" name="newPassword" type="password" minlength="6" required>
+              <input id="newPassword" name="newPassword" type="password" minlength="8" required>
+              <p class="field-helper">At least 8 characters with a letter, number, and special character.</p>
             </div>
             <div class="field-stack">
               <label for="confirmPassword">Confirm New Password</label>
-              <input id="confirmPassword" name="confirmPassword" type="password" minlength="6" required>
+              <input id="confirmPassword" name="confirmPassword" type="password" minlength="8" required>
             </div>
           </div>
           <div class="account-sticky-actions">
@@ -187,6 +188,13 @@ function setFeedback(id, message, type = "info") {
   const target = document.getElementById(id);
   target.className = `inline-feedback ${type}`;
   target.textContent = message || "";
+}
+
+function isStrongPassword(value) {
+  return String(value || "").length >= 8
+    && /[A-Za-z]/.test(value)
+    && /\d/.test(value)
+    && /[^A-Za-z0-9]/.test(value);
 }
 
 function renderAvatar(user) {
@@ -295,6 +303,11 @@ passwordForm.addEventListener("submit", async event => {
 
   if (newPassword !== confirmPassword) {
     setFeedback("passwordFeedback", "New password and confirmation do not match.", "error");
+    return;
+  }
+
+  if (!isStrongPassword(newPassword)) {
+    setFeedback("passwordFeedback", "Password must be at least 8 characters and include a letter, number, and special character.", "error");
     return;
   }
 

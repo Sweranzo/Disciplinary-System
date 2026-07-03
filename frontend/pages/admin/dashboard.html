@@ -6,104 +6,80 @@
   <title>Admin Dashboard</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="admin-page role-dashboard-page admin-command-page">
 
-<div class="dashboard-container dash-shell">
-  <div class="dash-hero">
-    <section class="dash-welcome">
-      <span class="eyebrow">Administrator Workspace</span>
-      <h1>System Overview</h1>
-      <p>Monitor disciplinary operations across cases, students, hearings, sanctions, appeals, and evidence review.</p>
-      <div class="dash-actions" style="margin-top:22px;">
-        <a href="cases.html"><button>Case Center</button></a>
-        <a href="students.html"><button class="secondary">Student Records</button></a>
-      </div>
-    </section>
+<div class="dashboard-container role-dashboard-shell">
+  <header class="admin-command-header role-dashboard-hero">
+    <div>
+      <span class="eyebrow">System Administration</span>
+      <h1>Good day, <span id="adminName">Admin</span></h1>
+      <p>Review operational pressure, resolve bottlenecks, and manage the records that keep the disciplinary process moving.</p>
+    </div>
+    <div class="role-dashboard-side">
+      <div data-dashboard-weather></div>
+    </div>
+  </header>
 
-    <aside class="dash-profile-card">
-      <div class="admin-profile-head">
-        <div class="admin-profile-avatar" id="adminCardAvatar">A</div>
-        <div>
-          <strong id="adminName">Admin</strong>
-          <span>Administrator / System Administrator</span>
-        </div>
-      </div>
-      <div class="admin-profile-info">
-        <div><strong>Email</strong><span id="adminEmail">-</span></div>
-        <div><strong>User ID</strong><span id="adminId">-</span></div>
-        <div><strong>Role</strong><span>System Administrator</span></div>
-        <div><strong>Last Login</strong><span id="adminLastLogin">-</span></div>
-      </div>
-    </aside>
-  </div>
+  <section class="role-metric-grid admin-metric-grid" id="adminMetrics"></section>
 
-  <section class="dash-metrics" id="adminMetrics"></section>
-
-  <div class="dash-grid-main">
-    <main class="dash-stack">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
+  <section class="admin-workspace-grid">
+    <div class="admin-workspace-main">
+      <div class="role-panel admin-priority-panel">
+        <div class="role-panel-head">
           <div>
-            <h2>System Case Analytics</h2>
-            <p class="muted">Status and severity distribution across the disciplinary system.</p>
+            <span class="role-kicker">Live workflow</span>
+            <h2>Priority Queue</h2>
+            <p>Cases requiring an administrative decision or intervention.</p>
           </div>
-        </div>
-        <div class="case-analytics-grid">
-          <div class="case-analytics-block case-analytics-donut-block">
-            <span class="case-analytics-label">Total Cases</span>
-            <div id="statusChart"></div>
-          </div>
-          <div class="case-analytics-block">
-            <span class="case-analytics-label">Status Distribution</span>
-            <div id="statusLegend"></div>
-          </div>
-          <div class="case-analytics-block">
-            <span class="case-analytics-label">Severity Distribution</span>
-            <div id="severityChart"></div>
-          </div>
-        </div>
-        <div id="analyticsSummary" class="case-analytics-summary"></div>
-      </section>
-
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Recent Cases</h2>
-            <p class="muted">Latest reported incidents across all roles.</p>
-          </div>
-          <a href="cases.html"><button class="secondary">View All</button></a>
+          <a href="cases.html">View all cases</a>
         </div>
         <div id="recentCases">Loading...</div>
-      </section>
-    </main>
+      </div>
 
-    <aside class="dash-stack">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
+      <div class="role-panel admin-case-load-panel">
+        <div class="role-panel-head">
           <div>
-            <h2>System Calendar</h2>
-            <p class="muted">All scheduled hearings and case meetings.</p>
+            <span class="role-kicker">System distribution</span>
+            <h2>Case Load Flow</h2>
+            <p>Live operational volume across the current case stages.</p>
           </div>
         </div>
-        <div id="meetingCalendar"></div>
-      </section>
+        <div id="caseFlowChart" class="case-flow-chart"></div>
+        <div id="analyticsSummary" class="case-analytics-summary"></div>
+      </div>
+    </div>
 
-      <section class="dash-panel">
-        <div class="dash-panel-head">
+    <aside class="admin-workspace-side">
+      <div class="role-panel admin-calendar-panel">
+        <div class="role-panel-head">
           <div>
-            <h2>Upcoming Hearings</h2>
-            <p class="muted">Next scheduled student meetings.</p>
+            <span class="role-kicker">Calendar</span>
+            <h2>Hearing Calendar</h2>
+            <p>Scheduled proceedings across the system.</p>
           </div>
+        </div>
+        <div id="meetingCalendar">Loading...</div>
+      </div>
+
+      <div class="role-panel">
+        <div class="role-panel-head">
+          <div>
+            <span class="role-kicker">Schedule</span>
+            <h2>Upcoming Hearings</h2>
+            <p>Next proceedings across the system.</p>
+          </div>
+          <a href="hearings.html">Full schedule</a>
         </div>
         <div id="meetingCalendarList">Loading...</div>
-      </section>
+      </div>
     </aside>
-  </div>
+  </section>
 </div>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/dashboard-widgets.js"></script>
+<script src="../../js/core/dashboard-weather.js"></script>
 <script>
 requireAuth();
 
@@ -114,18 +90,8 @@ if (!user || user.role !== "admin") {
 }
 
 const W = DashboardWidgets;
+DashboardWeather.mountAll();
 document.getElementById("adminName").textContent = getUserFullName(user);
-const adminAvatar = document.getElementById("adminCardAvatar");
-const adminAvatarUrl = getAvatarUrl(user);
-if (adminAvatarUrl) {
-  adminAvatar.innerHTML = `<img src="${adminAvatarUrl}" alt="${getUserFullName(user)} avatar">`;
-} else {
-  adminAvatar.textContent = `${user.first_name?.[0] || "A"}${user.last_name?.[0] || ""}`.toUpperCase();
-}
-document.getElementById("adminEmail").textContent = user.email || "-";
-document.getElementById("adminId").textContent = user.employee_or_student_id || "-";
-const lastLoginAt = localStorage.getItem("lastLoginAt") || new Date().toISOString();
-document.getElementById("adminLastLogin").textContent = formatSessionDate(lastLoginAt);
 
 function hearingToEvent(item) {
   return {
@@ -137,28 +103,102 @@ function hearingToEvent(item) {
   };
 }
 
-function renderDashboard({ cases, studentsTotal, hearings, sanctions, appeals, caseSummary }) {
+function getActionCount(actionSummary, action) {
+  return (actionSummary.counts || [])
+    .filter(item => item.next_action === action)
+    .reduce((sum, item) => sum + Number(item.total || 0), 0);
+}
+
+function summaryRowsToCounts(rows, key) {
+  return (rows || []).reduce((counts, item) => {
+    counts[item[key]] = Number(item.total || 0);
+    return counts;
+  }, {});
+}
+
+function renderCaseFlow(statusCounts, statuses) {
+  const container = document.getElementById("caseFlowChart");
+  const rows = statuses.map(status => ({
+    status,
+    label: W.labelize(status)
+      .replace("Under Investigation", "Investigating")
+      .replace("Hearing Scheduled", "Hearing"),
+    value: Number(statusCounts[status] || 0)
+  }));
+  const max = Math.max(...rows.map(item => item.value), 1);
+  const width = 760;
+  const height = 250;
+  const left = 42;
+  const right = 28;
+  const top = 30;
+  const bottom = 55;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const points = rows.map((item, index) => {
+    const x = left + (plotWidth * index) / Math.max(1, rows.length - 1);
+    const y = top + plotHeight - (item.value / max) * plotHeight;
+    return { ...item, x, y };
+  });
+  const line = points.map(point => `${point.x},${point.y}`).join(" ");
+  const area = `${left},${top + plotHeight} ${line} ${left + plotWidth},${top + plotHeight}`;
+
+  container.innerHTML = `
+    <svg class="case-flow-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Case load by operational status">
+      <defs>
+        <linearGradient id="caseFlowFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#d83b70" stop-opacity=".42"></stop>
+          <stop offset="100%" stop-color="#d83b70" stop-opacity=".03"></stop>
+        </linearGradient>
+        <filter id="caseFlowGlow">
+          <feGaussianBlur stdDeviation="4" result="blur"></feGaussianBlur>
+          <feMerge><feMergeNode in="blur"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+        </filter>
+      </defs>
+      ${[0, 1, 2, 3].map(index => {
+        const y = top + (plotHeight * index) / 3;
+        return `<line class="case-flow-gridline" x1="${left}" y1="${y}" x2="${left + plotWidth}" y2="${y}"></line>`;
+      }).join("")}
+      <polygon class="case-flow-area" points="${area}" fill="url(#caseFlowFill)"></polygon>
+      <polyline class="case-flow-line-glow" points="${line}" filter="url(#caseFlowGlow)"></polyline>
+      <polyline class="case-flow-line" points="${line}"></polyline>
+      ${points.map((point, index) => `
+        <g class="case-flow-point" style="--point-delay:${index * 110}ms">
+          <circle class="case-flow-pulse" cx="${point.x}" cy="${point.y}" r="10"></circle>
+          <circle class="case-flow-dot" cx="${point.x}" cy="${point.y}" r="5"></circle>
+          <text class="case-flow-value" x="${point.x}" y="${Math.max(18, point.y - 16)}" text-anchor="middle">${point.value}</text>
+          <text class="case-flow-label" x="${point.x}" y="${height - 20}" text-anchor="middle">${W.escapeHtml(point.label)}</text>
+        </g>
+      `).join("")}
+    </svg>
+  `;
+}
+
+function renderDashboard({ cases, studentsTotal, hearings, sanctions, appeals, caseSummary, actionSummary }) {
   const activeCases = cases.filter(item => W.isOpenStatus(item.status));
-  const scheduledHearings = hearings.filter(item => item.status === "scheduled");
+  const scheduledHearings = hearings.filter(item => item.status === "scheduled" && !item.has_overdue_hearing);
   const openAppeals = appeals.filter(item => ["submitted", "under_review"].includes(item.status));
-  const statusCounts = W.groupBy(cases, "status");
-  const severityCounts = W.groupBy(cases, "severity_level");
-  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"];
-  const caseSeverities = ["minor", "major", "grave"];
+  const displayCases = cases.map(item => ({
+    ...item,
+    display_status: item.operational_status || item.status
+  }));
+  const statusCounts = caseSummary.byStatus
+    ? summaryRowsToCounts(caseSummary.byStatus, "status")
+    : W.groupBy(displayCases, "display_status");
+  const totalCases = Number(caseSummary.totalCases ?? cases.length);
+  const activeCaseQueue = Number(caseSummary.activeCaseQueue ?? activeCases.length);
+  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "hearing_overdue", "resolved", "dismissed"];
 
   W.renderMetrics("adminMetrics", [
-    { icon: "CS", label: "Total Cases", value: caseSummary.totalCases ?? cases.length, help: "All disciplinary case records" },
-    { icon: "ST", label: "Students", value: studentsTotal, help: "Student records in the system" },
-    { icon: "MT", label: "Upcoming Hearings", value: scheduledHearings.length, help: "Scheduled meetings system-wide" },
-    { icon: "AP", label: "Open Appeals", value: openAppeals.length, help: "Submitted or under review" }
+    { icon: "RV", label: "Needs Review", value: getActionCount(actionSummary, "review_report"), help: "Reports waiting for validation" },
+    { icon: "AS", label: "Needs Assignment", value: getActionCount(actionSummary, "needs_assignment"), help: "Unowned active cases" },
+    { icon: "EV", label: "Evidence Review", value: getActionCount(actionSummary, "needs_evidence_review"), help: "Pending evidence decisions" },
+    { icon: "CL", label: "Ready to Close", value: getActionCount(actionSummary, "closure_checklist"), help: "Cases at closure checklist" }
   ]);
 
-  W.renderDonut("statusChart", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No cases yet");
-  W.renderStatusList("statusLegend", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No status data yet");
-  W.renderBars("severityChart", W.toSegments(severityCounts, caseSeverities, { includeZeros: true }), "No severity data yet");
+  renderCaseFlow(statusCounts, caseStatuses);
   W.renderSummary("analyticsSummary", [
-    { label: "Total", value: cases.length },
-    { label: "Open", value: activeCases.length },
+    { label: "Total", value: totalCases },
+    { label: "Open", value: activeCaseQueue },
     { label: "Closed / Resolved", value: statusCounts.resolved || 0 },
     { label: "Dismissed", value: statusCounts.dismissed || 0 }
   ]);
@@ -167,19 +207,32 @@ function renderDashboard({ cases, studentsTotal, hearings, sanctions, appeals, c
   W.renderUpcoming("meetingCalendarList", events, "No upcoming hearings");
 
   W.renderList("recentCases", cases.slice(0, 6), "No cases found.", item => `
-    <a class="dash-case-row" href="case-details.html?id=${item.id}">
-      <span class="badge ${item.status}">${W.labelize(item.status)}</span>
+    <a class="dash-case-row" href="case-details.html?id=${encodeURIComponent(item.id)}">
+      <span class="badge ${W.escapeHtml(item.operational_status || item.status)}">${W.labelize(item.operational_status || item.status)}</span>
       <div>
-        <strong>${W.escapeHtml(item.case_number)} | ${W.escapeHtml(item.first_name)} ${W.escapeHtml(item.last_name)}</strong>
+        <strong>${W.escapeHtml(item.case_number)} <span>${W.escapeHtml(item.first_name)} ${W.escapeHtml(item.last_name)}</span></strong>
         <p>${W.escapeHtml(item.violation_type)} | ${W.labelize(item.severity_level)} | ${W.formatDate(item.incident_date)}</p>
       </div>
     </a>
   `);
+
+  if (actionSummary.success && actionSummary.priority_cases?.length) {
+    W.renderList("recentCases", actionSummary.priority_cases, "No cases need action.", item => `
+      <a class="dash-case-row" href="case-details.html?id=${encodeURIComponent(item.id)}">
+        <span class="badge ${W.escapeHtml(item.operational_status || item.status)}">${W.labelize(item.operational_status || item.status)}</span>
+        <div>
+          <strong>${W.escapeHtml(item.case_number)} <span>${W.escapeHtml(item.first_name)} ${W.escapeHtml(item.last_name)}</span></strong>
+          <p>${W.escapeHtml(item.violation_type)} | ${W.labelize(item.severity_level)} | ${W.escapeHtml(item.next_action_notes || "")}</p>
+        </div>
+      </a>
+    `);
+  }
 }
 
 async function loadDashboard() {
-  const [caseSummary, cases, students, hearings, sanctions, appeals] = await Promise.all([
+  const [caseSummary, actionSummary, cases, students, hearings, sanctions, appeals] = await Promise.all([
     apiRequest("/cases/summary", "GET", null, true),
+    apiRequest("/cases/action-summary", "GET", null, true),
     apiRequest("/cases/all?page=1&limit=50", "GET", null, true),
     apiRequest("/students/all?limit=1&page=1", "GET", null, true),
     apiRequest("/hearings/all", "GET", null, true),
@@ -193,7 +246,8 @@ async function loadDashboard() {
     hearings: hearings.success ? hearings.hearings : [],
     sanctions: sanctions.success ? sanctions.sanctions : [],
     appeals: appeals.success ? appeals.appeals : [],
-    caseSummary: caseSummary.success ? caseSummary : {}
+    caseSummary: caseSummary.success ? caseSummary : {},
+    actionSummary: actionSummary.success ? actionSummary : { counts: [], priority_cases: [] }
   });
 }
 

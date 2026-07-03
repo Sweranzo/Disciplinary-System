@@ -1,0 +1,14 @@
+backend/.env
+backend/node_modules/
+backend/uploads/
+
+.env
+node_modules/
+npm-debug.log*
+
+# Private local backups and transfer packages
+disciplinary_system_backup*.sql
+backend.env.backup
+backups/
+transfer/
+Disciplinary-System-Transfer/

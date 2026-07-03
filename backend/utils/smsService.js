@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { logAudit } = require("./auditLogger");
 
 function isSmsEnabled() {
   return String(process.env.SMS_ENABLED || "").toLowerCase() === "true";
@@ -6,6 +7,60 @@ function isSmsEnabled() {
 
 function getSmsProvider() {
   return String(process.env.SMS_PROVIDER || "semaphore").trim().toLowerCase();
+}
+
+const SMS_TEMPLATE_CONFIG = Object.freeze({
+  caseReport: {
+    envKey: "SMS_TEMPLATE_CASE_REPORT",
+    label: "Case Report",
+    defaultValue: "Dear {parentName}, Philtech-GMA Disciplinary Alert: A new case ({caseNumber}) was reported for {studentName} regarding {violation} on {incidentDate}.{locationSentence} Please check the system or contact the school office for details."
+  },
+  hearingScheduled: {
+    envKey: "SMS_TEMPLATE_HEARING_SCHEDULED",
+    label: "Hearing Scheduled",
+    defaultValue: "Dear {parentName}, Philtech-GMA Hearing Notice: A hearing for case {caseNumber} is scheduled on {scheduledDate} at {scheduledTime}.{locationSentence} Please check the portal for details."
+  },
+  hearingUpdated: {
+    envKey: "SMS_TEMPLATE_HEARING_UPDATED",
+    label: "Hearing Updated",
+    defaultValue: "Dear {parentName}, Philtech-GMA {notificationTitle}: {notificationMessage}"
+  },
+  sanctionAssigned: {
+    envKey: "SMS_TEMPLATE_SANCTION_ASSIGNED",
+    label: "Sanction Assigned",
+    defaultValue: "Dear {parentName}, Philtech-GMA Sanction Notice: A {sanctionType} sanction was assigned for case {caseNumber}.{startDateSentence}{endDateSentence}"
+  },
+  sanctionUpdated: {
+    envKey: "SMS_TEMPLATE_SANCTION_UPDATED",
+    label: "Sanction Updated",
+    defaultValue: "Dear {parentName}, Philtech-GMA Sanction Update: Case {caseNumber} sanction is now {status}.{startDateSentence}{endDateSentence}"
+  }
+});
+
+function getSmsTemplates() {
+  return Object.entries(SMS_TEMPLATE_CONFIG).map(([key, config]) => ({
+    key,
+    envKey: config.envKey,
+    label: config.label,
+    value: process.env[config.envKey] || config.defaultValue,
+    defaultValue: config.defaultValue
+  }));
+}
+
+function getSmsTemplateValue(key) {
+  const config = SMS_TEMPLATE_CONFIG[key];
+  if (!config) {
+    return "";
+  }
+
+  return process.env[config.envKey] || config.defaultValue;
+}
+
+function renderSmsTemplate(key, values = {}) {
+  return getSmsTemplateValue(key)
+    .replace(/\{([A-Za-z0-9_]+)\}/g, (match, name) => String(values[name] ?? ""))
+    .replace(/[ \t]+/g, " ")
+    .trim();
 }
 
 function sanitizePhoneNumber(phoneNumber = "") {
@@ -71,7 +126,7 @@ async function logSms({
   failureReason = null,
   sentAt = null
 }) {
-  await pool.query(
+  const [result] = await pool.query(
     `
     INSERT INTO sms_logs
     (case_id, parent_id, phone_number, message, delivery_status, failure_reason, sent_at)
@@ -87,6 +142,55 @@ async function logSms({
       sentAt
     ]
   );
+  return result.insertId;
+}
+
+async function safeLogSms(logEntry) {
+  try {
+    return await logSms(logEntry);
+  } catch (error) {
+    console.error("SMS log error:", error);
+    return null;
+  }
+}
+
+function maskPhoneNumber(phoneNumber = "") {
+  const value = String(phoneNumber || "");
+  if (value.length <= 4) {
+    return value ? "****" : "";
+  }
+
+  return `${"*".repeat(Math.max(0, value.length - 4))}${value.slice(-4)}`;
+}
+
+async function auditSmsAttempt({
+  userId = null,
+  ipAddress = null,
+  smsLogId = null,
+  caseId = null,
+  parentId = null,
+  phoneNumber = "",
+  provider,
+  status,
+  failureReason = null,
+  message = ""
+}) {
+  await logAudit({
+    userId,
+    action: "SMS_SEND_ATTEMPT",
+    targetTable: "sms_logs",
+    targetId: smsLogId,
+    details: JSON.stringify({
+      provider,
+      status,
+      caseId,
+      parentId,
+      recipient: maskPhoneNumber(phoneNumber),
+      messageLength: String(message || "").length,
+      failureReason
+    }),
+    ipAddress
+  });
 }
 
 async function sendViaSemaphore(phoneNumber, message) {
@@ -204,7 +308,7 @@ async function sendViaPhilSms(phoneNumber, message) {
   return parsed;
 }
 
-async function sendSms({ caseId = null, parentId = null, phoneNumber, message }) {
+async function sendSms({ caseId = null, parentId = null, phoneNumber, message, userId = null, ipAddress = null }) {
   const provider = getSmsProvider();
   const normalizedPhone = provider === "twilio"
     ? normalizeTwilioPhoneNumber(phoneNumber)
@@ -213,13 +317,25 @@ async function sendSms({ caseId = null, parentId = null, phoneNumber, message })
       : sanitizePhoneNumber(phoneNumber);
 
   if (!normalizedPhone) {
-    await logSms({
+    const smsLogId = await safeLogSms({
       caseId,
       parentId,
       phoneNumber: phoneNumber || "",
       message,
       deliveryStatus: "failed",
       failureReason: "Parent phone number is missing."
+    });
+    await auditSmsAttempt({
+      userId,
+      ipAddress,
+      smsLogId,
+      caseId,
+      parentId,
+      phoneNumber: phoneNumber || "",
+      provider,
+      status: "failed",
+      failureReason: "Parent phone number is missing.",
+      message
     });
 
     return {
@@ -230,13 +346,25 @@ async function sendSms({ caseId = null, parentId = null, phoneNumber, message })
   }
 
   if (!isSmsEnabled()) {
-    await logSms({
+    const smsLogId = await safeLogSms({
       caseId,
       parentId,
       phoneNumber: normalizedPhone,
       message,
       deliveryStatus: "failed",
       failureReason: "SMS sending is disabled."
+    });
+    await auditSmsAttempt({
+      userId,
+      ipAddress,
+      smsLogId,
+      caseId,
+      parentId,
+      phoneNumber: normalizedPhone,
+      provider,
+      status: "disabled",
+      failureReason: "SMS sending is disabled.",
+      message
     });
 
     return {
@@ -261,13 +389,24 @@ async function sendSms({ caseId = null, parentId = null, phoneNumber, message })
         break;
     }
 
-    await logSms({
+    const smsLogId = await safeLogSms({
       caseId,
       parentId,
       phoneNumber: normalizedPhone,
       message,
       deliveryStatus: "sent",
       sentAt: new Date()
+    });
+    await auditSmsAttempt({
+      userId,
+      ipAddress,
+      smsLogId,
+      caseId,
+      parentId,
+      phoneNumber: normalizedPhone,
+      provider,
+      status: "sent",
+      message
     });
 
     return {
@@ -276,24 +415,40 @@ async function sendSms({ caseId = null, parentId = null, phoneNumber, message })
       providerResponse
     };
   } catch (error) {
-    await logSms({
+    const failureReason = error.message || "SMS provider request failed.";
+    const smsLogId = await safeLogSms({
       caseId,
       parentId,
       phoneNumber: normalizedPhone,
       message,
       deliveryStatus: "failed",
-      failureReason: error.message || "SMS provider request failed."
+      failureReason
+    });
+    await auditSmsAttempt({
+      userId,
+      ipAddress,
+      smsLogId,
+      caseId,
+      parentId,
+      phoneNumber: normalizedPhone,
+      provider,
+      status: "failed",
+      failureReason,
+      message
     });
 
     return {
       success: false,
       status: "failed",
-      reason: error.message || "SMS provider request failed."
+      reason: failureReason
     };
   }
 }
 
 module.exports = {
   sendSms,
-  isSmsEnabled
+  isSmsEnabled,
+  getSmsTemplates,
+  renderSmsTemplate,
+  SMS_TEMPLATE_CONFIG
 };

@@ -1,5 +1,7 @@
 const pool = require("../config/db");
+const path = require("path");
 const { logAudit } = require("../utils/auditLogger");
+const { createWorker } = require("tesseract.js");
 const {
   ALLOWED_ROLES,
   normalizeRole,
@@ -8,6 +10,7 @@ const {
   generateQrDataUrl,
   generateTemporaryPassword,
   hashPassword,
+  assertPasswordPolicy,
   assertUniqueUserFields,
   getStudentRecord,
   getParentRecord,
@@ -16,6 +19,9 @@ const {
   createParentRecord,
   linkParentStudent
 } = require("../utils/identityService");
+const { parseMasterlistText } = require("../utils/masterlistOcrParser");
+const { sendAccountCredentialsEmail } = require("../utils/emailService");
+const OCR_LANG_PATH = path.join(__dirname, "..", "node_modules", "@tesseract.js-data", "eng", "4.0.0");
 
 function getPageMeta(req) {
   const page = Math.max(1, Number(req.query.page) || 1);
@@ -29,6 +35,116 @@ function getPageMeta(req) {
 
 function escapeLike(value) {
   return `%${String(value || "").trim()}%`;
+}
+
+function slugifyUsernamePart(value = "") {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function buildStudentUsernameBase(row = {}) {
+  const firstName = slugifyUsernamePart(row.firstName);
+  const lastName = slugifyUsernamePart(row.lastName);
+  const studentDigits = String(row.studentNumber || "").replace(/\D/g, "").slice(-4);
+  const baseName = firstName || "student";
+  const lastInitial = lastName ? lastName[0] : "";
+  return `${baseName}${lastInitial}${studentDigits}` || `student${Date.now()}`;
+}
+
+function buildParentUsernameBase(row = {}) {
+  const firstName = slugifyUsernamePart(row.parentFirstName || row.firstName);
+  const lastName = slugifyUsernamePart(row.parentLastName || row.lastName);
+  const phoneDigits = String(row.parentPhoneNumber || row.phoneNumber || "").replace(/\D/g, "").slice(-4);
+  return `${firstName || "parent"}${lastName ? lastName[0] : ""}${phoneDigits}` || `parent${Date.now()}`;
+}
+
+async function isUsernameAvailable(connection, username) {
+  const [rows] = await connection.query(
+    `
+    SELECT id
+    FROM users
+    WHERE username = ?
+    LIMIT 1
+    `,
+    [username]
+  );
+
+  return rows.length === 0;
+}
+
+async function generateUniqueParentUsername(connection, row, reservedUsernames) {
+  const base = buildParentUsernameBase(row).slice(0, 36) || "parent";
+  let candidate = base;
+  let suffix = 1;
+
+  while (reservedUsernames.has(candidate) || !(await isUsernameAvailable(connection, candidate))) {
+    candidate = `${base}${suffix}`;
+    suffix += 1;
+  }
+
+  reservedUsernames.add(candidate);
+  return candidate;
+}
+
+async function generateUniqueStudentUsername(connection, row, reservedUsernames) {
+  const base = buildStudentUsernameBase(row).slice(0, 36) || "student";
+  let candidate = base;
+  let suffix = 1;
+
+  while (reservedUsernames.has(candidate) || !(await isUsernameAvailable(connection, candidate))) {
+    candidate = `${base}${suffix}`;
+    suffix += 1;
+  }
+
+  reservedUsernames.add(candidate);
+  return candidate;
+}
+
+function hasReviewedParent(row = {}) {
+  return Boolean(
+    String(row.parentFirstName || "").trim()
+      || String(row.parentLastName || "").trim()
+      || String(row.parentEmail || "").trim()
+      || String(row.parentPhoneNumber || "").trim()
+  );
+}
+
+async function findExistingParentForImport(connection, row = {}) {
+  const email = row.parentEmail ? String(row.parentEmail).trim() : "";
+  const phoneNumber = row.parentPhoneNumber ? String(row.parentPhoneNumber).trim() : "";
+
+  if (!email && !phoneNumber) {
+    return null;
+  }
+
+  const params = [];
+  const clauses = [];
+
+  if (email) {
+    clauses.push("email = ?");
+    params.push(email);
+  }
+
+  if (phoneNumber) {
+    clauses.push("phone_number = ?");
+    params.push(phoneNumber);
+  }
+
+  const [rows] = await connection.query(
+    `
+    SELECT id, user_id
+    FROM parents
+    WHERE ${clauses.join(" OR ")}
+    ORDER BY id ASC
+    LIMIT 1
+    `,
+    params
+  );
+
+  return rows[0] || null;
 }
 
 async function listUsers(req, res) {
@@ -525,6 +641,7 @@ async function resetPassword(req, res) {
   try {
     const { id } = req.params;
     const password = req.body.password || generateTemporaryPassword();
+    assertPasswordPolicy(password);
     const passwordHash = await hashPassword(password);
 
     const [result] = await pool.query(
@@ -547,6 +664,10 @@ async function resetPassword(req, res) {
     });
   } catch (error) {
     console.error("Reset password error:", error);
+    if (error.message && error.message.includes("Password must be")) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+
     return res.status(500).json({ success: false, message: "Server error while resetting password." });
   }
 }
@@ -998,45 +1119,46 @@ async function createStudent(req, res) {
       section,
       academicLevel,
       status,
-      createAccount,
-      username,
-      password,
-      parentLinkMode,
-      existingParentId,
       relationship,
       newParent
     } = req.body;
 
-    if (parentLinkMode === "existing" && existingParentId) {
-      const existingParent = await getParentRecord(connection, existingParentId);
-      if (!existingParent) {
-        throw new Error("Selected parent record was not found.");
-      }
-
-      if (!existingParent.phone_number || !String(existingParent.phone_number).trim()) {
-        throw new Error("Selected parent must have a phone number before being linked for SMS notifications.");
-      }
-    }
-
-    if (parentLinkMode === "new" && newParent && (!newParent.phoneNumber || !String(newParent.phoneNumber).trim())) {
-      throw new Error("New parent phone number is required for SMS notifications.");
-    }
-
     await connection.beginTransaction();
 
     let userId = null;
+    const credentials = [];
+    const studentEmail = email ? String(email).trim() : "";
 
-    if (createAccount) {
+    if (studentEmail) {
+      const generatedUsername = await generateUniqueStudentUsername(connection, {
+        studentNumber,
+        firstName,
+        lastName
+      }, new Set());
+      const generatedPassword = generateTemporaryPassword();
       userId = await createUserRecord(connection, {
         employeeOrStudentId: studentNumber,
-        username,
-        email,
-        password,
+        username: generatedUsername,
+        email: studentEmail,
+        password: generatedPassword,
         firstName,
         middleName,
         lastName,
         role: "student",
         status
+      });
+
+      credentials.push({
+        role: "student",
+        userId,
+        studentId: null,
+        studentNumber,
+        name: [firstName, middleName, lastName].filter(Boolean).join(" "),
+        username: generatedUsername,
+        password: generatedPassword,
+        email: studentEmail,
+        generatedUsername: true,
+        generatedPassword: true
       });
     }
 
@@ -1055,24 +1177,57 @@ async function createStudent(req, res) {
       recordStatus: status
     });
 
-    if (parentLinkMode === "existing" && existingParentId) {
-      await linkParentStudent(connection, createdStudent.id, existingParentId, relationship);
-    }
+    credentials
+      .filter(credential => credential.role === "student")
+      .forEach(credential => {
+        credential.studentId = createdStudent.id;
+      });
 
-    if (parentLinkMode === "new" && newParent) {
+    const hasManualParentDetails = newParent && Boolean(
+      String(newParent.firstName || "").trim()
+        || String(newParent.lastName || "").trim()
+        || String(newParent.email || "").trim()
+        || String(newParent.phoneNumber || "").trim()
+    );
+
+    if (hasManualParentDetails) {
+      if (!newParent.firstName || !newParent.lastName) {
+        throw new Error("Parent first name and last name are required when parent details are provided.");
+      }
+
       let parentUserId = null;
+      const parentEmail = newParent.email ? String(newParent.email).trim() : "";
 
-      if (newParent.createAccount) {
+      if (parentEmail) {
+        const parentUsername = await generateUniqueParentUsername(connection, {
+          parentFirstName: newParent.firstName,
+          parentLastName: newParent.lastName,
+          parentPhoneNumber: newParent.phoneNumber
+        }, new Set(credentials.map(credential => credential.username)));
+        const parentPassword = generateTemporaryPassword();
         parentUserId = await createUserRecord(connection, {
           employeeOrStudentId: null,
-          username: newParent.username,
-          email: newParent.email,
-          password: newParent.password,
+          username: parentUsername,
+          email: parentEmail,
+          password: parentPassword,
           firstName: newParent.firstName,
           middleName: newParent.middleName,
           lastName: newParent.lastName,
           role: "parent",
           status
+        });
+
+        credentials.push({
+          role: "parent",
+          userId: parentUserId,
+          parentId: null,
+          studentNumber,
+          name: [newParent.firstName, newParent.middleName, newParent.lastName].filter(Boolean).join(" "),
+          username: parentUsername,
+          password: parentPassword,
+          email: parentEmail,
+          generatedUsername: true,
+          generatedPassword: true
         });
       }
 
@@ -1087,17 +1242,50 @@ async function createStudent(req, res) {
         recordStatus: status
       });
 
+      credentials
+        .filter(credential => credential.role === "parent")
+        .forEach(credential => {
+          credential.parentId = parentId;
+        });
+
       await linkParentStudent(connection, createdStudent.id, parentId, relationship || "Parent/Guardian");
     }
 
     await connection.commit();
+
+    const emailNotifications = {
+      attempted: 0,
+      sent: 0,
+      failed: 0,
+      disabled: 0
+    };
+
+    for (const credential of credentials) {
+      emailNotifications.attempted += 1;
+      const emailResult = await sendAccountCredentialsEmail({
+        credential,
+        studentId: credential.studentId || null,
+        parentId: credential.parentId || null,
+        userId: credential.userId || null
+      });
+
+      if (emailResult.success) {
+        emailNotifications.sent += 1;
+      } else if (emailResult.status === "disabled") {
+        emailNotifications.disabled += 1;
+      } else {
+        emailNotifications.failed += 1;
+      }
+    }
 
     return res.status(201).json({
       success: true,
       message: "Student record created successfully.",
       studentId: createdStudent.id,
       qrToken: createdStudent.qrToken,
-      qrCodeDataUrl: await generateQrDataUrl(studentNumber, createdStudent.qrToken)
+      qrCodeDataUrl: await generateQrDataUrl(studentNumber, createdStudent.qrToken),
+      credentials,
+      emailNotifications
     });
   } catch (error) {
     await connection.rollback();
@@ -1157,6 +1345,117 @@ async function createStudentAccount(req, res) {
     return res.status(400).json({
       success: false,
       message: error.message || "Unable to create student account."
+    });
+  } finally {
+    connection.release();
+  }
+}
+
+async function deleteStudent(req, res) {
+  const connection = await pool.getConnection();
+
+  try {
+    const { id } = req.params;
+
+    const student = await getStudentRecord(connection, id);
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Student record not found." });
+    }
+
+    const [parentRows] = await connection.query(
+      `
+      SELECT p.id, p.user_id
+      FROM student_parents sp
+      JOIN parents p ON sp.parent_id = p.id
+      WHERE sp.student_id = ?
+      `,
+      [id]
+    );
+
+    await connection.beginTransaction();
+
+    await connection.query(
+      `
+      DELETE FROM students
+      WHERE id = ?
+      `,
+      [id]
+    );
+
+    let deletedStudentAccount = 0;
+    if (student.user_id) {
+      const [userDelete] = await connection.query(
+        `
+        DELETE FROM users
+        WHERE id = ?
+        `,
+        [student.user_id]
+      );
+      deletedStudentAccount = userDelete.affectedRows || 0;
+    }
+
+    let deletedParentProfiles = 0;
+    let deletedParentAccounts = 0;
+
+    for (const parent of parentRows) {
+      const [linkRows] = await connection.query(
+        `
+        SELECT COUNT(*) AS linked_count
+        FROM student_parents
+        WHERE parent_id = ?
+        `,
+        [parent.id]
+      );
+
+      if (Number(linkRows[0]?.linked_count || 0) > 0) {
+        continue;
+      }
+
+      await connection.query(
+        `
+        DELETE FROM parents
+        WHERE id = ?
+        `,
+        [parent.id]
+      );
+      deletedParentProfiles += 1;
+
+      if (parent.user_id) {
+        const [parentUserDelete] = await connection.query(
+          `
+          DELETE FROM users
+          WHERE id = ?
+          `,
+          [parent.user_id]
+        );
+        deletedParentAccounts += parentUserDelete.affectedRows || 0;
+      }
+    }
+
+    await logAudit({
+      userId: req.user.id,
+      action: "DELETE_STUDENT",
+      targetTable: "students",
+      targetId: Number(id),
+      details: `Deleted student ${student.student_number}. Deleted student account: ${deletedStudentAccount}. Deleted orphan parent profiles: ${deletedParentProfiles}.`,
+      ipAddress: req.ip
+    });
+
+    await connection.commit();
+
+    return res.json({
+      success: true,
+      message: "Student deleted successfully.",
+      deletedStudentAccount,
+      deletedParentProfiles,
+      deletedParentAccounts
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Delete student error:", error);
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Unable to delete student."
     });
   } finally {
     connection.release();
@@ -1250,11 +1549,93 @@ async function linkParentToStudentAdmin(req, res) {
   }
 }
 
+async function scanStudentMasterlist(req, res) {
+  let worker = null;
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Masterlist image is required."
+      });
+    }
+
+    worker = await createWorker("eng", 1, {
+      langPath: OCR_LANG_PATH
+    });
+    const result = await worker.recognize(req.file.buffer);
+    const rawText = result?.data?.text || "";
+    const parsedRows = parseMasterlistText(rawText);
+    const studentNumbers = parsedRows.map(row => row.studentNumber).filter(Boolean);
+    let existingNumbers = new Set();
+
+    if (studentNumbers.length) {
+      const placeholders = studentNumbers.map(() => "?").join(", ");
+      const [existingRows] = await pool.query(
+        `
+        SELECT student_number
+        FROM students
+        WHERE student_number IN (${placeholders})
+        `,
+        studentNumbers
+      );
+      existingNumbers = new Set(existingRows.map(row => row.student_number));
+    }
+
+    const rows = parsedRows.map(row => {
+      const issues = [...row.issues];
+      if (existingNumbers.has(row.studentNumber)) {
+        issues.push("Duplicate student number already exists");
+      }
+
+      return {
+        ...row,
+        duplicate: existingNumbers.has(row.studentNumber),
+        confidence: issues.length ? "needs_review" : "ready",
+        issues
+      };
+    });
+
+    await logAudit({
+      userId: req.user.id,
+      action: "SCAN_STUDENT_MASTERLIST",
+      targetTable: "students",
+      targetId: null,
+      details: `Scanned masterlist image and detected ${rows.length} possible student rows.`,
+      ipAddress: req.ip
+    });
+
+    return res.json({
+      success: true,
+      message: rows.length ? "Masterlist scan completed. Review detected rows before importing." : "No student rows were detected. Try a clearer image.",
+      rawText,
+      rows,
+      summary: {
+        detected: rows.length,
+        ready: rows.filter(row => row.confidence === "ready").length,
+        needsReview: rows.filter(row => row.confidence !== "ready").length,
+        duplicates: rows.filter(row => row.duplicate).length,
+        parentRows: rows.filter(row => hasReviewedParent(row)).length
+      }
+    });
+  } catch (error) {
+    console.error("Scan student masterlist error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while scanning the masterlist image."
+    });
+  } finally {
+    if (worker) {
+      await worker.terminate();
+    }
+  }
+}
+
 async function bulkImport(req, res) {
   const connection = await pool.getConnection();
 
   try {
-    const { importType, createLoginAccounts, rows } = req.body;
+    const { importType, createLoginAccounts, createParentLoginAccounts, rows } = req.body;
 
     if (!Array.isArray(rows) || !rows.length) {
       return res.status(400).json({ success: false, message: "Import rows are required." });
@@ -1265,33 +1646,74 @@ async function bulkImport(req, res) {
       total: rows.length,
       created: 0,
       skipped: 0,
-      errors: []
+      errors: [],
+      accountWarnings: [],
+      parentCreated: 0,
+      parentLinked: 0,
+      parentSkipped: 0,
+      parentAccountWarnings: [],
+      credentials: [],
+      emailNotifications: {
+        attempted: 0,
+        sent: 0,
+        failed: 0,
+        disabled: 0
+      }
     };
+    const reservedUsernames = new Set();
 
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
       const rowNumber = index + 1;
+      let createdCredential = null;
+      const rowCredentials = [];
 
       try {
         await connection.beginTransaction();
 
         if (importType === "students") {
           let userId = null;
+          let accountWarning = null;
           if (createLoginAccounts) {
-            userId = await createUserRecord(connection, {
-              employeeOrStudentId: row.studentNumber,
-              username: row.username,
-              email: row.email,
-              password: row.password || generateTemporaryPassword(),
-              firstName: row.firstName,
-              middleName: row.middleName,
-              lastName: row.lastName,
-              role: "student",
-              status: row.status || "active"
-            });
+            const username = row.username
+              ? String(row.username).trim()
+              : await generateUniqueStudentUsername(connection, row, reservedUsernames);
+            const password = row.password || generateTemporaryPassword();
+            const email = row.email ? String(row.email).trim() : "";
+
+            if (email) {
+              userId = await createUserRecord(connection, {
+                employeeOrStudentId: row.studentNumber,
+                username,
+                email,
+                password,
+                firstName: row.firstName,
+                middleName: row.middleName,
+                lastName: row.lastName,
+                role: "student",
+                status: row.status || "active"
+              });
+
+              createdCredential = {
+                row: rowNumber,
+                role: "student",
+                userId,
+                studentId: null,
+                studentNumber: row.studentNumber,
+                name: [row.firstName, row.middleName, row.lastName].filter(Boolean).join(" "),
+                username,
+                password,
+                email,
+                generatedUsername: !row.username,
+                generatedPassword: !row.password,
+                generatedEmail: false
+              };
+            } else {
+              accountWarning = "Login account was not created because email is blank.";
+            }
           }
 
-          await createStudentRecord(connection, {
+          const createdStudent = await createStudentRecord(connection, {
             userId,
             studentNumber: row.studentNumber,
             firstName: row.firstName,
@@ -1305,6 +1727,106 @@ async function bulkImport(req, res) {
             academicLevel: row.academicLevel || "college",
             recordStatus: row.status || "active"
           });
+
+          if (createdCredential) {
+            createdCredential.studentId = createdStudent.id;
+            rowCredentials.push(createdCredential);
+          }
+
+          if (hasReviewedParent(row)) {
+            if (!row.parentFirstName || !row.parentLastName || !row.parentPhoneNumber) {
+              summary.parentSkipped += 1;
+              summary.parentAccountWarnings.push({
+                row: rowNumber,
+                studentNumber: row.studentNumber,
+                message: "Parent was not imported because first name, last name, or phone number is blank."
+              });
+            } else {
+              let parentId = null;
+              const existingParent = await findExistingParentForImport(connection, row);
+
+              if (existingParent) {
+                parentId = existingParent.id;
+              } else {
+                let parentUserId = null;
+                let parentAccountWarning = null;
+                if (createParentLoginAccounts) {
+                  const parentEmail = row.parentEmail ? String(row.parentEmail).trim() : "";
+                  if (parentEmail) {
+                    const parentUsername = row.parentUsername
+                      ? String(row.parentUsername).trim()
+                      : await generateUniqueParentUsername(connection, row, reservedUsernames);
+                    const parentPassword = row.parentPassword || generateTemporaryPassword();
+                    parentUserId = await createUserRecord(connection, {
+                      employeeOrStudentId: null,
+                      username: parentUsername,
+                      email: parentEmail,
+                      password: parentPassword,
+                      firstName: row.parentFirstName,
+                      middleName: row.parentMiddleName,
+                      lastName: row.parentLastName,
+                      role: "parent",
+                      status: row.status || "active"
+                    });
+
+                    rowCredentials.push({
+                      row: rowNumber,
+                      role: "parent",
+                      userId: parentUserId,
+                      parentId: null,
+                      studentNumber: row.studentNumber,
+                      name: [row.parentFirstName, row.parentMiddleName, row.parentLastName].filter(Boolean).join(" "),
+                      username: parentUsername,
+                      password: parentPassword,
+                      email: parentEmail,
+                      generatedUsername: !row.parentUsername,
+                      generatedPassword: !row.parentPassword,
+                      generatedEmail: false
+                    });
+                  } else {
+                    parentAccountWarning = "Parent login account was not created because parent email is blank.";
+                  }
+                }
+
+                parentId = await createParentRecord(connection, {
+                  userId: parentUserId,
+                  firstName: row.parentFirstName,
+                  middleName: row.parentMiddleName,
+                  lastName: row.parentLastName,
+                  email: row.parentEmail,
+                  phoneNumber: row.parentPhoneNumber,
+                  address: row.parentAddress,
+                  recordStatus: row.status || "active"
+                });
+                summary.parentCreated += 1;
+
+                rowCredentials
+                  .filter(credential => credential.role === "parent" && credential.parentId === null)
+                  .forEach(credential => {
+                    credential.parentId = parentId;
+                  });
+
+                if (parentAccountWarning) {
+                  summary.parentAccountWarnings.push({
+                    row: rowNumber,
+                    studentNumber: row.studentNumber,
+                    message: parentAccountWarning
+                  });
+                }
+              }
+
+              await linkParentStudent(connection, createdStudent.id, parentId, row.parentRelationship || "Parent/Guardian");
+              summary.parentLinked += 1;
+            }
+          }
+
+          if (accountWarning) {
+            summary.accountWarnings.push({
+              row: rowNumber,
+              studentNumber: row.studentNumber,
+              message: accountWarning
+            });
+          }
         } else if (["teachers", "discipline_officers", "guidance_counselors", "admins"].includes(importType)) {
           const roleMap = {
             teachers: "teacher",
@@ -1356,6 +1878,25 @@ async function bulkImport(req, res) {
 
         await connection.commit();
         summary.created += 1;
+        summary.credentials.push(...rowCredentials);
+
+        for (const credential of rowCredentials) {
+          summary.emailNotifications.attempted += 1;
+          const emailResult = await sendAccountCredentialsEmail({
+            credential,
+            studentId: credential.studentId || null,
+            parentId: credential.parentId || null,
+            userId: credential.userId || null
+          });
+
+          if (emailResult.success) {
+            summary.emailNotifications.sent += 1;
+          } else if (emailResult.status === "disabled") {
+            summary.emailNotifications.disabled += 1;
+          } else {
+            summary.emailNotifications.failed += 1;
+          }
+        }
       } catch (error) {
         await connection.rollback();
         summary.skipped += 1;
@@ -1374,6 +1915,241 @@ async function bulkImport(req, res) {
   } catch (error) {
     console.error("Bulk import error:", error);
     return res.status(500).json({ success: false, message: "Server error during bulk import." });
+  } finally {
+    connection.release();
+  }
+}
+
+function buildBulkStudentDeleteFilter(filters = {}) {
+  const params = [];
+  let whereClause = "WHERE 1 = 1";
+
+  if (filters.search) {
+    whereClause += `
+      AND (
+        s.student_number LIKE ?
+        OR COALESCE(u.first_name, s.first_name) LIKE ?
+        OR COALESCE(u.last_name, s.last_name) LIKE ?
+        OR COALESCE(u.email, s.email) LIKE ?
+      )
+    `;
+    const pattern = `%${String(filters.search).trim()}%`;
+    params.push(pattern, pattern, pattern, pattern);
+  }
+
+  if (filters.status) {
+    whereClause += " AND COALESCE(u.status, s.record_status) = ?";
+    params.push(filters.status);
+  }
+
+  if (filters.accountType === "with_account") {
+    whereClause += " AND s.user_id IS NOT NULL";
+  } else if (filters.accountType === "profile_only") {
+    whereClause += " AND s.user_id IS NULL";
+  }
+
+  if (filters.academicLevel && ["college", "shs"].includes(filters.academicLevel)) {
+    whereClause += " AND s.academic_level = ?";
+    params.push(filters.academicLevel);
+  }
+
+  if (filters.program) {
+    whereClause += " AND s.program = ?";
+    params.push(String(filters.program).trim());
+  }
+
+  if (filters.yearLevel) {
+    whereClause += " AND s.year_level = ?";
+    params.push(String(filters.yearLevel).trim());
+  }
+
+  if (filters.section) {
+    whereClause += " AND s.section = ?";
+    params.push(String(filters.section).trim());
+  }
+
+  return { whereClause, params };
+}
+
+function hasSafeBulkDeleteScope(filters = {}) {
+  const scopedFilters = ["academicLevel", "program", "yearLevel", "section", "search"]
+    .filter(key => String(filters[key] || "").trim());
+
+  return Boolean(filters.section) || scopedFilters.length >= 2;
+}
+
+async function bulkDeleteStudents(req, res) {
+  const connection = await pool.getConnection();
+
+  try {
+    const filters = req.body?.filters || {};
+    const dryRun = Boolean(req.body?.dryRun);
+
+    if (!hasSafeBulkDeleteScope(filters)) {
+      return res.status(400).json({
+        success: false,
+        message: "Choose a section, or at least two filters such as program and year level, before bulk deleting students."
+      });
+    }
+
+    const { whereClause, params } = buildBulkStudentDeleteFilter(filters);
+    const [matchedRows] = await connection.query(
+      `
+      SELECT
+        s.id,
+        s.user_id,
+        s.student_number,
+        COALESCE(u.first_name, s.first_name) AS first_name,
+        COALESCE(u.middle_name, s.middle_name) AS middle_name,
+        COALESCE(u.last_name, s.last_name) AS last_name,
+        COALESCE(u.email, s.email) AS email,
+        s.program,
+        s.year_level,
+        s.section,
+        s.academic_level,
+        COALESCE(u.status, s.record_status) AS status,
+        u.username
+      FROM students s
+      LEFT JOIN users u ON s.user_id = u.id
+      ${whereClause}
+      ORDER BY s.student_number ASC
+      `,
+      params
+    );
+
+    const selectedIds = Array.isArray(req.body?.studentIds)
+      ? new Set(req.body.studentIds.map(id => Number(id)).filter(Boolean))
+      : null;
+    const rows = selectedIds
+      ? matchedRows.filter(row => selectedIds.has(Number(row.id)))
+      : matchedRows;
+    const count = rows.length;
+    const confirmText = `DELETE ${count} STUDENTS`;
+
+    if (!count) {
+      return res.json({
+        success: true,
+        dryRun,
+        count: 0,
+        confirmText,
+        sample: [],
+        message: "No students match the selected filters."
+      });
+    }
+
+    if (dryRun) {
+      return res.json({
+        success: true,
+        dryRun: true,
+        count,
+        confirmText,
+        sample: rows.slice(0, 8).map(row => row.student_number),
+        students: rows.map(row => ({
+          id: row.id,
+          studentNumber: row.student_number,
+          firstName: row.first_name,
+          middleName: row.middle_name,
+          lastName: row.last_name,
+          email: row.email,
+          program: row.program,
+          yearLevel: row.year_level,
+          section: row.section,
+          academicLevel: row.academic_level,
+          status: row.status,
+          username: row.username,
+          hasAccount: Boolean(row.user_id)
+        })),
+        message: `${count} student record(s) match the selected filters.`
+      });
+    }
+
+    if (req.body?.confirmText !== confirmText) {
+      return res.status(400).json({
+        success: false,
+        count,
+        confirmText,
+        message: `Type "${confirmText}" to confirm this bulk delete.`
+      });
+    }
+
+    await connection.beginTransaction();
+
+    const studentIds = rows.map(row => row.id);
+    const userIds = rows.map(row => row.user_id).filter(Boolean);
+    const studentPlaceholders = studentIds.map(() => "?").join(", ");
+    const [parentRows] = await connection.query(
+      `
+      SELECT
+        p.id,
+        p.user_id,
+        COUNT(DISTINCT sp_all.student_id) AS linked_student_count,
+        COUNT(DISTINCT CASE WHEN sp_all.student_id IN (${studentPlaceholders}) THEN sp_all.student_id END) AS selected_student_count
+      FROM parents p
+      JOIN student_parents sp_selected
+        ON sp_selected.parent_id = p.id
+        AND sp_selected.student_id IN (${studentPlaceholders})
+      LEFT JOIN student_parents sp_all
+        ON sp_all.parent_id = p.id
+      GROUP BY p.id, p.user_id
+      HAVING linked_student_count = selected_student_count
+      `,
+      [...studentIds, ...studentIds]
+    );
+    const parentIds = parentRows.map(row => row.id).filter(Boolean);
+    const parentUserIds = parentRows.map(row => row.user_id).filter(Boolean);
+
+    await connection.query(
+      `DELETE FROM students WHERE id IN (${studentPlaceholders})`,
+      studentIds
+    );
+
+    if (userIds.length) {
+      const userPlaceholders = userIds.map(() => "?").join(", ");
+      await connection.query(
+        `DELETE FROM users WHERE role = 'student' AND id IN (${userPlaceholders})`,
+        userIds
+      );
+    }
+
+    if (parentIds.length) {
+      const parentPlaceholders = parentIds.map(() => "?").join(", ");
+      await connection.query(
+        `DELETE FROM parents WHERE id IN (${parentPlaceholders})`,
+        parentIds
+      );
+    }
+
+    if (parentUserIds.length) {
+      const parentUserPlaceholders = parentUserIds.map(() => "?").join(", ");
+      await connection.query(
+        `DELETE FROM users WHERE role = 'parent' AND id IN (${parentUserPlaceholders})`,
+        parentUserIds
+      );
+    }
+
+    await logAudit({
+      userId: req.user.id,
+      action: "BULK_DELETE_STUDENTS",
+      targetTable: "students",
+      targetId: null,
+      details: `Bulk deleted ${count} student records, ${parentIds.length} parent profiles, and ${parentUserIds.length} parent accounts using filters: ${JSON.stringify(filters)}.`,
+      ipAddress: req.ip
+    });
+
+    await connection.commit();
+
+    return res.json({
+      success: true,
+      deleted: count,
+      deletedAccounts: userIds.length,
+      deletedParentProfiles: parentIds.length,
+      deletedParentAccounts: parentUserIds.length,
+      message: `Deleted ${count} student record(s).`
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Bulk delete students error:", error);
+    return res.status(500).json({ success: false, message: "Server error while bulk deleting students." });
   } finally {
     connection.release();
   }
@@ -1686,9 +2462,12 @@ module.exports = {
   createParent,
   updateParent,
   createStudent,
+  deleteStudent,
   createStudentAccount,
   createParentAccount,
   linkParentToStudentAdmin,
+  scanStudentMasterlist,
   bulkImport,
+  bulkDeleteStudents,
   linkExistingUserToProfile
 };

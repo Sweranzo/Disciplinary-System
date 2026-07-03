@@ -2,6 +2,7 @@ const pool = require("../config/db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { logAudit } = require("../utils/auditLogger");
+const { assertPasswordPolicy } = require("../utils/identityService");
 
 function formatRoleLabel(role = "") {
   return role
@@ -493,12 +494,7 @@ async function changeMyPassword(req, res) {
       });
     }
 
-    if (String(newPassword).length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: "New password must be at least 6 characters long."
-      });
-    }
+    assertPasswordPolicy(newPassword);
 
     const [rows] = await pool.query(
       `
@@ -553,6 +549,13 @@ async function changeMyPassword(req, res) {
     });
   } catch (error) {
     console.error("Change password error:", error);
+    if (error.message && error.message.includes("Password must be")) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
     return res.status(500).json({
       success: false,
       message: "Server error while updating password."

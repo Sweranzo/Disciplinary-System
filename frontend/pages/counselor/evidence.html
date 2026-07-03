@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
 <body>
-
 <div class="dashboard-container">
   <div class="topbar">
     <div>
@@ -15,9 +14,16 @@
       <p class="muted">View uploaded case evidence and review status for student support context.</p>
     </div>
     <div class="action-row">
-      <a href="dashboard.html"><button class="secondary">Back</button></a>
-      <button onclick="logout()">Logout</button>
+      <a href="dashboard.html"><button type="button" class="secondary compact-btn">Back</button></a>
+      <button onclick="logout()" type="button" class="compact-btn">Logout</button>
     </div>
+  </div>
+
+  <div class="summary-band">
+    <div class="summary-chip"><strong>Total Files</strong><span id="evidenceTotal">0</span></div>
+    <div class="summary-chip"><strong>Pending</strong><span id="evidencePending">0</span></div>
+    <div class="summary-chip"><strong>Approved</strong><span id="evidenceApproved">0</span></div>
+    <div class="summary-chip"><strong>Rejected</strong><span id="evidenceRejected">0</span></div>
   </div>
 
   <div class="card page-section">
@@ -26,38 +32,24 @@
         <h2>Evidence</h2>
         <p class="muted">Counselor access is read-only; evidence review remains with admin and discipline officers.</p>
       </div>
+      <button type="button" id="refreshBtn" class="secondary">Refresh</button>
     </div>
-    <div class="table-wrap">
-      <div class="toolbar">
-        <input type="search" id="evidenceSearch" placeholder="Search case, student, file, review note">
-        <select id="statusFilter">
-          <option value="">All Review Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Case</th>
-            <th>Student</th>
-            <th>File</th>
-            <th>Uploaded</th>
-            <th>Status</th>
-            <th>Review Note</th>
-          </tr>
-        </thead>
-        <tbody id="evidenceTable">
-          <tr><td colspan="6">Loading...</td></tr>
-        </tbody>
-      </table>
+    <div class="toolbar">
+      <input type="search" id="evidenceSearch" placeholder="Search case, student, file, uploader, notes">
+      <select id="statusFilter">
+        <option value="">All Review Statuses</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+      </select>
     </div>
+    <div id="evidenceTable" class="evidence-library-list">Loading...</div>
   </div>
 </div>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
+<script src="../../js/admin/evidence-workspace.js"></script>
 <script>
 requireAuth();
 const user = getUser();
@@ -66,70 +58,10 @@ if (!user || user.role !== "guidance_counselor") {
   logout();
 }
 
-function badge(value) {
-  return `<span class="badge ${value}">${String(value || "-").replaceAll("_", " ")}</span>`;
-}
-
-let allEvidence = [];
-
-async function loadEvidence() {
-  const res = await apiRequest("/evidence/all", "GET", null, true);
-  const table = document.getElementById("evidenceTable");
-
-  if (!res.success) {
-    table.innerHTML = `<tr><td colspan="6">${res.message}</td></tr>`;
-    return;
-  }
-
-  allEvidence = res.evidence || [];
-  applyFilters();
-}
-
-function renderEvidence(items) {
-  const table = document.getElementById("evidenceTable");
-
-  if (!items.length) {
-    table.innerHTML = `<tr><td colspan="6">No evidence found.</td></tr>`;
-    return;
-  }
-
-  table.innerHTML = items.map(item => `
-    <tr>
-      <td><strong>${item.case_number}</strong><br><a href="case-details.html?id=${item.case_id}">Open Case</a></td>
-      <td>${item.first_name} ${item.last_name} (${item.student_number})</td>
-      <td><a href="http://localhost:5000${item.file_path}" target="_blank">${item.original_name || item.file_name}</a></td>
-      <td>${formatDisplayDateTime(item.uploaded_at)}</td>
-      <td>${badge(item.review_status)}</td>
-      <td>${item.review_notes || "-"}</td>
-    </tr>
-  `).join("");
-}
-
-function applyFilters() {
-  const search = document.getElementById("evidenceSearch").value.trim().toLowerCase();
-  const status = document.getElementById("statusFilter").value;
-
-  renderEvidence(allEvidence.filter(item => {
-    const matchesStatus = !status || item.review_status === status;
-    const matchesSearch = !search || [
-      item.case_number,
-      item.first_name,
-      item.last_name,
-      item.student_number,
-      item.original_name,
-      item.file_name,
-      item.review_status,
-      item.review_notes
-    ].some(value => String(value || "").toLowerCase().includes(search));
-
-    return matchesStatus && matchesSearch;
-  }));
-}
-
-document.getElementById("evidenceSearch").addEventListener("input", applyFilters);
-document.getElementById("statusFilter").addEventListener("change", applyFilters);
-loadEvidence();
+initEvidenceWorkspace({
+  canReview: false,
+  caseDetailsPath: "case-details.html"
+});
 </script>
-
 </body>
 </html>

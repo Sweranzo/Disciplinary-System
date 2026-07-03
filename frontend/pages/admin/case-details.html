@@ -6,9 +6,9 @@
   <title>Admin Case Oversight</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="admin-page">
 
-<div class="dashboard-container">
+<div class="dashboard-container case-detail-workspace">
   <div class="topbar">
     <div>
       <span class="eyebrow">Case Oversight</span>
@@ -17,6 +17,7 @@
     </div>
     <div class="action-row">
       <a href="cases.html"><button class="secondary">Back</button></a>
+      <button type="button" id="printCaseReportBtn" class="secondary">Print Report</button>
       <button onclick="logout()">Logout</button>
     </div>
   </div>
@@ -44,6 +45,7 @@
       <div class="quick-grid">
         <a href="#overviewSection" class="section-tab active">Overview</a>
         <a href="#timelineSection" class="section-tab">Timeline</a>
+        <a href="#hearingSection" class="section-tab">Hearings</a>
         <a href="#evidenceSection" class="section-tab">Evidence</a>
         <a href="#appealSection" class="section-tab">Appeals</a>
       </div>
@@ -53,6 +55,7 @@
   <div class="section-tabs">
     <a href="#overviewSection" class="section-tab active">Overview</a>
     <a href="#timelineSection" class="section-tab">Timeline</a>
+    <a href="#hearingSection" class="section-tab">Hearings</a>
     <a href="#evidenceSection" class="section-tab">Evidence</a>
     <a href="#appealSection" class="section-tab">Appeals</a>
   </div>
@@ -72,7 +75,7 @@
       <div class="card-header">
         <div>
           <h2>Assignment & Actions</h2>
-          <p class="muted">Update staff assignment and overall case status.</p>
+          <p class="muted">Update staff assignment and use workflow actions to move the case forward. Status is automated.</p>
         </div>
       </div>
       <div class="soft-panel">
@@ -81,16 +84,7 @@
           <select id="assignedToUserId"></select>
           <button id="assignBtn">Assign Case</button>
         </div>
-        <div class="form-grid" style="margin-top:12px;">
-          <select id="statusSelect">
-            <option value="pending">Pending</option>
-            <option value="under_investigation">Under Investigation</option>
-            <option value="hearing_scheduled">Hearing Scheduled</option>
-            <option value="dismissed">Dismissed</option>
-            <option value="resolved">Resolved</option>
-          </select>
-          <button id="saveStatusBtn" class="secondary">Save Status</button>
-        </div>
+        <div class="inline-note" style="margin-top:12px;">Status flow: pending -> under investigation -> hearing scheduled -> resolved/dismissed. Workflow actions update status automatically.</div>
         <div class="action-row" style="margin-top:12px;">
           <button id="reopenCaseBtn" type="button" style="display:none;">Reopen Case</button>
         </div>
@@ -107,6 +101,17 @@
       </div>
     </div>
     <div class="soft-panel" id="descriptionPanel">Loading...</div>
+  </div>
+
+  <div class="card case-section" id="hearingSection">
+    <div class="card-header">
+      <div>
+        <h2>Hearings</h2>
+        <p class="muted">Scheduled dates, locations, attendance outcomes, and hearing results.</p>
+      </div>
+      <a href="hearings.html"><button type="button" class="secondary">Open Calendar</button></a>
+    </div>
+    <div id="hearingList">Loading...</div>
   </div>
 
   <div class="case-summary-grid case-section" id="timelineSection">
@@ -160,6 +165,8 @@
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
+<script src="../../js/core/case-messages.js"></script>
+<script src="../../js/core/case-report-print.js"></script>
 <script>
 requireAuth();
 
@@ -171,9 +178,239 @@ if (!user || user.role !== "admin") {
 
 const caseId = new URLSearchParams(window.location.search).get("id");
 let currentCase = null;
+let currentTimeline = null;
+let staffOptions = [];
 
 function badge(value) {
   return `<span class="badge ${String(value).toLowerCase().replaceAll(" ", "_")}">${String(value).replaceAll("_", " ")}</span>`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function labelize(value) {
+  return String(value || "-").replaceAll("_", " ");
+}
+
+function getHearingTimestamp(item = {}) {
+  if (!item.scheduled_date) return Number.POSITIVE_INFINITY;
+  const datePart = String(item.scheduled_date).slice(0, 10);
+  const timePart = item.scheduled_time ? String(item.scheduled_time).slice(0, 8) : "23:59:59";
+  const date = new Date(`${datePart}T${timePart}`);
+  return Number.isNaN(date.getTime()) ? Number.POSITIVE_INFINITY : date.getTime();
+}
+
+function getNextHearing(hearings = []) {
+  const scheduled = hearings.filter(item => item.status === "scheduled");
+  const source = scheduled.length ? scheduled : hearings;
+  return [...source].sort((a, b) => getHearingTimestamp(a) - getHearingTimestamp(b))[0] || null;
+}
+
+function formatHearingSchedule(item = {}) {
+  if (!item || !item.scheduled_date) return "No hearing scheduled";
+  const date = formatDisplayDate(item.scheduled_date);
+  const time = formatDisplayTime(item.scheduled_time);
+  return `${date}${time !== "-" ? ` at ${time}` : ""}${item.location ? ` in ${item.location}` : ""}`;
+}
+
+function hearingStatusBadge(item = {}) {
+  return Number(item.has_overdue_hearing) ? badge("hearing_overdue") : badge(item.status || "scheduled");
+}
+
+function renderWorkflowPanel(caseItem, timeline = {}, repeatWarning = {}) {
+  const events = timeline.workflowEvents || [];
+  const acknowledgements = timeline.acknowledgements || [];
+  const closureReadiness = timeline.closureReadiness || { checks: [], ready: false, missing: [] };
+  const similarCount = Number(repeatWarning.similar_previous || 0);
+  const reviewStatus = caseItem.review_status || "pending_review";
+  const canClose = !isClosedCase(caseItem.status);
+  const counselorOptions = staffOptions
+    .filter(staff => staff.role === "guidance_counselor")
+    .map(staff => `<option value="${staff.id}">${escapeHtml(`${staff.first_name} ${staff.last_name}`)} (${escapeHtml(staff.role)})</option>`)
+    .join("");
+
+  return `
+    <div class="workflow-overview-grid">
+      <div class="workflow-summary-tile ${!caseItem.assigned_to_user_id ? "needs-attention" : ""}">
+        <span>Owner</span>
+        <strong>${escapeHtml(caseItem.owner_label || (caseItem.assigned_to_first_name ? `${caseItem.assigned_to_first_name} ${caseItem.assigned_to_last_name}` : "Unassigned"))}</strong>
+        <small>${!caseItem.assigned_to_user_id ? "Needs assignment" : "Case has an active owner"}</small>
+      </div>
+      <div class="workflow-summary-tile">
+        <span>Workflow</span>
+        <strong>${escapeHtml(caseItem.workflow_status_label || labelize(caseItem.workflow_status))}</strong>
+        <small>${escapeHtml(caseItem.next_action_notes || "Review the next action.")}</small>
+      </div>
+      <div class="workflow-summary-tile needs-attention">
+        <span>Next Required Action</span>
+        <strong>${escapeHtml(caseItem.next_action_label || labelize(caseItem.next_action))}</strong>
+        <small>${escapeHtml(caseItem.review_status_label || labelize(reviewStatus))}</small>
+      </div>
+      <div class="workflow-summary-tile ${similarCount ? "needs-attention" : ""}">
+        <span>Repeat Awareness</span>
+        <strong>${similarCount} similar</strong>
+        <small>${Number(repeatWarning.total_previous || 0)} previous case(s)</small>
+      </div>
+    </div>
+
+    <div class="workflow-control-grid">
+      <div class="soft-panel">
+        <h3>Review Report</h3>
+        <p class="muted">Confirm whether the teacher report is valid, incomplete, duplicate, or needs more evidence.</p>
+        <div class="form-grid">
+          <select id="reviewStatusSelect">
+            ${["pending_review", "validated", "incomplete", "duplicate", "needs_more_evidence"].map(status => `<option value="${status}" ${reviewStatus === status ? "selected" : ""}>${labelize(status)}</option>`).join("")}
+          </select>
+          <input type="number" id="duplicateCaseId" placeholder="Duplicate case ID" value="${caseItem.duplicate_of_case_id || ""}">
+        </div>
+        <textarea id="reviewNotes" placeholder="Review notes">${escapeHtml(caseItem.next_action_notes || "")}</textarea>
+        <div class="action-row">
+          <button id="saveReviewBtn" type="button">Save Review</button>
+          <span id="reviewResult" class="muted"></span>
+        </div>
+      </div>
+
+      <div class="soft-panel">
+        <h3>Closure Checklist</h3>
+        <p class="muted">Close only after review, ownership, evidence, hearing outcome, and final remarks are complete.</p>
+        ${(closureReadiness.checks || []).map(check => `
+          <label class="check-row"><input type="checkbox" disabled ${check.complete ? "checked" : ""}> ${escapeHtml(check.label)}</label>
+        `).join("") || `<div class="empty-state">Checklist will load after case details refresh.</div>`}
+        <div class="form-grid">
+          <select id="closureFinalStatus">
+            <option value="resolved">Resolved</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
+          <input type="text" id="closureNotes" placeholder="Final remarks">
+        </div>
+        <div class="action-row">
+          <button id="closeCaseWorkflowBtn" type="button" ${canClose ? "" : "disabled"}>Close Case</button>
+          <span id="closureResult" class="muted"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="workflow-control-grid">
+      <div class="soft-panel">
+        <h3>Request More Information</h3>
+        <p class="muted">Send a clear task back to the reporter when the report or evidence is incomplete.</p>
+        <textarea id="infoRequestMessage" placeholder="What exactly should the reporter clarify or upload?"></textarea>
+        <div class="action-row">
+          <button id="requestInfoBtn" type="button">Send Request</button>
+          <span id="infoRequestResult" class="muted"></span>
+        </div>
+      </div>
+
+      <div class="soft-panel">
+        <h3>Duplicate Resolution</h3>
+        <p class="muted">Link this record to the original case and dismiss it when it is truly duplicate.</p>
+        <div class="form-grid">
+          <input type="number" id="resolveDuplicateCaseId" placeholder="Original case ID" value="${caseItem.duplicate_of_case_id || ""}">
+          <select id="duplicateResolutionAction">
+            <option value="dismiss_duplicate">Dismiss duplicate</option>
+            <option value="link_only">Link only</option>
+          </select>
+        </div>
+        <input type="text" id="duplicateResolutionNotes" placeholder="Resolution notes">
+        <div class="action-row">
+          <button id="resolveDuplicateBtn" type="button">Resolve Duplicate</button>
+          <span id="duplicateResolutionResult" class="muted"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="soft-panel" style="margin-bottom:16px;">
+      <h3>Counseling Handoff</h3>
+      <p class="muted">Create a planned counselor follow-up task when a case needs guidance support.</p>
+      <div class="form-grid">
+        <select id="counselorUserId">
+          <option value="">Select counselor</option>
+          ${counselorOptions}
+        </select>
+        <input type="date" id="counselorFollowUpDate">
+      </div>
+      <textarea id="counselorHandoffNote" placeholder="Counseling context, recommendation, or follow-up intent"></textarea>
+      <div class="action-row">
+        <button id="counselorHandoffBtn" type="button">Create Handoff</button>
+        <span id="counselorHandoffResult" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="workflow-control-grid">
+      <div class="soft-panel">
+        <h3>Acknowledgements</h3>
+        ${acknowledgements.length ? `<div class="detail-list">${acknowledgements.map(item => `
+          <div class="detail-item"><strong>${escapeHtml(`${item.first_name || ""} ${item.last_name || ""}`.trim() || item.username)}</strong><p class="muted">${escapeHtml(item.role_label)} | ${formatDisplayDateTime(item.acknowledged_at)}</p></div>
+        `).join("")}</div>` : `<div class="empty-state">No student or parent acknowledgement yet.</div>`}
+      </div>
+      <div class="soft-panel">
+        <h3>Procedure Timeline</h3>
+        ${events.length ? `<div class="workflow-timeline-list">${events.map(event => `
+          <div class="workflow-timeline-item">
+            <strong>${escapeHtml(event.title || labelize(event.event_type))}</strong>
+            <p>${escapeHtml(event.details || "")}</p>
+            <small>${escapeHtml(`${event.first_name || ""} ${event.last_name || ""}`.trim() || "System")} | ${formatDisplayDateTime(event.created_at)}</small>
+          </div>
+        `).join("")}</div>` : `<div class="empty-state">No workflow events recorded yet.</div>`}
+      </div>
+    </div>
+  `;
+}
+
+function wireWorkflowControls() {
+  document.getElementById("saveReviewBtn")?.addEventListener("click", async () => {
+    const res = await apiRequest(`/cases/${caseId}/review`, "PUT", {
+      reviewStatus: document.getElementById("reviewStatusSelect").value,
+      duplicateOfCaseId: document.getElementById("duplicateCaseId").value || null,
+      notes: document.getElementById("reviewNotes").value.trim()
+    }, true);
+    document.getElementById("reviewResult").textContent = res.success ? "Review saved." : res.message;
+    if (res.success) loadCaseDetails();
+  });
+
+  document.getElementById("closeCaseWorkflowBtn")?.addEventListener("click", async () => {
+    const res = await apiRequest(`/cases/${caseId}/close`, "PUT", {
+      finalStatus: document.getElementById("closureFinalStatus").value,
+      closureNotes: document.getElementById("closureNotes").value.trim(),
+      checklist: {}
+    }, true);
+    document.getElementById("closureResult").textContent = res.success ? "Case closed." : res.message;
+    if (res.success) loadCaseDetails();
+  });
+
+  document.getElementById("requestInfoBtn")?.addEventListener("click", async () => {
+    const res = await apiRequest(`/cases/${caseId}/request-info`, "POST", {
+      message: document.getElementById("infoRequestMessage").value.trim()
+    }, true);
+    document.getElementById("infoRequestResult").textContent = res.success ? "Request sent." : res.message;
+    if (res.success) loadCaseDetails();
+  });
+
+  document.getElementById("resolveDuplicateBtn")?.addEventListener("click", async () => {
+    const res = await apiRequest(`/cases/${caseId}/resolve-duplicate`, "POST", {
+      duplicateOfCaseId: document.getElementById("resolveDuplicateCaseId").value,
+      action: document.getElementById("duplicateResolutionAction").value,
+      notes: document.getElementById("duplicateResolutionNotes").value.trim()
+    }, true);
+    document.getElementById("duplicateResolutionResult").textContent = res.success ? "Duplicate resolved." : res.message;
+    if (res.success) loadCaseDetails();
+  });
+
+  document.getElementById("counselorHandoffBtn")?.addEventListener("click", async () => {
+    const res = await apiRequest(`/cases/${caseId}/counseling-handoff`, "POST", {
+      counselorUserId: document.getElementById("counselorUserId").value,
+      note: document.getElementById("counselorHandoffNote").value.trim(),
+      followUpDate: document.getElementById("counselorFollowUpDate").value
+    }, true);
+    document.getElementById("counselorHandoffResult").textContent = res.success ? "Counseling handoff created." : res.message;
+    if (res.success) loadCaseDetails();
+  });
 }
 
 function renderItems(containerId, items, emptyMessage, mapFn) {
@@ -183,6 +420,107 @@ function renderItems(containerId, items, emptyMessage, mapFn) {
     return;
   }
   el.innerHTML = `<div class="detail-list">${items.map(mapFn).join("")}</div>`;
+}
+
+function renderFormalProcess(process = {}) {
+  const auditChecks = process.audit?.checks || [];
+  const witnesses = process.witnesses || [];
+  const policies = process.policies || [];
+  const decisions = process.decisions || [];
+  return `
+    <div class="workflow-overview-grid">
+      <div class="workflow-summary-tile">
+        <span>Witnesses</span><strong>${witnesses.length}</strong><small>People involved or observed</small>
+      </div>
+      <div class="workflow-summary-tile">
+        <span>Policy References</span><strong>${policies.length}</strong><small>Rules linked to decision</small>
+      </div>
+      <div class="workflow-summary-tile">
+        <span>Decisions</span><strong>${decisions.length}</strong><small>Formal findings recorded</small>
+      </div>
+      <div class="workflow-summary-tile ${process.audit?.status === "blocked" ? "needs-attention" : ""}">
+        <span>Strict Audit</span><strong>${process.audit?.score ?? 0}%</strong><small>${labelize(process.audit?.status || "pending")}</small>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-top:16px;">
+      <input id="formalWitnessName" type="text" placeholder="Witness or involved person">
+      <input id="formalWitnessRole" type="text" placeholder="Role / relation">
+      <button type="button" id="addFormalWitnessBtn" class="secondary">Add Witness</button>
+    </div>
+    <div class="form-grid" style="margin-top:12px;">
+      <input id="formalPolicyCode" type="text" placeholder="Policy code">
+      <input id="formalPolicyTitle" type="text" placeholder="Policy or rule title">
+      <button type="button" id="addFormalPolicyBtn" class="secondary">Add Policy</button>
+    </div>
+    <div class="form-grid" style="margin-top:12px;">
+      <select id="formalDecisionFinding">
+        <option value="responsible">Responsible</option>
+        <option value="not_responsible">Not Responsible</option>
+        <option value="resolved">Resolved</option>
+        <option value="dismissed">Dismissed</option>
+        <option value="insufficient_evidence">Insufficient Evidence</option>
+      </select>
+      <input id="formalDecisionBasis" type="text" placeholder="Decision basis">
+      <button type="button" id="addFormalDecisionBtn">Record Decision</button>
+    </div>
+    <div id="formalProcessResult" class="muted" style="margin-top:12px;"></div>
+    <div class="workflow-checklist" style="margin-top:16px;">
+      ${auditChecks.map(check => `
+        <div class="workflow-check ${check.status}">
+          <strong>${escapeHtml(check.label)}</strong>
+          <span>${escapeHtml(labelize(check.status))}</span>
+          <p>${escapeHtml(check.detail || "")}</p>
+        </div>
+      `).join("") || `<div class="empty-state">No strict audit checks available.</div>`}
+    </div>
+  `;
+}
+
+function wireFormalProcessControls() {
+  const witnessBtn = document.getElementById("addFormalWitnessBtn");
+  if (witnessBtn) {
+    witnessBtn.addEventListener("click", async () => {
+      const res = await apiRequest(`/case-process/cases/${caseId}/witnesses`, "POST", {
+        name: document.getElementById("formalWitnessName").value.trim(),
+        role: document.getElementById("formalWitnessRole").value.trim()
+      }, true);
+      document.getElementById("formalProcessResult").textContent = res.success ? "Witness recorded." : res.message;
+      if (res.success) loadFormalProcess();
+    });
+  }
+
+  const policyBtn = document.getElementById("addFormalPolicyBtn");
+  if (policyBtn) {
+    policyBtn.addEventListener("click", async () => {
+      const res = await apiRequest(`/case-process/cases/${caseId}/policies`, "POST", {
+        policyCode: document.getElementById("formalPolicyCode").value.trim(),
+        title: document.getElementById("formalPolicyTitle").value.trim()
+      }, true);
+      document.getElementById("formalProcessResult").textContent = res.success ? "Policy reference added." : res.message;
+      if (res.success) loadFormalProcess();
+    });
+  }
+
+  const decisionBtn = document.getElementById("addFormalDecisionBtn");
+  if (decisionBtn) {
+    decisionBtn.addEventListener("click", async () => {
+      const res = await apiRequest(`/case-process/cases/${caseId}/decisions`, "POST", {
+        finding: document.getElementById("formalDecisionFinding").value,
+        basis: document.getElementById("formalDecisionBasis").value.trim(),
+        requiresApproval: true
+      }, true);
+      document.getElementById("formalProcessResult").textContent = res.success ? "Formal decision recorded." : res.message;
+      if (res.success) loadFormalProcess();
+    });
+  }
+}
+
+async function loadFormalProcess() {
+  const res = await apiRequest(`/case-process/cases/${caseId}`, "GET", null, true);
+  document.getElementById("formalProcessPanel").innerHTML = res.success
+    ? renderFormalProcess(res)
+    : `<div class="empty-state">${escapeHtml(res.message || "Unable to load formal process.")}</div>`;
+  if (res.success) wireFormalProcessControls();
 }
 
 function isClosedCase(status) {
@@ -198,8 +536,6 @@ function updateClosedCaseUi(caseItem) {
   [
     "assignedToUserId",
     "assignBtn",
-    "statusSelect",
-    "saveStatusBtn",
     "evidenceFile",
     "uploadEvidenceBtn"
   ].forEach(id => {
@@ -230,6 +566,7 @@ async function loadAssignableStaff(selectedId) {
     select.innerHTML = `<option value="">Unable to load staff</option>`;
     return;
   }
+  staffOptions = res.staff || [];
   select.innerHTML = `<option value="">Select assignee</option>` + res.staff.map(item => `
     <option value="${item.id}" ${Number(selectedId) === item.id ? "selected" : ""}>
       ${item.first_name} ${item.last_name} (${item.role})
@@ -246,27 +583,32 @@ async function loadCaseDetails() {
 
   const item = res.case;
   currentCase = item;
+  currentTimeline = res.timeline || {};
+  const hearings = currentTimeline.hearings || [];
+  const nextHearing = getNextHearing(hearings);
   document.getElementById("heroCaseTitle").textContent = `Case: ${item.case_number}`;
   document.getElementById("heroSubtitle").textContent = `${item.violation_type} | ${item.first_name} ${item.last_name} (${item.student_number})`;
   document.getElementById("heroTags").innerHTML = `
-    ${badge(item.status)}
+    ${badge(item.operational_status || item.status)}
     ${badge(item.severity_level)}
     <span class="section-tab">${item.program || "-"}</span>
+    <span class="section-tab">${nextHearing ? `Hearing: ${formatHearingSchedule(nextHearing)}` : "No hearing scheduled"}</span>
   `;
 
-  document.getElementById("statusSelect").value = item.status;
   await loadAssignableStaff(item.assigned_to_user_id);
   updateClosedCaseUi(item);
 
   document.getElementById("caseInfo").innerHTML = `
     <div class="case-list">
-      <div class="case-list-row"><strong>Case Status</strong><span>${badge(item.status)}</span></div>
+      <div class="case-list-row"><strong>Case Status</strong><span>${badge(item.operational_status || item.status)}</span></div>
       <div class="case-list-row"><strong>Student</strong><span>${item.first_name} ${item.last_name} (${item.student_number})</span></div>
       <div class="case-list-row"><strong>Reported By</strong><span>${item.reported_by_first_name} ${item.reported_by_last_name} - ${item.reported_by_role_label || getRoleLabel(item.reported_by_role)}</span></div>
       <div class="case-list-row"><strong>Violation</strong><span>${item.violation_type}</span></div>
       <div class="case-list-row"><strong>Severity</strong><span>${badge(item.severity_level)}</span></div>
       <div class="case-list-row"><strong>Incident Date</strong><span>${formatDisplayDate(item.incident_date)}</span></div>
+      <div class="case-list-row"><strong>Incident Time</strong><span>${formatDisplayTime(item.incident_time)}</span></div>
       <div class="case-list-row"><strong>Location</strong><span>${item.location || "-"}</span></div>
+      <div class="case-list-row"><strong>Next Hearing</strong><span>${nextHearing ? `${formatHearingSchedule(nextHearing)} ${hearingStatusBadge(nextHearing)}` : "No hearing scheduled"}</span></div>
       <div class="case-list-row"><strong>Academic Context</strong><span>${item.program || "-"} / ${item.year_level || "-"} / ${item.section || "-"}</span></div>
       <div class="case-list-row"><strong>Assigned To</strong><span>${item.assigned_to_first_name ? `${item.assigned_to_first_name} ${item.assigned_to_last_name} - ${item.assigned_to_role_label || getRoleLabel(item.assigned_to_role)}` : "Unassigned"}</span></div>
     </div>
@@ -276,6 +618,25 @@ async function loadCaseDetails() {
     <p><strong>Detailed Account</strong></p>
     <p>${item.description || "No case description recorded."}</p>
   `;
+
+  renderItems("hearingList", hearings, "No hearings scheduled for this case.", hearing => `
+    <div class="detail-item admin-hearing-detail">
+      <div class="detail-item-head">
+        <div>
+          <p><strong>${formatHearingSchedule(hearing)}</strong> ${hearingStatusBadge(hearing)}</p>
+          <p class="muted">Created by ${hearing.created_by_first_name || "-"} ${hearing.created_by_last_name || ""} - ${hearing.created_by_role_label || getRoleLabel(hearing.created_by_role)}</p>
+        </div>
+      </div>
+      <div class="key-value compact-key-value">
+        <div class="key-value-row"><strong>Date</strong><span>${formatDisplayDate(hearing.scheduled_date)}</span></div>
+        <div class="key-value-row"><strong>Time</strong><span>${formatDisplayTime(hearing.scheduled_time)}</span></div>
+        <div class="key-value-row"><strong>Location</strong><span>${escapeHtml(hearing.location || "-")}</span></div>
+        <div class="key-value-row"><strong>Finding</strong><span>${badge(hearing.finding || "pending")}</span></div>
+        <div class="key-value-row"><strong>Outcome</strong><span>${escapeHtml(hearing.outcome || "No outcome recorded yet.")}</span></div>
+        <div class="key-value-row"><strong>Recommendation</strong><span>${escapeHtml(hearing.recommendation || "No recommendation recorded yet.")}</span></div>
+      </div>
+    </div>
+  `);
 
   renderItems("updatesContainer", res.timeline.updates, "No updates yet.", update => `
     <div class="detail-item">
@@ -335,15 +696,6 @@ document.getElementById("assignBtn").addEventListener("click", async () => {
   if (res.success) loadCaseDetails();
 });
 
-document.getElementById("saveStatusBtn").addEventListener("click", async () => {
-  if (isClosedCase(currentCase?.status)) return;
-  const res = await apiRequest(`/cases/${caseId}/status`, "PUT", {
-    status: document.getElementById("statusSelect").value
-  }, true);
-  document.getElementById("statusResult").textContent = res.success ? "Status updated." : res.message;
-  if (res.success) loadCaseDetails();
-});
-
 document.getElementById("uploadEvidenceBtn").addEventListener("click", async () => {
   if (isClosedCase(currentCase?.status)) return;
   const file = document.getElementById("evidenceFile").files[0];
@@ -355,6 +707,9 @@ document.getElementById("uploadEvidenceBtn").addEventListener("click", async () 
   const formData = new FormData();
   formData.append("caseId", caseId);
   formData.append("file", file);
+  formData.append("evidenceCategory", "other");
+  formData.append("evidencePurpose", "Administrative supporting evidence");
+  formData.append("sourceLabel", "Admin upload");
 
   const res = await apiRequest("/evidence/upload", "POST", formData, true);
   document.getElementById("evidenceResult").textContent = res.success ? "Evidence uploaded." : res.message;
@@ -371,6 +726,27 @@ document.getElementById("reopenCaseBtn").addEventListener("click", async () => {
   }, true);
   document.getElementById("statusResult").textContent = res.success ? "Case reopened." : res.message;
   if (res.success) loadCaseDetails();
+});
+
+document.getElementById("printCaseReportBtn").addEventListener("click", async () => {
+  const button = document.getElementById("printCaseReportBtn");
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Preparing...";
+
+  try {
+    await printCasePacketReport({
+      caseId,
+      caseItem: currentCase,
+      timeline: currentTimeline,
+      roleLabel: "Admin"
+    });
+  } catch (error) {
+    alert(error.message || "Unable to prepare the case report.");
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
 });
 
 async function reviewEvidence(id) {

@@ -8,97 +8,88 @@
 </head>
 <body>
 
-<div class="dashboard-container dash-shell">
-  <div class="dash-hero">
-    <section class="dash-welcome">
-      <span class="eyebrow">Discipline Officer Workspace</span>
-      <h1>Operational Dashboard</h1>
-      <p>Prioritize investigations, hearing schedules, evidence review, sanctions, and appeal activity from one command surface.</p>
-      <div class="dash-actions" style="margin-top:22px;">
-        <a href="cases.html"><button>Case Center</button></a>
-        <a href="evidence.html"><button class="secondary">Evidence Queue</button></a>
+<div class="dashboard-container dash-shell discipline-dashboard-page">
+  <header class="discipline-command-strip">
+    <div class="discipline-command-copy">
+      <span class="eyebrow">Discipline Operations</span>
+      <h1 id="dashboardGreeting">Keep cases moving with a clear next action.</h1>
+      <p>Focus on active investigations and time-sensitive hearing work.</p>
+    </div>
+    <div class="discipline-weather is-loading" id="disciplineWeather" aria-live="polite" data-internet-feature="Live weather uses Open-Meteo and needs internet. Cached or blank weather may show while offline.">
+      <div class="weather-scene" aria-hidden="true">
+        <span class="weather-sun"></span>
+        <span class="weather-moon"></span>
+        <span class="weather-cloud weather-cloud-one"></span>
+        <span class="weather-cloud weather-cloud-two"></span>
+        <span class="weather-rain"></span>
+        <span class="weather-lightning"></span>
+        <span class="weather-fog"></span>
       </div>
-    </section>
-
-    <aside class="dash-profile-card">
-      <div class="admin-profile-head">
-        <div class="admin-profile-avatar" id="officerInitials">DO</div>
-        <div>
-          <strong id="officerName">Discipline Officer</strong>
-          <span>Discipline Officer / Operations</span>
-        </div>
+      <div class="weather-reading">
+        <span class="weather-location">General Mariano Alvarez</span>
+        <span class="weather-date">
+          <strong id="dashboardDay">Today</strong>
+          <span id="dashboardDate">-</span>
+        </span>
+        <strong id="weatherTemperature">--&deg;C</strong>
+        <span id="weatherCondition">Loading local weather...</span>
       </div>
-      <div class="admin-profile-info">
-        <div><strong>Email</strong><span id="officerEmail">-</span></div>
-        <div><strong>User ID</strong><span id="officerId">-</span></div>
-        <div><strong>Role</strong><span>Discipline Officer</span></div>
-        <div><strong>Focus</strong><span>Investigations / hearings</span></div>
+      <div class="weather-details">
+        <span><small>Feels</small><strong id="weatherFeelsLike">--&deg;</strong></span>
+        <span><small>Humidity</small><strong id="weatherHumidity">--%</strong></span>
+        <span><small>Wind</small><strong id="weatherWind">-- km/h</strong></span>
       </div>
-    </aside>
-  </div>
+    </div>
+  </header>
 
-  <section class="dash-metrics" id="disciplineMetrics"></section>
+  <section class="discipline-dashboard-section discipline-kpi-section" aria-label="Key performance indicators">
+    <div class="dash-metrics discipline-metrics" id="disciplineMetrics"></div>
+  </section>
 
-  <div class="dash-grid-main">
-    <main class="dash-stack">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Investigation Analytics</h2>
-            <p class="muted">Cases by status and severity for discipline operations.</p>
-          </div>
-        </div>
-        <div class="case-analytics-grid">
-          <div class="case-analytics-block case-analytics-donut-block">
-            <span class="case-analytics-label">Case Queue</span>
-            <div id="statusChart"></div>
-          </div>
-          <div class="case-analytics-block">
-            <span class="case-analytics-label">Status Distribution</span>
-            <div id="statusLegend"></div>
-          </div>
-          <div class="case-analytics-block">
-            <span class="case-analytics-label">Severity Distribution</span>
-            <div id="severityChart"></div>
-          </div>
-        </div>
-        <div id="disciplineAnalyticsSummary" class="case-analytics-summary"></div>
-      </section>
+  <section class="dash-panel discipline-dashboard-section discipline-claimed-panel">
+    <div class="dash-panel-head">
+      <div>
+        <span class="eyebrow">Investigations</span>
+        <h2>Active Cases</h2>
+        <p class="muted">Claimed cases that remain open and require case work.</p>
+      </div>
+      <a class="button-link secondary" href="cases.html?assigned=mine&activeOnly=true">View All Mine</a>
+    </div>
+    <div id="claimedCases">Loading...</div>
+  </section>
 
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Priority Case Queue</h2>
-            <p class="muted">Open cases that still need review, hearing action, or resolution.</p>
-          </div>
-          <a href="cases.html"><button class="secondary">View All</button></a>
-        </div>
-        <div id="priorityCases">Loading...</div>
-      </section>
-    </main>
-
-    <aside class="dash-stack">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Hearing Calendar</h2>
-            <p class="muted">Upcoming meetings connected to active cases.</p>
-          </div>
-        </div>
-        <div id="meetingCalendar"></div>
-      </section>
-
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Upcoming Hearings</h2>
-            <p class="muted">Dates requiring attendance or preparation.</p>
-          </div>
+  <section class="dash-panel discipline-dashboard-section discipline-hearings-panel">
+    <div class="dash-panel-head">
+      <div>
+        <span class="eyebrow">Hearing Schedule</span>
+        <h2>Upcoming Hearings</h2>
+        <p class="muted">Review upcoming dates or select a calendar day to filter the list.</p>
+      </div>
+      <a class="button-link secondary" href="hearings.html">Manage Hearings</a>
+    </div>
+    <div class="discipline-hearings-grid">
+      <div class="discipline-compact-calendar" id="meetingCalendar"></div>
+      <div class="discipline-hearing-list-panel">
+        <div class="discipline-hearing-list-heading">
+          <strong>Scheduled next</strong>
+          <span id="hearingListContext">Upcoming schedule</span>
         </div>
         <div id="meetingCalendarList">Loading...</div>
-      </section>
-    </aside>
-  </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="dash-panel discipline-dashboard-section discipline-analytics-panel">
+    <div class="dash-panel-head">
+      <div>
+        <span class="eyebrow">Analytics</span>
+        <h2>Case Activity</h2>
+        <p class="muted">Incident volume recorded during the last 14 days.</p>
+      </div>
+      <span class="case-trend-period">Last 14 days</span>
+    </div>
+    <div id="caseTrendChart" class="case-trend-chart" aria-live="polite"></div>
+  </section>
 </div>
 
 <script src="../../js/core/api.js"></script>
@@ -114,85 +105,416 @@ if (!user || user.role !== "discipline_officer") {
 }
 
 const W = DashboardWidgets;
-document.getElementById("officerName").textContent = getUserFullName(user);
-const officerAvatar = document.getElementById("officerInitials");
-const officerAvatarUrl = getAvatarUrl(user);
-if (officerAvatarUrl) {
-  officerAvatar.innerHTML = `<img src="${officerAvatarUrl}" alt="${getUserFullName(user)} avatar">`;
-} else {
-  officerAvatar.textContent = `${user.first_name?.[0] || "D"}${user.last_name?.[0] || "O"}`.toUpperCase();
+const dashboardMonthState = new Map();
+const dashboardNow = new Date();
+window.syncInternetDependentNotices?.();
+document.getElementById("dashboardGreeting").textContent = `Good ${dashboardNow.getHours() < 12 ? "morning" : dashboardNow.getHours() < 18 ? "afternoon" : "evening"}, ${user.first_name || "Officer"}.`;
+document.getElementById("dashboardDay").textContent = dashboardNow.toLocaleDateString(undefined, { weekday: "long" });
+document.getElementById("dashboardDate").textContent = dashboardNow.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+
+function getWeatherPresentation(code) {
+  if (code === 0) return { label: "Clear sky", condition: "clear" };
+  if ([1, 2].includes(code)) return { label: "Partly cloudy", condition: "cloudy" };
+  if (code === 3) return { label: "Overcast", condition: "cloudy" };
+  if ([45, 48].includes(code)) return { label: "Foggy", condition: "fog" };
+  if ([51, 53, 55, 56, 57].includes(code)) return { label: "Drizzle", condition: "rain" };
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { label: "Rain showers", condition: "rain" };
+  if ([95, 96, 99].includes(code)) return { label: "Thunderstorm", condition: "storm" };
+  return { label: "Variable weather", condition: "cloudy" };
 }
-document.getElementById("officerEmail").textContent = user.email || "-";
-document.getElementById("officerId").textContent = user.employee_or_student_id || "-";
+
+function renderWeather(current) {
+  const widget = document.getElementById("disciplineWeather");
+  if (!widget || !current) return;
+
+  const presentation = getWeatherPresentation(Number(current.weather_code));
+  widget.className = `discipline-weather is-${presentation.condition} ${Number(current.is_day) === 0 ? "is-night" : "is-day"}`;
+  document.getElementById("weatherTemperature").innerHTML = `${Math.round(Number(current.temperature_2m))}&deg;C`;
+  document.getElementById("weatherCondition").textContent = presentation.label;
+  document.getElementById("weatherFeelsLike").innerHTML = `${Math.round(Number(current.apparent_temperature))}&deg;`;
+  document.getElementById("weatherHumidity").textContent = `${Math.round(Number(current.relative_humidity_2m))}%`;
+  document.getElementById("weatherWind").textContent = `${Math.round(Number(current.wind_speed_10m))} km/h`;
+}
+
+async function loadWeather() {
+  const cacheKey = "disciplineWeatherGma";
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (Date.now() - Number(parsed.savedAt || 0) < 15 * 60 * 1000) {
+        renderWeather(parsed.current);
+        return;
+      }
+    } catch (error) {
+      localStorage.removeItem(cacheKey);
+    }
+  }
+
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 7000);
+  const weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=14.3054&longitude=120.9904&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&timezone=Asia%2FManila";
+
+  try {
+    if (navigator.onLine === false) {
+      throw new Error("Internet unavailable");
+    }
+    const response = await fetch(weatherUrl, { signal: controller.signal });
+    if (!response.ok) throw new Error("Weather request failed");
+    const data = await response.json();
+    renderWeather(data.current);
+    localStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), current: data.current }));
+  } catch (error) {
+    const widget = document.getElementById("disciplineWeather");
+    widget.className = "discipline-weather is-cloudy is-unavailable";
+    document.getElementById("weatherCondition").textContent = navigator.onLine === false ? "Internet unavailable" : "Weather unavailable";
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
 
 function hearingToEvent(item) {
+  const overdue = isOverdueHearing(item);
   return {
-    date: item.scheduled_date,
+    date: normalizeScheduleDate(item.scheduled_date),
     time: item.scheduled_time,
     title: `${item.case_number} hearing`,
     meta: `${item.first_name || ""} ${item.last_name || ""} (${item.student_number || "student"})`,
-    url: `hearings.html`
+    url: `hearings.html`,
+    status: item.status,
+    overdue
   };
 }
 
-function renderDashboard({ cases, hearings, sanctions, appeals }) {
+function normalizeScheduleDate(value) {
+  if (!value) return "";
+
+  const raw = String(value);
+  const dateOnlyMatch = raw.match(/^(\d{4}-\d{2}-\d{2})$/);
+  if (dateOnlyMatch) return dateOnlyMatch[1];
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return raw.slice(0, 10);
+  }
+
+  return [
+    parsed.getFullYear(),
+    String(parsed.getMonth() + 1).padStart(2, "0"),
+    String(parsed.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
+function parseDateTime(date, time = "00:00") {
+  if (!date) return null;
+  const normalizedTime = String(time || "00:00").slice(0, 5);
+  const dateOnly = normalizeScheduleDate(date);
+  const parsed = new Date(`${dateOnly}T${normalizedTime || "00:00"}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isOwnedByCurrentOfficer(item) {
+  return Number(item.assigned_to_user_id) === Number(user.id);
+}
+
+function isOverdueHearing(item) {
+  if (item.status !== "scheduled") return false;
+  const scheduledAt = parseDateTime(item.scheduled_date, item.scheduled_time);
+  return scheduledAt ? scheduledAt < new Date() : false;
+}
+
+function compareHearingDate(a, b) {
+  return (parseDateTime(a.scheduled_date, a.scheduled_time)?.getTime() || 0)
+    - (parseDateTime(b.scheduled_date, b.scheduled_time)?.getTime() || 0);
+}
+
+function formatShortDate(dateValue) {
+  const parsed = parseDateTime(dateValue);
+  return parsed ? parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "-";
+}
+
+function formatShortTime(timeValue) {
+  if (!timeValue) return "";
+  const parsed = parseDateTime("2000-01-01", timeValue);
+  return parsed ? parsed.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : String(timeValue).slice(0, 5);
+}
+
+function renderHearingCard(item, { urgent = false } = {}) {
+  return `
+    <a class="hearing-work-card ${urgent ? "is-urgent" : ""}" href="hearings.html">
+      <span>
+        <strong>${formatShortDate(item.scheduled_date)}</strong>
+        <small>${formatShortTime(item.scheduled_time)}</small>
+      </span>
+      <div>
+        <strong>${W.escapeHtml(item.case_number)} | ${W.escapeHtml(item.first_name || "")} ${W.escapeHtml(item.last_name || "")}</strong>
+        <p>${W.escapeHtml(item.violation_type || "Hearing")} | ${W.escapeHtml(item.location || "No location set")}</p>
+      </div>
+      ${urgent ? `<em>Update result</em>` : ""}
+    </a>
+  `;
+}
+
+function renderHearingList(containerId, items, emptyMessage, options = {}) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  if (!items.length) {
+    container.innerHTML = `<div class="empty-state">${emptyMessage}</div>`;
+    return;
+  }
+  container.innerHTML = `<div class="hearing-work-list">${items.map(item => renderHearingCard(item, options)).join("")}</div>`;
+}
+
+function renderHearingCalendar(containerId, hearings) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const seeded = dashboardMonthState.get(containerId) || new Date();
+  const viewDate = new Date(seeded.getFullYear(), seeded.getMonth(), 1);
+  dashboardMonthState.set(containerId, viewDate);
+
+  const month = viewDate.getMonth();
+  const year = viewDate.getFullYear();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = W.normalizeDate(new Date());
+  const eventsByDate = hearings.reduce((acc, item) => {
+    const key = normalizeScheduleDate(item.scheduled_date);
+    if (!key) return acc;
+    acc[key] = acc[key] || [];
+    acc[key].push(item);
+    acc[key].sort(compareHearingDate);
+    return acc;
+  }, {});
+
+  const cells = [];
+  for (let i = 0; i < firstDay; i += 1) {
+    cells.push(`<div class="discipline-calendar-day is-muted"></div>`);
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const dayHearings = eventsByDate[key] || [];
+    const hasOverdue = dayHearings.some(isOverdueHearing);
+    cells.push(`
+      <button type="button" class="discipline-calendar-day ${key === todayKey ? "is-today" : ""} ${dayHearings.length ? "has-hearing" : ""} ${hasOverdue ? "has-overdue" : ""}" data-date="${key}">
+        <span>${day}</span>
+        <div>
+          ${dayHearings.slice(0, 2).map(item => `
+            <small>${formatShortTime(item.scheduled_time)} ${W.escapeHtml(item.case_number || "Hearing")}</small>
+          `).join("")}
+          ${dayHearings.length > 2 ? `<small>+${dayHearings.length - 2} more</small>` : ""}
+        </div>
+      </button>
+    `);
+  }
+
+  container.innerHTML = `
+    <div class="dash-calendar-head">
+      <button type="button" data-hearing-prev="${containerId}" aria-label="Previous month">${window.LucideIcons?.svg("chevronLeft") || "&lt;"}</button>
+      <strong>${viewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</strong>
+      <button type="button" data-hearing-next="${containerId}" aria-label="Next month">${window.LucideIcons?.svg("chevronRight") || "&gt;"}</button>
+    </div>
+    <div class="dash-calendar-weekdays">
+      <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+    </div>
+    <div class="discipline-calendar-grid">${cells.join("")}</div>
+  `;
+
+  container.querySelector(`[data-hearing-prev="${containerId}"]`)?.addEventListener("click", () => {
+    dashboardMonthState.set(containerId, new Date(year, month - 1, 1));
+    renderHearingCalendar(containerId, hearings);
+  });
+
+  container.querySelector(`[data-hearing-next="${containerId}"]`)?.addEventListener("click", () => {
+    dashboardMonthState.set(containerId, new Date(year, month + 1, 1));
+    renderHearingCalendar(containerId, hearings);
+  });
+
+  container.querySelectorAll("[data-date]").forEach(day => {
+    day.addEventListener("click", () => {
+      const selected = eventsByDate[day.dataset.date] || [];
+      const context = document.getElementById("hearingListContext");
+      if (context) {
+        context.textContent = selected.length
+          ? new Date(`${day.dataset.date}T00:00:00`).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })
+          : "No hearings on selected date";
+      }
+      renderHearingList("meetingCalendarList", selected, "No hearings on this date");
+    });
+  });
+}
+
+function getActionCount(actionSummary, action) {
+  return (actionSummary.counts || [])
+    .filter(item => item.next_action === action)
+    .reduce((sum, item) => sum + Number(item.total || 0), 0);
+}
+
+function toLocalDateKey(value) {
+  if (!value) return "";
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return "";
+  return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
+function renderCaseTrend(cases, activeCases, newCases, activeCaseTotal = activeCases.length) {
+  const container = document.getElementById("caseTrendChart");
+  if (!container) return;
+
+  const days = Array.from({ length: 14 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (13 - index));
+    const key = [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0")
+    ].join("-");
+    return {
+      date,
+      key,
+      label: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      value: 0
+    };
+  });
+
+  const dayMap = new Map(days.map(day => [day.key, day]));
+  cases.forEach(item => {
+    const day = dayMap.get(toLocalDateKey(item.incident_date));
+    if (day) day.value += 1;
+  });
+
+  const width = 760;
+  const height = 250;
+  const padding = { top: 20, right: 20, bottom: 40, left: 42 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const maxValue = Math.max(1, ...days.map(day => day.value));
+  const xStep = chartWidth / (days.length - 1);
+  const points = days.map((day, index) => ({
+    ...day,
+    x: padding.left + (index * xStep),
+    y: padding.top + chartHeight - ((day.value / maxValue) * chartHeight)
+  }));
+  const linePath = points.map((point, index) => `${index ? "L" : "M"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+  const baseline = padding.top + chartHeight;
+  const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${baseline} L ${points[0].x.toFixed(2)} ${baseline} Z`;
+  const total = days.reduce((sum, day) => sum + day.value, 0);
+  const peak = Math.max(...days.map(day => day.value));
+  const average = total ? (total / days.length).toFixed(1) : "0";
+  const gridValues = [maxValue, Math.ceil(maxValue / 2), 0];
+  const labelIndexes = new Set([0, 3, 6, 9, 13]);
+
+  container.innerHTML = `
+    <div class="case-trend-summary">
+      <div><span>Reported</span><strong>${total}</strong><small>Within this period</small></div>
+      <div><span>Daily Peak</span><strong>${peak}</strong><small>Highest incident count</small></div>
+      <div><span>Daily Average</span><strong>${average}</strong><small>Cases per day</small></div>
+      <div><span>Open Queue</span><strong>${activeCaseTotal}</strong><small>${newCases.length} awaiting claim</small></div>
+    </div>
+    <div class="case-trend-visual">
+      <div class="case-trend-heading">
+        <div>
+          <span class="case-trend-dot"></span>
+          <strong>Reported incidents</strong>
+        </div>
+        <span>Based on incident date</span>
+      </div>
+      <svg class="case-trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Reported incidents over the last 14 days">
+        <defs>
+          <linearGradient id="caseTrendArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#e74476" stop-opacity="0.34"></stop>
+            <stop offset="100%" stop-color="#e74476" stop-opacity="0"></stop>
+          </linearGradient>
+        </defs>
+        ${gridValues.map(value => {
+          const y = padding.top + chartHeight - ((value / maxValue) * chartHeight);
+          return `
+            <line class="case-trend-grid-line" x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"></line>
+            <text class="case-trend-axis-label" x="${padding.left - 10}" y="${y + 4}" text-anchor="end">${value}</text>
+          `;
+        }).join("")}
+        <path class="case-trend-area" d="${areaPath}"></path>
+        <path class="case-trend-line" pathLength="1" d="${linePath}"></path>
+        ${points.map((point, index) => `
+          <circle class="case-trend-point" style="--point-delay: ${index * 45}ms" cx="${point.x}" cy="${point.y}" r="4.5">
+            <title>${W.escapeHtml(point.label)}: ${point.value} case${point.value === 1 ? "" : "s"}</title>
+          </circle>
+        `).join("")}
+        ${points.map((point, index) => labelIndexes.has(index) ? `
+          <text class="case-trend-axis-label case-trend-date-label" x="${point.x}" y="${height - 13}" text-anchor="${index === 0 ? "start" : index === 13 ? "end" : "middle"}">${W.escapeHtml(point.label)}</text>
+        ` : "").join("")}
+      </svg>
+    </div>
+  `;
+}
+
+function renderDashboard({ cases, claimedCases, hearings, actionSummary, caseSummary, newCasesTotal }) {
   const activeCases = cases.filter(item => W.isOpenStatus(item.status));
-  const scheduledHearings = hearings.filter(item => item.status === "scheduled");
-  const activeSanctions = sanctions.filter(item => item.status === "active");
-  const openAppeals = appeals.filter(item => ["submitted", "under_review"].includes(item.status));
-  const statusCounts = W.groupBy(cases, "status");
-  const severityCounts = W.groupBy(cases, "severity_level");
-  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"];
-  const caseSeverities = ["minor", "major", "grave"];
+  const claimedCaseRows = claimedCases.cases || [];
+  const activeClaimedCases = claimedCaseRows.filter(item => W.isOpenStatus(item.status));
+  const newCases = cases.filter(item =>
+    String(item.status || "").toLowerCase() === "pending" &&
+    !item.assigned_to_user_id
+  );
+  const claimedActiveTotal = Number(claimedCases.pagination?.total ?? activeClaimedCases.length);
+  const pendingUnassignedTotal = Number(newCasesTotal ?? newCases.length);
+  const activeCaseTotal = Number(caseSummary.activeCaseQueue ?? activeCases.length);
+  const scheduledHearings = hearings
+    .filter(item => item.status === "scheduled" && isOwnedByCurrentOfficer(item))
+    .sort(compareHearingDate);
+  const overdueHearings = scheduledHearings.filter(isOverdueHearing);
+  const upcomingHearings = scheduledHearings.filter(item => !isOverdueHearing(item));
+  const readyToClose = getActionCount(actionSummary, "closure_checklist");
 
   W.renderMetrics("disciplineMetrics", [
-    { icon: "CQ", label: "Case Queue", value: activeCases.length, help: "Open cases needing discipline action" },
-    { icon: "HR", label: "Scheduled Hearings", value: scheduledHearings.length, help: "Upcoming meetings" },
-    { icon: "SN", label: "Active Sanctions", value: activeSanctions.length, help: "Sanctions still being tracked" },
-    { icon: "AP", label: "Open Appeals", value: openAppeals.length, help: "Appeals pending decision" }
+    { icon: "MY", label: "Claimed Active", value: claimedActiveTotal, help: "Open cases assigned to you" },
+    { icon: "NC", label: "New Cases", value: pendingUnassignedTotal, help: "Pending reports awaiting claim" },
+    { icon: "UP", label: "Upcoming Hearings", value: upcomingHearings.length, help: "Scheduled hearings ahead" },
+    { icon: "OD", label: "Overdue Updates", value: overdueHearings.length, help: "Scheduled hearings past due" },
+    { icon: "CL", label: "Ready to Close", value: readyToClose, help: "Cases at closure checklist" }
   ]);
 
-  W.renderDonut("statusChart", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No cases yet");
-  W.renderStatusList("statusLegend", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No status data yet");
-  W.renderBars("severityChart", W.toSegments(severityCounts, caseSeverities, { includeZeros: true }), "No severity data yet");
-  W.renderSummary("disciplineAnalyticsSummary", [
-    { label: "Open Queue", value: activeCases.length },
-    { label: "Under Investigation", value: statusCounts.under_investigation || 0 },
-    { label: "Active Sanctions", value: activeSanctions.length },
-    { label: "Open Appeals", value: openAppeals.length }
-  ]);
-  const events = scheduledHearings.map(hearingToEvent);
-  W.renderCalendar("meetingCalendar", events);
-  W.renderUpcoming("meetingCalendarList", events, "No upcoming hearings");
+  renderCaseTrend(cases, activeCases, newCases, activeCaseTotal);
+  renderHearingCalendar("meetingCalendar", scheduledHearings);
+  renderHearingList("meetingCalendarList", upcomingHearings.slice(0, 6), "No upcoming hearings.");
 
-  W.renderList("priorityCases", activeCases.slice(0, 6), "No active cases in the queue.", item => `
-    <a class="dash-case-row" href="case-details.html?id=${item.id}">
-      <span class="badge ${item.status}">${W.labelize(item.status)}</span>
+  W.renderList("claimedCases", activeClaimedCases.slice(0, 8), "No active claimed cases.", item => `
+    <a class="dash-case-row" href="case-details.html?id=${item.id}${item.next_action === "review_report" ? "#reportReviewSection" : ""}">
+      <span class="dash-case-severity is-${item.severity_level || "minor"}">${W.labelize(item.severity_level || "minor")}</span>
       <div>
-        <strong>${W.escapeHtml(item.case_number)} | ${W.escapeHtml(item.first_name)} ${W.escapeHtml(item.last_name)}</strong>
-        <p>${W.escapeHtml(item.violation_type)} | ${W.labelize(item.severity_level)} | ${W.formatDate(item.incident_date)}</p>
+        <strong>${W.escapeHtml(item.first_name)} ${W.escapeHtml(item.last_name)} <span>${W.escapeHtml(item.case_number)}</span></strong>
+        <p>${W.escapeHtml(item.violation_type)} | ${W.escapeHtml(item.next_action_notes || W.formatDate(item.incident_date))}</p>
       </div>
+      <span class="badge ${item.next_action || item.status}">${W.labelize(item.next_action || item.status)}</span>
+      <b aria-hidden="true">&rsaquo;</b>
     </a>
   `);
 }
 
 async function loadDashboard() {
-  const [cases, hearings, sanctions, appeals] = await Promise.all([
+  const [caseSummary, actionSummary, cases, claimedCases, newCases, hearings] = await Promise.all([
+    apiRequest("/cases/summary", "GET", null, true),
+    apiRequest("/cases/action-summary", "GET", null, true),
     apiRequest("/cases/all?page=1&limit=50", "GET", null, true),
-    apiRequest("/hearings/all", "GET", null, true),
-    apiRequest("/sanctions/all", "GET", null, true),
-    apiRequest("/appeals/all", "GET", null, true)
+    apiRequest("/cases/all?page=1&limit=50&activeOnly=true&assigned=mine", "GET", null, true),
+    apiRequest("/cases/all?page=1&limit=1&status=pending&assigned=unassigned", "GET", null, true),
+    apiRequest("/hearings/all", "GET", null, true)
   ]);
 
   renderDashboard({
     cases: cases.success ? cases.cases : [],
+    claimedCases: claimedCases.success ? claimedCases : { cases: [], pagination: {} },
     hearings: hearings.success ? hearings.hearings : [],
-    sanctions: sanctions.success ? sanctions.sanctions : [],
-    appeals: appeals.success ? appeals.appeals : []
+    actionSummary: actionSummary.success ? actionSummary : { counts: [], priority_cases: [] },
+    caseSummary: caseSummary.success ? caseSummary : {},
+    newCasesTotal: newCases.success ? newCases.pagination.total : 0
   });
 }
 
 loadDashboard();
+loadWeather();
 </script>
 
 </body>

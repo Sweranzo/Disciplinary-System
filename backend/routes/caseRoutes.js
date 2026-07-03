@@ -6,8 +6,18 @@ const {
   getAllCases,
   getCaseById,
   addCaseUpdate,
+  acknowledgeCaseNotice,
+  checkRepeatViolation,
   getCaseUpdates,
+  getCaseRepeatWarning,
   updateCaseStatus,
+  reviewCaseReport,
+  closeCaseWithChecklist,
+  getCaseActionSummary,
+  getCaseProcessAuditReport,
+  handoffCaseToCounselor,
+  requestMoreCaseInfo,
+  resolveDuplicateCase,
   assignCase,
   claimCase,
   getCaseSummary,
@@ -40,6 +50,27 @@ router.get(
 );
 
 router.get(
+  "/action-summary",
+  verifyToken,
+  allowRoles("admin", "discipline_officer", "guidance_counselor", "teacher"),
+  getCaseActionSummary
+);
+
+router.get(
+  "/process-audit",
+  verifyToken,
+  allowRoles("admin", "discipline_officer"),
+  getCaseProcessAuditReport
+);
+
+router.get(
+  "/repeat-check",
+  verifyToken,
+  allowRoles("admin", "teacher", "discipline_officer", "guidance_counselor"),
+  checkRepeatViolation
+);
+
+router.get(
   "/my-cases",
   verifyToken,
   allowRoles("student"),
@@ -53,6 +84,55 @@ router.get(
   getParentChildCases
 );
 
+router.put(
+  "/:id/review",
+  verifyToken,
+  allowRoles("admin", "discipline_officer"),
+  reviewCaseReport
+);
+
+router.put(
+  "/:id/close",
+  verifyToken,
+  allowRoles("admin", "discipline_officer"),
+  closeCaseWithChecklist
+);
+
+router.post(
+  "/:id/request-info",
+  verifyToken,
+  allowRoles("admin", "discipline_officer"),
+  requestMoreCaseInfo
+);
+
+router.post(
+  "/:id/resolve-duplicate",
+  verifyToken,
+  allowRoles("admin", "discipline_officer"),
+  resolveDuplicateCase
+);
+
+router.post(
+  "/:id/counseling-handoff",
+  verifyToken,
+  allowRoles("admin", "discipline_officer"),
+  handoffCaseToCounselor
+);
+
+router.post(
+  "/:id/acknowledge",
+  verifyToken,
+  allowRoles("student", "parent"),
+  acknowledgeCaseNotice
+);
+
+router.get(
+  "/:id/repeat-warning",
+  verifyToken,
+  allowRoles("admin", "teacher", "discipline_officer", "guidance_counselor"),
+  getCaseRepeatWarning
+);
+
 router.get(
   "/:id",
   verifyToken,
@@ -63,7 +143,7 @@ router.get(
 router.post(
   "/:id/updates",
   verifyToken,
-  allowRoles("admin", "discipline_officer", "guidance_counselor"),
+  allowRoles("admin", "discipline_officer", "guidance_counselor", "teacher"),
   addCaseUpdate
 );  
 

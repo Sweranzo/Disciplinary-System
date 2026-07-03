@@ -16,8 +16,9 @@ const DashboardWidgets = (() => {
       return "";
     }
 
-    if (typeof value === "string") {
-      return value.slice(0, 10);
+    const rawValue = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) {
+      return rawValue;
     }
 
     const date = new Date(value);
@@ -25,7 +26,11 @@ const DashboardWidgets = (() => {
       return "";
     }
 
-    return date.toISOString().slice(0, 10);
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0")
+    ].join("-");
   }
 
   function formatDate(value) {
@@ -182,6 +187,31 @@ const DashboardWidgets = (() => {
     `).join("")}</div>`;
   }
 
+  function renderColumns(containerId, rows, emptyMessage = "No data yet") {
+    const container = document.getElementById(containerId);
+    if (!container) {
+      return;
+    }
+
+    const max = Math.max(...rows.map(row => Number(row.value || 0)), 0);
+    if (!max) {
+      container.innerHTML = `<div class="empty-state">${escapeHtml(emptyMessage)}</div>`;
+      return;
+    }
+
+    container.innerHTML = `<div class="dash-columns">${rows.map((row, index) => {
+      const value = Number(row.value || 0);
+      const height = value > 0 ? Math.max(18, (value / max) * 100) : 0;
+      return `
+        <div class="dash-column">
+          <strong>${escapeHtml(value)}</strong>
+          <span class="dash-column-bar" style="height:${height}%; background:${row.color || colors[index % colors.length]}"></span>
+          <small>${escapeHtml(row.shortLabel || row.label)}</small>
+        </div>
+      `;
+    }).join("")}</div>`;
+  }
+
   function renderSummary(containerId, items) {
     const container = document.getElementById(containerId);
     if (!container) {
@@ -306,6 +336,7 @@ const DashboardWidgets = (() => {
     renderDonut,
     renderStatusList,
     renderBars,
+    renderColumns,
     renderSummary,
     renderList,
     renderUpcoming,

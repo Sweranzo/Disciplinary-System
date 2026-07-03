@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMS Settings</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body class="admin-page">
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">System Settings</span>
+      <h1 style="margin-top:16px;">Semaphore SMS Settings</h1>
+      <p class="muted">Configure the school-owned Semaphore account used for parent SMS notifications.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button type="button" class="secondary compact-btn">Back</button></a>
+      <button onclick="logout()" type="button" class="compact-btn">Logout</button>
+    </div>
+  </div>
+
+  <div class="summary-band">
+    <div class="summary-chip"><strong>Provider</strong><span id="providerStatus">Semaphore</span></div>
+    <div class="summary-chip"><strong>SMS Status</strong><span id="enabledStatus">Loading</span></div>
+    <div class="summary-chip"><strong>API Key</strong><span id="keyStatus">Loading</span></div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card" data-internet-feature="Saving settings is local, but sending real SMS through Semaphore needs an active internet connection.">
+      <div class="card-header">
+        <div>
+          <h2>Credentials</h2>
+          <p class="muted">Paste the Semaphore API key from the company account. The full key is never shown again after saving.</p>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field-stack">
+          <label for="smsEnabled">SMS Sending</label>
+          <select id="smsEnabled">
+            <option value="false">Disabled</option>
+            <option value="true">Enabled</option>
+          </select>
+        </div>
+        <div class="field-stack">
+          <label for="senderName">Sender Name</label>
+          <input type="text" id="senderName" maxlength="32" placeholder="PTI">
+        </div>
+      </div>
+
+      <div class="field-stack">
+        <label for="apiKey">New Semaphore API Key</label>
+        <input type="password" id="apiKey" autocomplete="new-password" placeholder="Leave blank to keep current key">
+        <p class="field-helper" id="currentKeyHelp">Current key: loading...</p>
+      </div>
+
+      <label class="checkbox-row" style="margin-top:12px;">
+        <input type="checkbox" id="clearApiKey">
+        <span>Clear the saved API key</span>
+      </label>
+
+      <div class="action-row" style="margin-top:18px;">
+        <button type="button" id="saveSettingsBtn">Save Settings</button>
+        <button type="button" id="refreshSettingsBtn" class="secondary">Refresh</button>
+        <span id="settingsResult" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card" data-internet-feature="SMS verification depends on the Semaphore API and needs internet.">
+      <div class="card-header">
+        <div>
+          <h2>Verification</h2>
+          <p class="muted">Use the audit and SMS history pages to confirm provider attempts after saving.</p>
+        </div>
+      </div>
+      <div class="detail-item">
+        <p><strong>What this changes</strong></p>
+        <p>Saving updates `SMS_ENABLED`, `SMS_PROVIDER`, `SMS_API_KEY`, and `SMS_SENDER_NAME` in the backend environment file and applies the values to the running server.</p>
+      </div>
+      <div class="detail-item" style="margin-top:16px;">
+        <p><strong>How to verify</strong></p>
+        <p>Submit a teacher report for a student with a linked parent phone number, then check Audit Log filtered to SMS Logs or open SMS history.</p>
+      </div>
+      <div class="action-row" style="margin-top:16px;">
+        <a href="audit.html"><button type="button" class="secondary">Open Audit Log</button></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card page-section">
+    <div class="card-header">
+      <div>
+        <h2>Message Automation Content</h2>
+        <p class="muted">Customize the SMS text used by automated parent notifications. Current active templates are loaded below.</p>
+      </div>
+    </div>
+    <div class="detail-item">
+      <p><strong>Available placeholders</strong></p>
+      <p class="muted">{parentName}, {caseNumber}, {studentName}, {violation}, {incidentDate}, {scheduledDate}, {scheduledTime}, {notificationTitle}, {notificationMessage}, {sanctionType}, {status}, {startDate}, {endDate}, {location}, {locationSentence}, {startDateSentence}, {endDateSentence}</p>
+    </div>
+    <div id="templateFields" class="sms-template-grid" style="margin-top:16px;"></div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "admin") {
+  alert("Access denied");
+  logout();
+}
+
+function setResult(message, isError = false) {
+  const result = document.getElementById("settingsResult");
+  result.textContent = message;
+  result.style.color = isError ? "var(--danger)" : "";
+}
+
+function renderSettings(settings = {}) {
+  document.getElementById("providerStatus").textContent = settings.provider || "semaphore";
+  document.getElementById("enabledStatus").textContent = settings.smsEnabled ? "Enabled" : "Disabled";
+  document.getElementById("keyStatus").textContent = settings.hasApiKey ? "Saved" : "Missing";
+  document.getElementById("smsEnabled").value = settings.smsEnabled ? "true" : "false";
+  document.getElementById("senderName").value = settings.senderName || "PTI";
+  document.getElementById("apiKey").value = "";
+  document.getElementById("clearApiKey").checked = false;
+  document.getElementById("currentKeyHelp").textContent = settings.hasApiKey
+    ? `Current key: ${settings.maskedApiKey}`
+    : "Current key: none saved";
+  renderTemplates(settings.templates || []);
+}
+
+function renderTemplates(templates = []) {
+  const container = document.getElementById("templateFields");
+  if (!templates.length) {
+    container.innerHTML = `<div class="empty-state">No SMS templates were returned by the server.</div>`;
+    return;
+  }
+
+  container.innerHTML = templates.map(template => `
+    <div class="field-stack sms-template-field">
+      <label for="template_${escapeHtml(template.key)}">${escapeHtml(template.label)}</label>
+      <textarea id="template_${escapeHtml(template.key)}" data-template-key="${escapeHtml(template.key)}" rows="4" maxlength="700">${escapeHtml(template.value || "")}</textarea>
+      <p class="field-helper">Default: ${escapeHtml(template.defaultValue || "")}</p>
+    </div>
+  `).join("");
+}
+
+async function loadSettings() {
+  setResult("Loading settings...");
+  const res = await apiRequest("/admin/sms-settings", "GET", null, true);
+  if (!res.success) {
+    setResult(res.message || "Unable to load SMS settings.", true);
+    return;
+  }
+
+  renderSettings(res.settings);
+  setResult("");
+}
+
+async function saveSettings() {
+  const button = document.getElementById("saveSettingsBtn");
+  button.disabled = true;
+  setResult("Saving SMS settings...");
+
+  const payload = {
+    smsEnabled: document.getElementById("smsEnabled").value === "true",
+    senderName: document.getElementById("senderName").value.trim(),
+    apiKey: document.getElementById("apiKey").value.trim(),
+    clearApiKey: document.getElementById("clearApiKey").checked,
+    templates: {}
+  };
+
+  document.querySelectorAll("[data-template-key]").forEach(field => {
+    payload.templates[field.dataset.templateKey] = field.value.trim();
+  });
+
+  const res = await apiRequest("/admin/sms-settings/semaphore", "PUT", payload, true);
+  button.disabled = false;
+
+  if (!res.success) {
+    setResult(res.message || "Unable to save SMS settings.", true);
+    return;
+  }
+
+  renderSettings(res.settings);
+  setResult(res.message || "SMS settings saved.");
+}
+
+document.getElementById("saveSettingsBtn").addEventListener("click", saveSettings);
+document.getElementById("refreshSettingsBtn").addEventListener("click", loadSettings);
+document.getElementById("clearApiKey").addEventListener("change", event => {
+  document.getElementById("apiKey").disabled = event.target.checked;
+  if (event.target.checked) {
+    document.getElementById("apiKey").value = "";
+  }
+});
+
+loadSettings();
+</script>
+
+</body>
+</html>

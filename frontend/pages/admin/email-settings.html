@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Settings</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body class="admin-page">
+
+<div class="dashboard-container">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">System Settings</span>
+      <h1 style="margin-top:16px;">Gmail Email Settings</h1>
+      <p class="muted">Configure account credential and parent notification emails sent through the school Gmail account.</p>
+    </div>
+    <div class="action-row">
+      <a href="dashboard.html"><button type="button" class="secondary compact-btn">Back</button></a>
+      <button onclick="logout()" type="button" class="compact-btn">Logout</button>
+    </div>
+  </div>
+
+  <div class="summary-band">
+    <div class="summary-chip"><strong>Provider</strong><span id="providerStatus">SMTP</span></div>
+    <div class="summary-chip"><strong>Email Status</strong><span id="enabledStatus">Loading</span></div>
+    <div class="summary-chip"><strong>App Password</strong><span id="passwordStatus">Loading</span></div>
+  </div>
+
+  <div class="split-grid page-section">
+    <div class="card" data-internet-feature="Saving settings is local, but sending real Gmail messages needs an active internet connection.">
+      <div class="card-header">
+        <div>
+          <h2>Gmail SMTP Credentials</h2>
+          <p class="muted">Use a Gmail app password. The saved password is masked and never shown again after saving.</p>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field-stack">
+          <label for="emailEnabled">Email Sending</label>
+          <select id="emailEnabled">
+            <option value="false">Disabled</option>
+            <option value="true">Enabled</option>
+          </select>
+        </div>
+        <div class="field-stack">
+          <label for="smtpSecure">Secure SMTP</label>
+          <select id="smtpSecure">
+            <option value="true">Enabled SSL/TLS</option>
+            <option value="false">Disabled / STARTTLS</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field-stack">
+          <label for="smtpHost">SMTP Host</label>
+          <input type="text" id="smtpHost" placeholder="smtp.gmail.com">
+        </div>
+        <div class="field-stack">
+          <label for="smtpPort">SMTP Port</label>
+          <input type="number" id="smtpPort" min="1" max="65535" placeholder="465">
+        </div>
+      </div>
+
+      <div class="field-stack">
+        <label for="smtpUser">Gmail Address</label>
+        <input type="email" id="smtpUser" autocomplete="username" placeholder="school.gmail@gmail.com">
+      </div>
+
+      <div class="field-stack">
+        <label for="smtpPassword">New Gmail App Password</label>
+        <input type="password" id="smtpPassword" autocomplete="new-password" placeholder="Leave blank to keep current app password">
+        <p class="field-helper" id="currentPasswordHelp">Current password: loading...</p>
+      </div>
+
+      <label class="checkbox-row" style="margin-top:12px;">
+        <input type="checkbox" id="clearSmtpPassword">
+        <span>Clear the saved app password</span>
+      </label>
+
+      <div class="action-row" style="margin-top:18px;">
+        <button type="button" id="saveSettingsBtn">Save Settings</button>
+        <button type="button" id="refreshSettingsBtn" class="secondary">Refresh</button>
+        <span id="settingsResult" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Sender and Portal Link</h2>
+          <p class="muted">These values appear in credential emails and notification messages.</p>
+        </div>
+      </div>
+
+      <div class="field-stack">
+        <label for="fromEmail">From Email</label>
+        <input type="email" id="fromEmail" placeholder="school.gmail@gmail.com">
+      </div>
+
+      <div class="field-stack">
+        <label for="fromName">From Name</label>
+        <input type="text" id="fromName" maxlength="80" placeholder="Philtech-GMA">
+      </div>
+
+      <div class="field-stack">
+        <label for="frontendUrl">Portal Login URL</label>
+        <input type="url" id="frontendUrl" placeholder="http://127.0.0.1:5501/frontend/pages/auth/login.html">
+        <p class="field-helper">This is the link students and parents receive in account emails.</p>
+      </div>
+
+      <div class="detail-item" style="margin-top:16px;">
+        <p><strong>What this changes</strong></p>
+        <p>Saving updates `EMAIL_ENABLED`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, and `FRONTEND_URL` in the backend environment file.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../js/core/api.js"></script>
+<script src="../../js/core/auth.js"></script>
+<script>
+requireAuth();
+
+const user = getUser();
+if (!user || user.role !== "admin") {
+  alert("Access denied");
+  logout();
+}
+
+function setResult(message, isError = false) {
+  const result = document.getElementById("settingsResult");
+  result.textContent = message;
+  result.style.color = isError ? "var(--danger)" : "";
+}
+
+function renderSettings(settings = {}) {
+  document.getElementById("providerStatus").textContent = settings.smtpHost || "SMTP";
+  document.getElementById("enabledStatus").textContent = settings.emailEnabled ? "Enabled" : "Disabled";
+  document.getElementById("passwordStatus").textContent = settings.hasPassword ? "Saved" : "Missing";
+  document.getElementById("emailEnabled").value = settings.emailEnabled ? "true" : "false";
+  document.getElementById("smtpSecure").value = settings.smtpSecure ? "true" : "false";
+  document.getElementById("smtpHost").value = settings.smtpHost || "smtp.gmail.com";
+  document.getElementById("smtpPort").value = settings.smtpPort || "465";
+  document.getElementById("smtpUser").value = settings.smtpUser || "";
+  document.getElementById("fromEmail").value = settings.fromEmail || "";
+  document.getElementById("fromName").value = settings.fromName || "Philtech-GMA";
+  document.getElementById("frontendUrl").value = settings.frontendUrl || "";
+  document.getElementById("smtpPassword").value = "";
+  document.getElementById("smtpPassword").disabled = false;
+  document.getElementById("clearSmtpPassword").checked = false;
+  document.getElementById("currentPasswordHelp").textContent = settings.hasPassword
+    ? `Current app password: ${settings.maskedPassword}`
+    : "Current app password: none saved";
+}
+
+async function loadSettings() {
+  setResult("Loading settings...");
+  const res = await apiRequest("/admin/email-settings", "GET", null, true);
+  if (!res.success) {
+    setResult(res.message || "Unable to load email settings.", true);
+    return;
+  }
+
+  renderSettings(res.settings);
+  setResult("");
+}
+
+async function saveSettings() {
+  const button = document.getElementById("saveSettingsBtn");
+  button.disabled = true;
+  setResult("Saving email settings...");
+
+  const payload = {
+    emailEnabled: document.getElementById("emailEnabled").value === "true",
+    smtpSecure: document.getElementById("smtpSecure").value === "true",
+    smtpHost: document.getElementById("smtpHost").value.trim(),
+    smtpPort: document.getElementById("smtpPort").value.trim(),
+    smtpUser: document.getElementById("smtpUser").value.trim(),
+    smtpPassword: document.getElementById("smtpPassword").value.trim(),
+    clearSmtpPassword: document.getElementById("clearSmtpPassword").checked,
+    fromEmail: document.getElementById("fromEmail").value.trim(),
+    fromName: document.getElementById("fromName").value.trim(),
+    frontendUrl: document.getElementById("frontendUrl").value.trim()
+  };
+
+  const res = await apiRequest("/admin/email-settings", "PUT", payload, true);
+  button.disabled = false;
+
+  if (!res.success) {
+    setResult(res.message || "Unable to save email settings.", true);
+    return;
+  }
+
+  renderSettings(res.settings);
+  setResult(res.message || "Email settings saved.");
+}
+
+document.getElementById("saveSettingsBtn").addEventListener("click", saveSettings);
+document.getElementById("refreshSettingsBtn").addEventListener("click", loadSettings);
+document.getElementById("clearSmtpPassword").addEventListener("change", event => {
+  document.getElementById("smtpPassword").disabled = event.target.checked;
+  if (event.target.checked) {
+    document.getElementById("smtpPassword").value = "";
+  }
+});
+
+loadSettings();
+</script>
+
+</body>
+</html>

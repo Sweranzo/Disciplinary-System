@@ -6,104 +6,71 @@
   <title>Student Dashboard</title>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
-<body>
+<body class="role-dashboard-page student-portal-page">
 
-<div class="dashboard-container dash-shell">
-  <div class="dash-hero">
-    <section class="dash-welcome">
-      <span class="eyebrow">Student Workspace</span>
-      <h1>My Discipline Record</h1>
-      <p>Track your cases, hearings, sanctions, appeals, and upcoming required meetings in one place.</p>
-      <div class="dash-actions" style="margin-top:22px;">
-        <a href="profile.html"><button>My Profile</button></a>
-        <a href="cases.html"><button class="secondary">Case History</button></a>
-      </div>
-    </section>
+<div class="dashboard-container role-dashboard-shell">
+  <header class="student-portal-header role-dashboard-hero">
+    <div class="student-welcome-copy">
+      <span class="eyebrow">My Student Portal</span>
+      <h1>Hi, <span id="studentName">Student</span></h1>
+      <p>See what needs your attention, understand your case progress, and keep track of important dates.</p>
+    </div>
+    <div class="role-dashboard-side">
+      <div data-dashboard-weather></div>
+    </div>
+  </header>
 
-    <aside class="dash-profile-card">
-      <div class="admin-profile-head">
-        <div class="admin-profile-avatar" id="studentInitials">S</div>
+  <section class="student-attention-card">
+    <div>
+      <span class="role-kicker">Your next step</span>
+      <h2 id="studentActionTitle">Checking your records...</h2>
+      <p id="studentActionText">Please wait while your current case and schedule are loaded.</p>
+    </div>
+    <a id="studentActionLink" class="role-action primary" href="cases.html">Open my cases</a>
+  </section>
+
+  <section class="role-metric-grid student-metric-grid" id="studentMetrics"></section>
+
+  <div class="student-dashboard-grid">
+    <main class="role-panel student-history-panel">
+      <div class="role-panel-head">
         <div>
-          <strong id="studentName">Student</strong>
-          <span>Student / Self-Service Portal</span>
+          <span class="role-kicker">Case timeline</span>
+          <h2>My Recent Cases</h2>
+          <p>Your latest records and their current status.</p>
         </div>
+        <a href="cases.html">Full history</a>
       </div>
-      <div class="admin-profile-info">
-        <div><strong>Email</strong><span id="studentEmail">-</span></div>
-        <div><strong>Student ID</strong><span id="studentId">-</span></div>
-        <div><strong>Role</strong><span>Student</span></div>
-        <div><strong>Scope</strong><span>Your linked records only</span></div>
-      </div>
-    </aside>
-  </div>
-
-  <section class="dash-metrics" id="studentMetrics"></section>
-
-  <div class="dash-grid-main">
-    <main class="dash-stack">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>My Case Analytics</h2>
-            <p class="muted">Status and severity of records linked to your account.</p>
-          </div>
-        </div>
-        <div class="case-analytics-grid">
-          <div class="case-analytics-block case-analytics-donut-block">
-            <span class="case-analytics-label">My Cases</span>
-            <div id="statusChart"></div>
-          </div>
-          <div class="case-analytics-block">
-            <span class="case-analytics-label">Status Distribution</span>
-            <div id="statusLegend"></div>
-          </div>
-          <div class="case-analytics-block">
-            <span class="case-analytics-label">Severity Distribution</span>
-            <div id="severityChart"></div>
-          </div>
-        </div>
-        <div id="studentAnalyticsSummary" class="case-analytics-summary"></div>
-      </section>
-
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Recent Case History</h2>
-            <p class="muted">Latest records and incident dates.</p>
-          </div>
-          <a href="cases.html"><button class="secondary">View Cases</button></a>
-        </div>
-        <div id="recentCases">Loading...</div>
-      </section>
+      <div id="recentCases">Loading...</div>
     </main>
 
-    <aside class="dash-stack">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>My Calendar</h2>
-            <p class="muted">Upcoming hearings and sanction-related dates.</p>
-          </div>
+    <aside class="role-panel student-dates-panel">
+      <div class="role-panel-head">
+        <div>
+          <span class="role-kicker">Important dates</span>
+          <h2>Coming Up</h2>
+          <p>Hearings and sanction deadlines.</p>
         </div>
-        <div id="meetingCalendar"></div>
-      </section>
-
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div>
-            <h2>Upcoming Items</h2>
-            <p class="muted">Dates connected to your records.</p>
-          </div>
-        </div>
-        <div id="meetingCalendarList">Loading...</div>
-      </section>
+      </div>
+      <div id="meetingCalendarList">Loading...</div>
     </aside>
   </div>
+
+  <section class="student-record-strip role-panel">
+    <div class="role-panel-head">
+      <div>
+        <span class="role-kicker">Record summary</span>
+        <h2>Where My Cases Stand</h2>
+      </div>
+    </div>
+    <div id="statusLegend"></div>
+  </section>
 </div>
 
 <script src="../../js/core/api.js"></script>
 <script src="../../js/core/auth.js"></script>
 <script src="../../js/core/dashboard-widgets.js"></script>
+<script src="../../js/core/dashboard-weather.js"></script>
 <script>
 requireAuth();
 
@@ -114,16 +81,8 @@ if (!user || user.role !== "student") {
 }
 
 const W = DashboardWidgets;
+DashboardWeather.mountAll();
 document.getElementById("studentName").textContent = getUserFullName(user);
-const studentAvatar = document.getElementById("studentInitials");
-const studentAvatarUrl = getAvatarUrl(user);
-if (studentAvatarUrl) {
-  studentAvatar.innerHTML = `<img src="${studentAvatarUrl}" alt="${getUserFullName(user)} avatar">`;
-} else {
-  studentAvatar.textContent = `${user.first_name?.[0] || "S"}${user.last_name?.[0] || ""}`.toUpperCase();
-}
-document.getElementById("studentEmail").textContent = user.email || "-";
-document.getElementById("studentId").textContent = user.employee_or_student_id || "-";
 
 function hearingToEvent(item) {
   return {
@@ -146,38 +105,65 @@ function sanctionToEvent(item) {
 }
 
 function renderDashboard({ cases, hearings, sanctions, appeals }) {
-  const upcomingHearings = hearings.filter(item => item.status === "scheduled");
+  const upcomingHearings = hearings.filter(item => item.status === "scheduled" && !item.has_overdue_hearing);
   const activeSanctions = sanctions.filter(item => item.status === "active");
   const openAppeals = appeals.filter(item => ["submitted", "under_review"].includes(item.status));
   const openCases = cases.filter(item => W.isOpenStatus(item.status));
-  const statusCounts = W.groupBy(cases, "status");
+  const displayCases = cases.map(item => ({
+    ...item,
+    display_status: item.operational_status || item.status
+  }));
+  const statusCounts = W.groupBy(displayCases, "display_status");
   const severityCounts = W.groupBy(cases, "severity_level");
-  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "resolved", "dismissed"];
+  const caseStatuses = ["pending", "under_investigation", "hearing_scheduled", "hearing_overdue", "resolved", "dismissed"];
   const caseSeverities = ["minor", "major", "grave"];
   const events = [...upcomingHearings.map(hearingToEvent), ...activeSanctions.map(sanctionToEvent).filter(item => item.date)];
 
   W.renderMetrics("studentMetrics", [
-    { icon: "CS", label: "My Cases", value: cases.length, help: "All cases linked to you" },
-    { icon: "MT", label: "Upcoming Hearings", value: upcomingHearings.length, help: "Meetings you may need to attend" },
-    { icon: "SN", label: "Active Sanctions", value: activeSanctions.length, help: "Current sanction follow-up" },
-    { icon: "AP", label: "Open Appeals", value: openAppeals.length, help: "Submitted or under review" }
+    { icon: "CS", label: "Open Cases", value: openCases.length, help: "Cases still being processed" },
+    { icon: "MT", label: "Hearings", value: upcomingHearings.length, help: "Upcoming required meetings" },
+    { icon: "SN", label: "Sanctions", value: activeSanctions.length, help: "Active responsibilities" },
+    { icon: "AP", label: "Appeals", value: openAppeals.length, help: "Awaiting a decision" }
   ]);
 
-  W.renderDonut("statusChart", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No cases yet");
   W.renderStatusList("statusLegend", W.toSegments(statusCounts, caseStatuses, { includeZeros: true }), "No status data yet");
-  W.renderBars("severityChart", W.toSegments(severityCounts, caseSeverities, { includeZeros: true }), "No severity data yet");
-  W.renderSummary("studentAnalyticsSummary", [
-    { label: "Total", value: cases.length },
-    { label: "Open", value: openCases.length },
-    { label: "Resolved", value: statusCounts.resolved || 0 },
-    { label: "Open Appeals", value: openAppeals.length }
-  ]);
-  W.renderCalendar("meetingCalendar", events);
   W.renderUpcoming("meetingCalendarList", events, "No upcoming hearings or sanction dates");
 
+  const actionTitle = document.getElementById("studentActionTitle");
+  const actionText = document.getElementById("studentActionText");
+  const actionLink = document.getElementById("studentActionLink");
+  const overdueCase = cases.find(item => item.operational_status === "hearing_overdue");
+  if (overdueCase) {
+    actionTitle.textContent = "A hearing update is overdue";
+    actionText.textContent = `${overdueCase.case_number} is waiting for a hearing result. Check the case for the latest school update.`;
+    actionLink.href = `case-details.html?id=${encodeURIComponent(overdueCase.id)}`;
+    actionLink.textContent = "View overdue case";
+  } else if (upcomingHearings.length) {
+    const next = upcomingHearings[0];
+    actionTitle.textContent = "Prepare for your upcoming hearing";
+    actionText.textContent = `${next.case_number} is scheduled on ${W.formatDate(next.scheduled_date)}${next.scheduled_time ? ` at ${String(next.scheduled_time).slice(0, 5)}` : ""}.`;
+    actionLink.href = "hearings.html";
+    actionLink.textContent = "View hearing details";
+  } else if (activeSanctions.length) {
+    actionTitle.textContent = "You have an active sanction";
+    actionText.textContent = "Review the requirements and completion date so nothing is missed.";
+    actionLink.href = "sanctions.html";
+    actionLink.textContent = "Review sanction";
+  } else if (openCases.length) {
+    actionTitle.textContent = "Your case is still in progress";
+    actionText.textContent = "No immediate action is listed. Watch your notifications for the next update.";
+    actionLink.href = "cases.html";
+    actionLink.textContent = "Track case progress";
+  } else {
+    actionTitle.textContent = "You have no pending actions";
+    actionText.textContent = "There are no active hearings, sanctions, or open cases requiring your attention.";
+    actionLink.href = "profile.html";
+    actionLink.textContent = "View my profile";
+  }
+
   W.renderList("recentCases", cases.slice(0, 6), "No case history found.", item => `
-    <a class="dash-case-row" href="cases.html">
-      <span class="badge ${item.status}">${W.labelize(item.status)}</span>
+    <a class="dash-case-row" href="case-details.html?id=${encodeURIComponent(item.id)}">
+      <span class="badge ${item.operational_status || item.status}">${W.labelize(item.operational_status || item.status)}</span>
       <div>
         <strong>${W.escapeHtml(item.case_number)}</strong>
         <p>${W.escapeHtml(item.violation_type)} | ${W.labelize(item.severity_level)} | ${W.formatDate(item.incident_date)}</p>
