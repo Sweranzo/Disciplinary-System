@@ -13,6 +13,9 @@ const {
   listSmsLogs,
   deleteSmsLog,
   clearSmsLogs,
+  listEmailLogs,
+  deleteEmailLog,
+  clearEmailLogs,
   deleteUser,
   resetPassword,
   listParents,
@@ -80,6 +83,9 @@ router.delete("/audit-logs", clearAuditLogs);
 router.get("/sms-logs", listSmsLogs);
 router.delete("/sms-logs/:id", deleteSmsLog);
 router.delete("/sms-logs", clearSmsLogs);
+router.get("/email-logs", listEmailLogs);
+router.delete("/email-logs/:id", deleteEmailLog);
+router.delete("/email-logs", clearEmailLogs);
 router.get("/sms-settings", getSmsSettings);
 router.put("/sms-settings/semaphore", updateSemaphoreSettings);
 router.get("/email-settings", getEmailSettings);

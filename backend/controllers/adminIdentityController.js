@@ -2456,6 +2456,145 @@ async function clearSmsLogs(req, res) {
   }
 }
 
+async function listEmailLogs(req, res) {
+  try {
+    const { page, limit, offset } = getPageMeta(req);
+    const params = [];
+    let whereClause = "";
+
+    if (req.query.search) {
+      whereClause += `
+        WHERE (
+          el.email_address LIKE ?
+          OR el.subject LIKE ?
+          OR el.message LIKE ?
+          OR el.delivery_status LIKE ?
+          OR el.failure_reason LIKE ?
+          OR c.case_number LIKE ?
+          OR COALESCE(su.first_name, s.first_name) LIKE ?
+          OR COALESCE(su.last_name, s.last_name) LIKE ?
+          OR COALESCE(pu.first_name, p.first_name) LIKE ?
+          OR COALESCE(pu.last_name, p.last_name) LIKE ?
+        )
+      `;
+      const pattern = escapeLike(req.query.search);
+      params.push(pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern);
+    }
+
+    if (req.query.status) {
+      whereClause += whereClause ? " AND el.delivery_status = ?" : " WHERE el.delivery_status = ?";
+      params.push(req.query.status);
+    }
+
+    const [countRows] = await pool.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM email_logs el
+      LEFT JOIN cases c ON el.case_id = c.id
+      LEFT JOIN students s ON el.student_id = s.id
+      LEFT JOIN users su ON s.user_id = su.id
+      LEFT JOIN parents p ON el.parent_id = p.id
+      LEFT JOIN users pu ON p.user_id = pu.id
+      ${whereClause}
+      `,
+      params
+    );
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        el.id,
+        el.case_id,
+        el.student_id,
+        el.parent_id,
+        el.user_id,
+        el.recipient_role,
+        el.email_address,
+        el.subject,
+        el.message,
+        el.delivery_status,
+        el.failure_reason,
+        el.sent_at,
+        el.created_at,
+        c.case_number,
+        COALESCE(su.first_name, s.first_name) AS student_first_name,
+        COALESCE(su.last_name, s.last_name) AS student_last_name,
+        COALESCE(pu.first_name, p.first_name) AS parent_first_name,
+        COALESCE(pu.last_name, p.last_name) AS parent_last_name
+      FROM email_logs el
+      LEFT JOIN cases c ON el.case_id = c.id
+      LEFT JOIN students s ON el.student_id = s.id
+      LEFT JOIN users su ON s.user_id = su.id
+      LEFT JOIN parents p ON el.parent_id = p.id
+      LEFT JOIN users pu ON p.user_id = pu.id
+      ${whereClause}
+      ORDER BY COALESCE(el.sent_at, el.created_at) DESC, el.id DESC
+      LIMIT ? OFFSET ?
+      `,
+      [...params, limit, offset]
+    );
+
+    const [statusRows] = await pool.query(
+      `
+      SELECT delivery_status, COUNT(*) AS total
+      FROM email_logs
+      GROUP BY delivery_status
+      ORDER BY total DESC, delivery_status ASC
+      `
+    );
+
+    return res.json({
+      success: true,
+      logs: rows,
+      statusOptions: statusRows,
+      pagination: {
+        page,
+        limit,
+        total: countRows[0]?.total || 0,
+        totalPages: Math.max(1, Math.ceil((countRows[0]?.total || 0) / limit))
+      }
+    });
+  } catch (error) {
+    console.error("List email logs error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching email logs."
+    });
+  }
+}
+
+async function deleteEmailLog(req, res) {
+  try {
+    const { id } = req.params;
+    const [result] = await pool.query(
+      `
+      DELETE FROM email_logs
+      WHERE id = ?
+      `,
+      [id]
+    );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({ success: false, message: "Email log not found." });
+    }
+
+    return res.json({ success: true, message: "Email log deleted successfully." });
+  } catch (error) {
+    console.error("Delete email log error:", error);
+    return res.status(500).json({ success: false, message: "Server error while deleting email log." });
+  }
+}
+
+async function clearEmailLogs(req, res) {
+  try {
+    await pool.query("DELETE FROM email_logs");
+    return res.json({ success: true, message: "Email history cleared successfully." });
+  } catch (error) {
+    console.error("Clear email logs error:", error);
+    return res.status(500).json({ success: false, message: "Server error while clearing email logs." });
+  }
+}
+
 async function deleteAuditLog(req, res) {
   try {
     const { id } = req.params;
@@ -2499,6 +2638,9 @@ module.exports = {
   listSmsLogs,
   deleteSmsLog,
   clearSmsLogs,
+  listEmailLogs,
+  deleteEmailLog,
+  clearEmailLogs,
   deleteUser,
   resetPassword,
   listParents,
