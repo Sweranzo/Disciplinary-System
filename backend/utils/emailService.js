@@ -12,15 +12,32 @@ function isEmailEnabled() {
   return String(process.env.EMAIL_ENABLED || "").toLowerCase() === "true";
 }
 
+function getEmailProvider() {
+  const configuredProvider = String(process.env.EMAIL_PROVIDER || "").trim().toLowerCase();
+  if (configuredProvider === "brevo" || process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY) {
+    return "brevo";
+  }
+
+  return "smtp";
+}
+
 function sanitizeEmail(emailAddress = "") {
   return String(emailAddress || "").trim();
 }
 
 function getFromAddress() {
-  const fromEmail = sanitizeEmail(process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || "");
+  const fromEmail = sanitizeEmail(process.env.BREVO_FROM_EMAIL || process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || "");
   const fromName = String(process.env.SMTP_FROM_NAME || "Philtech-GMA").trim();
 
   return fromName && fromEmail ? `"${fromName.replace(/"/g, "'")}" <${fromEmail}>` : fromEmail;
+}
+
+function getFromEmail() {
+  return sanitizeEmail(process.env.BREVO_FROM_EMAIL || process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || "");
+}
+
+function getFromName() {
+  return String(process.env.SMTP_FROM_NAME || "Philtech-GMA").trim();
 }
 
 function escapeHtml(value = "") {
@@ -58,6 +75,64 @@ function getSmtpTransporter() {
     port,
     secure,
     auth: { user, pass }
+  });
+}
+
+async function sendViaBrevo({ recipient, subject, message, html = null }) {
+  const apiKey = process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY;
+  const fromEmail = getFromEmail();
+  const fromName = getFromName();
+
+  if (!apiKey) {
+    throw new Error("BREVO_API_KEY is not configured.");
+  }
+
+  if (!fromEmail) {
+    throw new Error("SMTP_FROM_EMAIL or SMTP_USER is required as the sender email.");
+  }
+
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey
+    },
+    body: JSON.stringify({
+      sender: {
+        email: fromEmail,
+        name: fromName
+      },
+      to: [{ email: recipient }],
+      subject,
+      textContent: message,
+      htmlContent: html || undefined
+    })
+  });
+
+  const bodyText = await response.text();
+  let parsed = null;
+  try {
+    parsed = bodyText ? JSON.parse(bodyText) : null;
+  } catch (error) {
+    parsed = null;
+  }
+
+  if (!response.ok) {
+    const providerMessage = parsed?.message || bodyText || `Brevo request failed with status ${response.status}`;
+    throw new Error(providerMessage);
+  }
+
+  return parsed || { status: response.status };
+}
+
+async function sendViaSmtp({ recipient, subject, message, html = null }) {
+  const transporter = getSmtpTransporter();
+  return transporter.sendMail({
+    from: getFromAddress(),
+    to: recipient,
+    subject,
+    text: message,
+    html: html || undefined
   });
 }
 
@@ -160,14 +235,10 @@ async function sendEmail({
   }
 
   try {
-    const transporter = getSmtpTransporter();
-    const info = await transporter.sendMail({
-      from: getFromAddress(),
-      to: recipient,
-      subject,
-      text: message,
-      html: html || undefined
-    });
+    const provider = getEmailProvider();
+    const info = provider === "brevo"
+      ? await sendViaBrevo({ recipient, subject, message, html })
+      : await sendViaSmtp({ recipient, subject, message, html });
 
     await safeLogEmail({
       caseId,
@@ -185,6 +256,7 @@ async function sendEmail({
     return {
       success: true,
       status: "sent",
+      provider,
       providerResponse: info
     };
   } catch (error) {

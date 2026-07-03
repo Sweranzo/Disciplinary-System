@@ -116,8 +116,12 @@ async function getEmailSettingsSnapshot() {
     process.env[key] !== undefined ? process.env[key] : envValues[key]
   );
   const password = readValue("SMTP_PASSWORD") || "";
+  const brevoApiKey = readValue("BREVO_API_KEY") || readValue("SENDINBLUE_API_KEY") || "";
+  const configuredProvider = String(readValue("EMAIL_PROVIDER") || "").trim().toLowerCase();
+  const effectiveProvider = configuredProvider === "brevo" || brevoApiKey ? "brevo" : "smtp";
   return {
     emailEnabled: boolFromEnv(readValue("EMAIL_ENABLED")),
+    emailProvider: effectiveProvider,
     smtpHost: readValue("SMTP_HOST") || DEFAULT_SMTP_HOST,
     smtpPort: readValue("SMTP_PORT") || DEFAULT_SMTP_PORT,
     smtpSecure: readValue("SMTP_SECURE") === undefined ? true : boolFromEnv(readValue("SMTP_SECURE")),
@@ -126,7 +130,9 @@ async function getEmailSettingsSnapshot() {
     fromName: readValue("SMTP_FROM_NAME") || "Philtech-GMA",
     frontendUrl: readValue("FRONTEND_URL") || readValue("PORTAL_URL") || "",
     hasPassword: Boolean(password),
-    maskedPassword: maskSecret(password)
+    maskedPassword: maskSecret(password),
+    hasBrevoApiKey: Boolean(brevoApiKey),
+    maskedBrevoApiKey: maskSecret(brevoApiKey)
   };
 }
 

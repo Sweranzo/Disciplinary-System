@@ -148,7 +148,9 @@ function setResult(message, isError = false) {
 }
 
 function renderSettings(settings = {}) {
-  document.getElementById("providerStatus").textContent = settings.smtpHost || "SMTP";
+  document.getElementById("providerStatus").textContent = settings.emailProvider === "brevo"
+    ? "Brevo API"
+    : (settings.smtpHost || "SMTP");
   document.getElementById("enabledStatus").textContent = settings.emailEnabled ? "Enabled" : "Disabled";
   document.getElementById("passwordStatus").textContent = settings.hasPassword ? "Saved" : "Missing";
   document.getElementById("emailEnabled").value = settings.emailEnabled ? "true" : "false";
