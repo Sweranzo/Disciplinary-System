@@ -419,7 +419,7 @@ async function loadCaseDetails() {
         </div>
       </div>
       <div class="evidence-review-controls">
-        <a href="http://localhost:5000${escapeHtml(item.file_path || "")}" target="_blank" class="button-link secondary">Open File</a>
+        <a href="${API_BASE_URL.replace(/\/api\/?$/, "")}${escapeHtml(item.file_path || "")}" target="_blank" class="button-link secondary">Open File</a>
       </div>
     </div>
   `);

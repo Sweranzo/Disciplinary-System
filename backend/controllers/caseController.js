@@ -16,6 +16,7 @@ const {
   notifyCaseStakeholders,
   refreshCaseWorkflow
 } = require("../utils/caseWorkflow");
+const { buildPublicUrl } = require("../utils/publicUrl");
 
 const ADMINISTRATIVE_DISMISSAL_REASONS = Object.freeze({
   student_inactive: "Student inactive",
@@ -45,7 +46,7 @@ function buildAvatarUrl(avatarPath) {
     return avatarPath;
   }
 
-  return `http://localhost:${process.env.PORT || 5000}${avatarPath}`;
+  return buildPublicUrl(avatarPath);
 }
 
 async function notifyLinkedParentsAboutCase({

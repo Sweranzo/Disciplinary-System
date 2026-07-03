@@ -1398,7 +1398,7 @@ async function loadCaseDetails() {
         </div>
       </div>
       <div class="evidence-review-controls">
-        <a href="http://localhost:5000${escapeHtml(evidence.file_path || "")}" target="_blank" class="button-link secondary">Open File</a>
+        <a href="${API_BASE_URL.replace(/\/api\/?$/, "")}${escapeHtml(evidence.file_path || "")}" target="_blank" class="button-link secondary">Open File</a>
         <div class="evidence-review-form">
           <select id="reviewStatus-${evidence.id}" aria-label="Evidence review status">
             <option value="pending" ${evidence.review_status === "pending" ? "selected" : ""}>Pending</option>

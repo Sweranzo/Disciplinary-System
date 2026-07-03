@@ -588,7 +588,7 @@ async function loadCaseDetails() {
         <p>Uploaded by ${evidence.uploaded_by_first_name || "-"} ${evidence.uploaded_by_last_name || ""} (${evidence.uploaded_by_role_label || "staff"})</p>
         <p class="muted">${evidence.review_notes || "No review notes yet."}</p>
         <div class="action-row">
-          <a href="http://localhost:5000${evidence.file_path}" target="_blank"><button type="button">Open Evidence</button></a>
+          <a href="${API_BASE_URL.replace(/\/api\/?$/, "")}${evidence.file_path || ""}" target="_blank"><button type="button">Open Evidence</button></a>
         </div>
       </div>
     `

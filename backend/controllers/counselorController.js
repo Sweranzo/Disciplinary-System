@@ -7,6 +7,7 @@ const {
   notifyCaseStakeholders,
   refreshCaseWorkflow
 } = require("../utils/caseWorkflow");
+const { buildPublicUrl } = require("../utils/publicUrl");
 
 function buildAvatarUrl(avatarPath) {
   if (!avatarPath) {
@@ -17,7 +18,7 @@ function buildAvatarUrl(avatarPath) {
     return avatarPath;
   }
 
-  return `http://localhost:${process.env.PORT || 5000}${avatarPath}`;
+  return buildPublicUrl(avatarPath);
 }
 
 function formatRoleLabel(role = "") {

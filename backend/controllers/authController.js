@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { logAudit } = require("../utils/auditLogger");
 const { assertPasswordPolicy } = require("../utils/identityService");
+const { buildPublicUrl } = require("../utils/publicUrl");
 
 function formatRoleLabel(role = "") {
   return role
@@ -21,7 +22,7 @@ function buildAvatarUrl(avatarPath) {
     return avatarPath;
   }
 
-  return `http://localhost:${process.env.PORT || 5000}${avatarPath}`;
+  return buildPublicUrl(avatarPath);
 }
 
 function buildUserResponse(user) {
