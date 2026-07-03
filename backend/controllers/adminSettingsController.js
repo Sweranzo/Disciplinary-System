@@ -112,7 +112,7 @@ function getSmsSettingsSnapshot() {
 async function getEmailSettingsSnapshot() {
   const envValues = await readEnvValues();
   const readValue = key => (
-    Object.prototype.hasOwnProperty.call(envValues, key) ? envValues[key] : process.env[key]
+    process.env[key] !== undefined ? process.env[key] : envValues[key]
   );
   const password = readValue("SMTP_PASSWORD") || "";
   return {
@@ -257,7 +257,9 @@ async function updateEmailSettings(req, res) {
       });
     }
 
-    const hasEffectivePassword = clearSmtpPassword ? false : Boolean(smtpPassword || process.env.SMTP_PASSWORD);
+    const envValues = await readEnvValues();
+    const existingPassword = process.env.SMTP_PASSWORD !== undefined ? process.env.SMTP_PASSWORD : envValues.SMTP_PASSWORD;
+    const hasEffectivePassword = clearSmtpPassword ? false : Boolean(smtpPassword || existingPassword);
     if (emailEnabled && (!smtpUser || !hasEffectivePassword || !fromEmail)) {
       return res.status(400).json({
         success: false,

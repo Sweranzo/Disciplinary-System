@@ -1361,16 +1361,10 @@ async function createStudent() {
     closeModal("createStudentModal");
     const credentials = Array.isArray(res.credentials) ? res.credentials.length : 0;
     const emailSummary = res.emailNotifications || {};
-    const emailFailure = Array.isArray(emailSummary.details)
-      ? emailSummary.details.find(item => item && item.status !== "sent")
-      : null;
-    const emailFailureText = emailFailure?.reason
-      ? ` Email issue: ${emailFailure.reason}`
-      : "";
     const smsSummary = res.smsNotifications || {};
     await showAppNotice(
       "Student created",
-      `${res.message || "Student created successfully."} Generated login accounts: ${credentials}. Credential emails sent: ${emailSummary.sent || 0}, disabled: ${emailSummary.disabled || 0}, failed: ${emailSummary.failed || 0}.${emailFailureText} Credential SMS sent: ${smsSummary.sent || 0}, disabled: ${smsSummary.disabled || 0}, failed: ${smsSummary.failed || 0}, skipped: ${smsSummary.skipped || 0}.`
+      `${res.message || "Student created successfully."} Generated login accounts: ${credentials}. Credential emails queued: ${emailSummary.queued || 0}. Credential SMS queued: ${smsSummary.queued || 0}, skipped: ${smsSummary.skipped || 0}. Check email and SMS logs for delivery results.`
     );
   }
 }

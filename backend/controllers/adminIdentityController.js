@@ -28,6 +28,37 @@ function getPortalUrl() {
   return String(process.env.FRONTEND_URL || process.env.PORTAL_URL || "http://127.0.0.1:5500/frontend/pages/auth/login.html").trim();
 }
 
+async function sendEnrollmentNotifications({ credentials = [], userId = null, ipAddress = null }) {
+  for (const credential of credentials) {
+    await sendAccountCredentialsEmail({
+      credential,
+      studentId: credential.studentId || null,
+      parentId: credential.parentId || null,
+      userId: credential.userId || null
+    });
+  }
+
+  for (const credential of credentials.filter(item => item.role === "parent")) {
+    if (!credential.phoneNumber) {
+      continue;
+    }
+
+    await sendSms({
+      parentId: credential.parentId || null,
+      phoneNumber: credential.phoneNumber,
+      userId,
+      ipAddress,
+      message: renderSmsTemplate("accountCredentials", {
+        recipientName: credential.name || "Parent/Guardian",
+        roleLabel: "parent",
+        username: credential.username,
+        password: credential.password,
+        portalUrl: getPortalUrl()
+      })
+    });
+  }
+}
+
 function getPageMeta(req) {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
@@ -1259,83 +1290,44 @@ async function createStudent(req, res) {
 
     await connection.commit();
 
+    const parentCredentials = credentials.filter(item => item.role === "parent");
+    const parentSmsTargets = parentCredentials.filter(item => item.phoneNumber);
     const emailNotifications = {
-      attempted: 0,
+      attempted: credentials.length,
+      queued: credentials.length,
       sent: 0,
       failed: 0,
       disabled: 0,
       details: []
     };
 
-    for (const credential of credentials) {
-      emailNotifications.attempted += 1;
-      const emailResult = await sendAccountCredentialsEmail({
-        credential,
-        studentId: credential.studentId || null,
-        parentId: credential.parentId || null,
-        userId: credential.userId || null
-      });
-
-      if (emailResult.success) {
-        emailNotifications.sent += 1;
-      } else if (emailResult.status === "disabled") {
-        emailNotifications.disabled += 1;
-      } else {
-        emailNotifications.failed += 1;
-      }
-
-      emailNotifications.details.push({
-        role: credential.role,
-        email: credential.email,
-        status: emailResult.status || (emailResult.success ? "sent" : "failed"),
-        reason: emailResult.reason || ""
-      });
-    }
-
     const smsNotifications = {
-      attempted: 0,
+      attempted: parentSmsTargets.length,
+      queued: parentSmsTargets.length,
       sent: 0,
       failed: 0,
       disabled: 0,
-      skipped: 0
+      skipped: parentCredentials.length - parentSmsTargets.length
     };
 
-    for (const credential of credentials.filter(item => item.role === "parent")) {
-      if (!credential.phoneNumber) {
-        smsNotifications.skipped += 1;
-        continue;
-      }
+    const notificationUserId = req.user?.id || null;
+    const notificationIpAddress = req.ip;
 
-      smsNotifications.attempted += 1;
-      const smsResult = await sendSms({
-        parentId: credential.parentId || null,
-        phoneNumber: credential.phoneNumber,
-        userId: req.user?.id || null,
-        ipAddress: req.ip,
-        message: renderSmsTemplate("accountCredentials", {
-          recipientName: credential.name || "Parent/Guardian",
-          roleLabel: "parent",
-          username: credential.username,
-          password: credential.password,
-          portalUrl: getPortalUrl()
-        })
+    setImmediate(() => {
+      sendEnrollmentNotifications({
+        credentials,
+        userId: notificationUserId,
+        ipAddress: notificationIpAddress
+      }).catch(error => {
+        console.error("Enrollment notification dispatch error:", error);
       });
-
-      if (smsResult.success) {
-        smsNotifications.sent += 1;
-      } else if (smsResult.status === "disabled") {
-        smsNotifications.disabled += 1;
-      } else {
-        smsNotifications.failed += 1;
-      }
-    }
+    });
 
     return res.status(201).json({
       success: true,
       message: "Student record created successfully.",
       studentId: createdStudent.id,
       qrToken: createdStudent.qrToken,
-      qrCodeDataUrl: await generateQrDataUrl(studentNumber, createdStudent.qrToken),
       credentials,
       emailNotifications,
       smsNotifications
