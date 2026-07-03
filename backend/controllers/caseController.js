@@ -2433,27 +2433,29 @@ async function getCaseSummary(req, res) {
 
     const [statusRows] = await pool.query(
       `
-      SELECT
-        CASE
-          WHEN c.status NOT IN ('resolved', 'dismissed')
-            AND EXISTS (
-              SELECT 1
-              FROM hearings overdue_hearing
-              WHERE overdue_hearing.case_id = c.id
-                AND overdue_hearing.status = 'scheduled'
-                AND TIMESTAMP(
-                  overdue_hearing.scheduled_date,
-                  COALESCE(overdue_hearing.scheduled_time, '23:59:59')
-                ) < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
-            )
-          THEN 'hearing_overdue'
-          ELSE c.status
-        END AS status,
-        COUNT(*) AS total
-      FROM cases c
-      WHERE 1 = 1
-      ${access.clause}
-      GROUP BY status
+      SELECT status, COUNT(*) AS total
+      FROM (
+        SELECT
+          CASE
+            WHEN c.status NOT IN ('resolved', 'dismissed')
+              AND EXISTS (
+                SELECT 1
+                FROM hearings overdue_hearing
+                WHERE overdue_hearing.case_id = c.id
+                  AND overdue_hearing.status = 'scheduled'
+                  AND TIMESTAMP(
+                    overdue_hearing.scheduled_date,
+                    COALESCE(overdue_hearing.scheduled_time, '23:59:59')
+                  ) < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+              )
+            THEN 'hearing_overdue'
+            ELSE c.status
+          END AS status
+        FROM cases c
+        WHERE 1 = 1
+        ${access.clause}
+      ) status_summary
+      GROUP BY status_summary.status
       `,
       access.params
     );
@@ -2514,28 +2516,33 @@ async function getCaseActionSummary(req, res) {
     const [rows] = await pool.query(
       `
       SELECT
-        CASE
-          WHEN EXISTS (
-            SELECT 1
-            FROM hearings overdue_hearing
-            WHERE overdue_hearing.case_id = c.id
-              AND overdue_hearing.status = 'scheduled'
-              AND TIMESTAMP(
-                overdue_hearing.scheduled_date,
-                COALESCE(overdue_hearing.scheduled_time, '23:59:59')
-              ) < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
-          )
-          THEN 'update_hearing_result'
-          ELSE c.next_action
-        END AS next_action,
-        c.workflow_status,
+        next_action,
+        workflow_status,
         COUNT(*) AS total
-      FROM cases c
-      JOIN students s ON c.student_id = s.id
-      LEFT JOIN users u ON s.user_id = u.id
-      WHERE c.status NOT IN ('resolved', 'dismissed')
-      ${access.clause}
-      GROUP BY next_action, c.workflow_status
+      FROM (
+        SELECT
+          CASE
+            WHEN EXISTS (
+              SELECT 1
+              FROM hearings overdue_hearing
+              WHERE overdue_hearing.case_id = c.id
+                AND overdue_hearing.status = 'scheduled'
+                AND TIMESTAMP(
+                  overdue_hearing.scheduled_date,
+                  COALESCE(overdue_hearing.scheduled_time, '23:59:59')
+                ) < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+            )
+            THEN 'update_hearing_result'
+            ELSE c.next_action
+          END AS next_action,
+          c.workflow_status
+        FROM cases c
+        JOIN students s ON c.student_id = s.id
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE c.status NOT IN ('resolved', 'dismissed')
+        ${access.clause}
+      ) action_summary
+      GROUP BY action_summary.next_action, action_summary.workflow_status
       ORDER BY total DESC
       `,
       access.params
