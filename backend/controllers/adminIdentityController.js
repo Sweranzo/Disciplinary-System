@@ -1263,7 +1263,8 @@ async function createStudent(req, res) {
       attempted: 0,
       sent: 0,
       failed: 0,
-      disabled: 0
+      disabled: 0,
+      details: []
     };
 
     for (const credential of credentials) {
@@ -1282,6 +1283,13 @@ async function createStudent(req, res) {
       } else {
         emailNotifications.failed += 1;
       }
+
+      emailNotifications.details.push({
+        role: credential.role,
+        email: credential.email,
+        status: emailResult.status || (emailResult.success ? "sent" : "failed"),
+        reason: emailResult.reason || ""
+      });
     }
 
     const smsNotifications = {

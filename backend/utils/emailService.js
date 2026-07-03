@@ -43,7 +43,9 @@ function getSmtpTransporter() {
 
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);
-  const secure = String(process.env.SMTP_SECURE || "").toLowerCase() === "true";
+  const secure = process.env.SMTP_SECURE === undefined
+    ? port === 465
+    : String(process.env.SMTP_SECURE || "").toLowerCase() === "true";
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASSWORD;
 
