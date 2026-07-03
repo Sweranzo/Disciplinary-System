@@ -1,5 +1,4 @@
-const API_BASE_URL = "http://localhost:5000/api";
-
+const API_BASE_URL ="https://disciplinary-system.onrender.com";
 const AppProgress = (() => {
   let activeRequests = 0;
   let progressValue = 0;
