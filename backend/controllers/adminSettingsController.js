@@ -2,6 +2,7 @@ const fs = require("fs/promises");
 const path = require("path");
 const { logAudit } = require("../utils/auditLogger");
 const { getSmsTemplates, SMS_TEMPLATE_CONFIG } = require("../utils/smsService");
+const { sendEmail } = require("../utils/emailService");
 
 const ENV_PATH = path.join(__dirname, "..", ".env");
 const ENV_EXAMPLE_PATH = path.join(__dirname, "..", ".env.example");
@@ -322,9 +323,56 @@ async function updateEmailSettings(req, res) {
   }
 }
 
+async function sendTestEmail(req, res) {
+  try {
+    const settings = await getEmailSettingsSnapshot();
+    const recipient = cleanSingleLine(req.body.emailAddress || settings.fromEmail || settings.smtpUser || "");
+
+    if (!recipient) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter a test recipient email address first."
+      });
+    }
+
+    const result = await sendEmail({
+      userId: req.user?.id || null,
+      recipientRole: "admin",
+      emailAddress: recipient,
+      subject: "Philtech-GMA Email Test",
+      message: [
+        "This is a test email from the Philtech-GMA Disciplinary System.",
+        "",
+        `Sent at: ${new Date().toISOString()}`,
+        `Portal URL: ${settings.frontendUrl || "(not configured)"}`
+      ].join("\n")
+    });
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.reason || "Test email failed.",
+        status: result.status || "failed"
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: `Test email sent to ${recipient}.`
+    });
+  } catch (error) {
+    console.error("Send test email error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server error while sending test email."
+    });
+  }
+}
+
 module.exports = {
   getSmsSettings,
   updateSemaphoreSettings,
   getEmailSettings,
-  updateEmailSettings
+  updateEmailSettings,
+  sendTestEmail
 };

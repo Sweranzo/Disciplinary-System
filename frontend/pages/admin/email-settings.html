@@ -111,6 +111,17 @@
         <p class="field-helper">This is the link students and parents receive in account emails.</p>
       </div>
 
+      <div class="field-stack">
+        <label for="testEmailAddress">Test Recipient</label>
+        <input type="email" id="testEmailAddress" placeholder="Send a test email to...">
+        <p class="field-helper">Use this after saving to verify Gmail delivery from the live backend.</p>
+      </div>
+
+      <div class="action-row" style="margin-top:12px;">
+        <button type="button" id="sendTestEmailBtn" class="secondary">Send Test Email</button>
+        <span id="testEmailResult" class="muted"></span>
+      </div>
+
       <div class="detail-item" style="margin-top:16px;">
         <p><strong>What this changes</strong></p>
         <p>Saving updates `EMAIL_ENABLED`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`, and `FRONTEND_URL` in the backend environment file.</p>
@@ -148,6 +159,7 @@ function renderSettings(settings = {}) {
   document.getElementById("fromEmail").value = settings.fromEmail || "";
   document.getElementById("fromName").value = settings.fromName || "Philtech-GMA";
   document.getElementById("frontendUrl").value = settings.frontendUrl || "";
+  document.getElementById("testEmailAddress").value = settings.fromEmail || settings.smtpUser || "";
   document.getElementById("smtpPassword").value = "";
   document.getElementById("smtpPassword").disabled = false;
   document.getElementById("clearSmtpPassword").checked = false;
@@ -198,8 +210,25 @@ async function saveSettings() {
   setResult(res.message || "Email settings saved.");
 }
 
+async function sendTestEmail() {
+  const button = document.getElementById("sendTestEmailBtn");
+  const result = document.getElementById("testEmailResult");
+  button.disabled = true;
+  result.textContent = "Sending test email...";
+  result.style.color = "";
+
+  const res = await apiRequest("/admin/email-settings/test", "POST", {
+    emailAddress: document.getElementById("testEmailAddress").value.trim()
+  }, true);
+
+  button.disabled = false;
+  result.textContent = res.message || (res.success ? "Test email sent." : "Test email failed.");
+  result.style.color = res.success ? "" : "var(--danger)";
+}
+
 document.getElementById("saveSettingsBtn").addEventListener("click", saveSettings);
 document.getElementById("refreshSettingsBtn").addEventListener("click", loadSettings);
+document.getElementById("sendTestEmailBtn").addEventListener("click", sendTestEmail);
 document.getElementById("clearSmtpPassword").addEventListener("change", event => {
   document.getElementById("smtpPassword").disabled = event.target.checked;
   if (event.target.checked) {

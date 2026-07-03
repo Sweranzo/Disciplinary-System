@@ -37,7 +37,8 @@ const {
   getSmsSettings,
   updateSemaphoreSettings,
   getEmailSettings,
-  updateEmailSettings
+  updateEmailSettings,
+  sendTestEmail
 } = require("../controllers/adminSettingsController");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
@@ -90,5 +91,6 @@ router.get("/sms-settings", getSmsSettings);
 router.put("/sms-settings/semaphore", updateSemaphoreSettings);
 router.get("/email-settings", getEmailSettings);
 router.put("/email-settings", updateEmailSettings);
+router.post("/email-settings/test", sendTestEmail);
 
 module.exports = router;

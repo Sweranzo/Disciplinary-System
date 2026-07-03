@@ -30,11 +30,18 @@ function getPortalUrl() {
 
 async function sendEnrollmentNotifications({ credentials = [], userId = null, ipAddress = null }) {
   for (const credential of credentials) {
-    await sendAccountCredentialsEmail({
+    const emailResult = await sendAccountCredentialsEmail({
       credential,
       studentId: credential.studentId || null,
       parentId: credential.parentId || null,
       userId: credential.userId || null
+    });
+    console.info("Enrollment credential email result:", {
+      role: credential.role,
+      userId: credential.userId || null,
+      recipient: credential.email,
+      status: emailResult.status || (emailResult.success ? "sent" : "failed"),
+      reason: emailResult.reason || null
     });
   }
 
@@ -43,7 +50,7 @@ async function sendEnrollmentNotifications({ credentials = [], userId = null, ip
       continue;
     }
 
-    await sendSms({
+    const smsResult = await sendSms({
       parentId: credential.parentId || null,
       phoneNumber: credential.phoneNumber,
       userId,
@@ -55,6 +62,12 @@ async function sendEnrollmentNotifications({ credentials = [], userId = null, ip
         password: credential.password,
         portalUrl: getPortalUrl()
       })
+    });
+    console.info("Enrollment credential SMS result:", {
+      role: credential.role,
+      parentId: credential.parentId || null,
+      status: smsResult.status || (smsResult.success ? "sent" : "failed"),
+      reason: smsResult.reason || null
     });
   }
 }
