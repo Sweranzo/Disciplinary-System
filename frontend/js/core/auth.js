@@ -165,13 +165,25 @@ function getApiOrigin() {
   return DEFAULT_API_ORIGIN;
 }
 
-function buildFrontendPageUrl(target) {
-  const marker = "/frontend/pages/";
-  const normalizedPath = window.location.pathname.replace(/\\/g, "/");
-  const markerIndex = normalizedPath.lastIndexOf(marker);
+const FRONTEND_PAGE_ROOT_MARKERS = ["/frontend/pages/", "/pages/"];
 
-  if (markerIndex >= 0) {
-    const rootPath = normalizedPath.slice(0, markerIndex + marker.length);
+function getFrontendPageRootMatch(pathname = window.location.pathname.replace(/\\/g, "/")) {
+  return FRONTEND_PAGE_ROOT_MARKERS
+    .map(marker => ({ marker, index: pathname.lastIndexOf(marker) }))
+    .filter(match => match.index >= 0)
+    .sort((a, b) => b.index - a.index)[0] || null;
+}
+
+function isFrontendPagePath(pathname = window.location.pathname.replace(/\\/g, "/")) {
+  return Boolean(getFrontendPageRootMatch(pathname));
+}
+
+function buildFrontendPageUrl(target) {
+  const normalizedPath = window.location.pathname.replace(/\\/g, "/");
+  const matchedMarker = getFrontendPageRootMatch(normalizedPath);
+
+  if (matchedMarker) {
+    const rootPath = normalizedPath.slice(0, matchedMarker.index + matchedMarker.marker.length);
     if (window.location.protocol === "file:") {
       return `${rootPath}${target}`;
     }
@@ -533,8 +545,13 @@ function getRoleProfilePath(role) {
 }
 
 function isSharedAppPage(pathname = window.location.pathname.replace(/\\/g, "/")) {
-  return pathname.includes("/frontend/pages/")
-    && !pathname.includes("/frontend/pages/auth/");
+  const matchedMarker = getFrontendPageRootMatch(pathname);
+  if (!matchedMarker) {
+    return false;
+  }
+
+  const authPath = `${matchedMarker.marker}auth/`;
+  return !pathname.includes(authPath);
 }
 
 function logout() {
@@ -2077,7 +2094,7 @@ document.addEventListener("click", event => {
 
     const isSameOriginAppLink = resolvedHref
       && resolvedHref.origin === window.location.origin
-      && resolvedHref.pathname.includes("/frontend/pages/");
+      && isFrontendPagePath(resolvedHref.pathname);
 
     if (
       href
