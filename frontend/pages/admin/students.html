@@ -1361,9 +1361,10 @@ async function createStudent() {
     closeModal("createStudentModal");
     const credentials = Array.isArray(res.credentials) ? res.credentials.length : 0;
     const emailSummary = res.emailNotifications || {};
+    const smsSummary = res.smsNotifications || {};
     await showAppNotice(
       "Student created",
-      `${res.message || "Student created successfully."} Generated login accounts: ${credentials}. Credential emails sent: ${emailSummary.sent || 0}, disabled: ${emailSummary.disabled || 0}, failed: ${emailSummary.failed || 0}.`
+      `${res.message || "Student created successfully."} Generated login accounts: ${credentials}. Credential emails sent: ${emailSummary.sent || 0}, disabled: ${emailSummary.disabled || 0}, failed: ${emailSummary.failed || 0}. Credential SMS sent: ${smsSummary.sent || 0}, disabled: ${smsSummary.disabled || 0}, failed: ${smsSummary.failed || 0}, skipped: ${smsSummary.skipped || 0}.`
     );
   }
 }

@@ -21,7 +21,12 @@ const {
 } = require("../utils/identityService");
 const { parseMasterlistText } = require("../utils/masterlistOcrParser");
 const { sendAccountCredentialsEmail } = require("../utils/emailService");
+const { sendSms, renderSmsTemplate } = require("../utils/smsService");
 const OCR_LANG_PATH = path.join(__dirname, "..", "node_modules", "@tesseract.js-data", "eng", "4.0.0");
+
+function getPortalUrl() {
+  return String(process.env.FRONTEND_URL || process.env.PORTAL_URL || "http://127.0.0.1:5500/frontend/pages/auth/login.html").trim();
+}
 
 function getPageMeta(req) {
   const page = Math.max(1, Number(req.query.page) || 1);
@@ -1226,6 +1231,7 @@ async function createStudent(req, res) {
           username: parentUsername,
           password: parentPassword,
           email: parentEmail,
+          phoneNumber: newParent.phoneNumber || "",
           generatedUsername: true,
           generatedPassword: true
         });
@@ -1278,6 +1284,44 @@ async function createStudent(req, res) {
       }
     }
 
+    const smsNotifications = {
+      attempted: 0,
+      sent: 0,
+      failed: 0,
+      disabled: 0,
+      skipped: 0
+    };
+
+    for (const credential of credentials.filter(item => item.role === "parent")) {
+      if (!credential.phoneNumber) {
+        smsNotifications.skipped += 1;
+        continue;
+      }
+
+      smsNotifications.attempted += 1;
+      const smsResult = await sendSms({
+        parentId: credential.parentId || null,
+        phoneNumber: credential.phoneNumber,
+        userId: req.user?.id || null,
+        ipAddress: req.ip,
+        message: renderSmsTemplate("accountCredentials", {
+          recipientName: credential.name || "Parent/Guardian",
+          roleLabel: "parent",
+          username: credential.username,
+          password: credential.password,
+          portalUrl: getPortalUrl()
+        })
+      });
+
+      if (smsResult.success) {
+        smsNotifications.sent += 1;
+      } else if (smsResult.status === "disabled") {
+        smsNotifications.disabled += 1;
+      } else {
+        smsNotifications.failed += 1;
+      }
+    }
+
     return res.status(201).json({
       success: true,
       message: "Student record created successfully.",
@@ -1285,7 +1329,8 @@ async function createStudent(req, res) {
       qrToken: createdStudent.qrToken,
       qrCodeDataUrl: await generateQrDataUrl(studentNumber, createdStudent.qrToken),
       credentials,
-      emailNotifications
+      emailNotifications,
+      smsNotifications
     });
   } catch (error) {
     await connection.rollback();

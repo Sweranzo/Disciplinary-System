@@ -34,6 +34,11 @@ const SMS_TEMPLATE_CONFIG = Object.freeze({
     envKey: "SMS_TEMPLATE_SANCTION_UPDATED",
     label: "Sanction Updated",
     defaultValue: "Dear {parentName}, Philtech-GMA Sanction Update: Case {caseNumber} sanction is now {status}.{startDateSentence}{endDateSentence}"
+  },
+  accountCredentials: {
+    envKey: "SMS_TEMPLATE_ACCOUNT_CREDENTIALS",
+    label: "Account Credentials",
+    defaultValue: "Dear {recipientName}, your Philtech-GMA {roleLabel} portal account is ready. Username: {username}. Temporary password: {password}. Login: {portalUrl}"
   }
 });
 
